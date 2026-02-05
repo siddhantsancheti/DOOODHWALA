@@ -26,8 +26,8 @@ export class OTPService {
                 message: "OTP sent successfully"
             };
 
-            // Always return debug code in development
-            if (process.env.NODE_ENV !== 'production') {
+            // Only return debug code in development ENVIRONMENT, never in production
+            if (process.env.NODE_ENV === 'development') {
                 response.debugCode = code;
             }
 

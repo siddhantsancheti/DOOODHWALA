@@ -1,7 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Backend API URL - empty string means same domain (Vite proxy handles it)
-const API_BASE_URL = "";
+// Backend API URL - empty string means same domain (Vite proxy handles it in dev), but for mobile/production build we might need full URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {

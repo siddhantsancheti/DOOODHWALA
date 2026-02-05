@@ -33,6 +33,8 @@ import MilkmanProfileSetup from "@/pages/milkman-profile-setup";
 import Gateway from "@/pages/gateway";
 
 
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+
 function AppRouter() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -50,6 +52,7 @@ function AppRouter() {
     <Switch>
       {/* Public routes - always accessible */}
       <Route path="/login" component={Login} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/user-type-selection" component={UserTypeSelection} />
       <Route path="/profile-setup" component={ProfileSetup} />
       <Route path="/milkman-profile-setup" component={MilkmanProfileSetup} />

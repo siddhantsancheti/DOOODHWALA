@@ -7,7 +7,14 @@ const router = Router();
 
 // Security: Simple API Key for the Gateway
 // In production, this should be in .env
-const GATEWAY_SECRET = process.env.GATEWAY_SECRET || "dooodhwala-gateway-secret-key";
+// Security: Simple API Key for the Gateway
+// In production, this should be in .env
+const GATEWAY_SECRET = process.env.GATEWAY_SECRET;
+
+if (!GATEWAY_SECRET) {
+    console.error("GATEWAY_SECRET is not set. Android Gateway integration will fail.");
+}
+
 
 // Middleware to check Gateway Secret
 const requireGatewayAuth = (req: any, res: any, next: any) => {

@@ -25,12 +25,12 @@ export default function Home() {
   });
 
   useEffect(() => {
-    if (user && user.userType === "customer" && customerProfile) {
+    if (user && user.userType === "customer") {
       setLocation("/customer");
-    } else if (user && user.userType === "milkman" && milkmanProfile) {
+    } else if (user && user.userType === "milkman") {
       setLocation("/milkman");
     }
-  }, [user, customerProfile, milkmanProfile, setLocation]);
+  }, [user, setLocation]);
 
   const handleCustomerSetup = () => {
     setLocation("/customer");

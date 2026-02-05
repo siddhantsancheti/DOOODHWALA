@@ -1,58 +1,31 @@
 import multer from "multer";
-import { Storage } from "@google-cloud/storage";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
-// Initialize GCS
-// Assumes GOOGLE_APPLICATION_CREDENTIALS is set or implicit auth works
-const storage = new Storage();
-const bucketName = process.env.GCS_BUCKET_NAME || "doodhwala-uploads";
-const bucket = storage.bucket(bucketName);
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "demo", // Fallback for safety, but env required for prod
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-// Custom Multer Storage Engine for GCS
-class GCSStorageEngine implements multer.StorageEngine {
-    _handleFile(req: any, file: Express.Multer.File, cb: (error?: any, info?: Partial<Express.Multer.File>) => void): void {
+// Configure Storage Engine
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: async (req, file) => {
+        // Generate a unique public ID (filename)
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const filename = uniqueSuffix + path.extname(file.originalname);
-        const blob = bucket.file(filename);
-
-        const blobStream = blob.createWriteStream({
-            resumable: false,
-            gzip: true, // Optional: compress files
-            public: true, // Make file public? Or signed URLs? 
-            // Requirement says "return the public URL". 
-            // Assuming public bucket or ACL. If not public, we need Signed URLs which expire.
-            // For profile images, public read is usually desired.
-            metadata: {
-                contentType: file.mimetype,
-            },
-        });
-
-        blobStream.on('error', (err) => {
-            cb(err);
-        });
-
-        blobStream.on('finish', () => {
-            const publicUrl = `https://storage.googleapis.com/${bucketName}/${filename}`;
-
-            cb(null, {
-                path: publicUrl, // Set path to the URL so controllers can use it easily
-                filename: filename,
-                size: (blobStream as any).bytesWritten || 0 // Approximate
-            });
-        });
-
-        file.stream.pipe(blobStream);
-    }
-
-    _removeFile(req: any, file: Express.Multer.File, cb: (error: Error | null) => void): void {
-        const filename = file.filename;
-        const blob = bucket.file(filename);
-        blob.delete().then(() => cb(null)).catch((err) => cb(err));
-    }
-}
+        return {
+            folder: 'doodhwala-uploads',
+            format: 'jpeg', // Force format or remove to keep original
+            public_id: `file-${uniqueSuffix}`,
+            allowed_formats: ['jpg', 'png', 'jpeg', 'webp'], // Restrict formats
+        };
+    },
+});
 
 const upload = multer({
-    storage: new GCSStorageEngine(),
+    storage: storage,
     limits: {
         fileSize: 5 * 1024 * 1024, // 5MB limit
     }

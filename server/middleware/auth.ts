@@ -5,7 +5,11 @@ import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Make sure this matches the one in authRoutes.ts or better yet, move it to a shared config
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET is not defined in environment variables");
+}
 
 export interface AuthRequest extends Request {
     user?: any;

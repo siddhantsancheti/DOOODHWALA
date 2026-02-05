@@ -81,15 +81,22 @@ export function useAuth() {
     const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
 
     // Only clear tokens if we have a token, no auth response, finished loading, and have an actual auth error
+    // IMPORTANT: Do NOT clear on network errors (status 0 or 5xx) to support offline mode/flaky connections
     if (token && !authResponse && !isLoading && error) {
-      console.log('Auth error detected, clearing potentially invalid tokens');
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      // Use setTimeout to prevent immediate re-trigger
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      }, 100);
+      const errMsg = error.message || "";
+      // Check for 401/403 explicitly or specific auth tokens
+      if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('Unauthorized')) {
+        console.log('Auth error detected (401/403), clearing invalid tokens');
+        localStorage.removeItem('token');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        // Use setTimeout to prevent immediate re-trigger
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        }, 100);
+      } else {
+        console.log('Non-auth error detected (Network/Server), preserving token:', errMsg);
+      }
     }
   }, [error]); // Only depend on error to prevent unnecessary runs
 
