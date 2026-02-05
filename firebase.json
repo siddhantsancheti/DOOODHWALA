@@ -1,0 +1,34 @@
+{
+  "projects": {
+    "default": "dooodhwala-backend"
+  },
+  "hosting": {
+    "public": "dist/public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=31536000"
+          }
+        ]
+      }
+    ]
+  },
+  "functions": {
+    "source": "server",
+    "runtime": "nodejs20"
+  }
+}

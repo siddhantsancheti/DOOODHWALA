@@ -1,0 +1,607 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DairyDirect - Your Trusted Milk Delivery Marketplace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'dairy-blue': '#2563EB',
+                        'dairy-green': '#059669',
+                        'dairy-red': '#DC2626',
+                        'dairy-cream': '#FEF7ED',
+                        'dairy-white': '#FEFEFE'
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="font-inter bg-gray-50">
+    <!-- @COMPONENT: AuthToggle [switches between customer and milkman interfaces] -->
+    <div class="fixed top-4 right-4 z-50">
+        <div class="bg-white rounded-full p-1 shadow-lg border">
+            <button data-auth-toggle="customer" class="px-4 py-2 rounded-full bg-dairy-blue text-white text-sm font-medium">Customer</button>
+            <button data-auth-toggle="milkman" class="px-4 py-2 rounded-full text-gray-600 text-sm font-medium hover:bg-gray-100">Milkman</button>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: AuthToggle -->
+
+    <!-- @COMPONENT: MobileHeader [main navigation for mobile] -->
+    <header class="bg-white shadow-sm border-b sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-glass-milk text-dairy-blue text-2xl mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">DairyDirect</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="relative p-2">
+                        <i class="fas fa-bell text-gray-600"></i>
+                        <span class="absolute -top-1 -right-1 h-4 w-4 bg-dairy-red rounded-full text-xs text-white flex items-center justify-center">3</span>
+                    </button>
+                    <div class="w-8 h-8 rounded-full bg-dairy-cream flex items-center justify-center">
+                        <span class="text-sm font-medium text-dairy-blue" data-bind="user.initials">JD</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- @END_COMPONENT: MobileHeader -->
+
+    <!-- @COMPONENT: QuickOrderSection [YD feature and daily order] -->
+    <section class="bg-gradient-to-r from-dairy-blue to-blue-600 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold mb-2">Your Doodhwala (YD)</h2>
+                <p class="text-blue-100">Quick daily order with your assigned milkman</p>
+            </div>
+            
+            <!-- @STATE: hasAssignedMilkman:boolean = true -->
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-6" data-mock="true">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <!-- Profile image of assigned milkman -->
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&w=150&h=150&fit=crop" 
+                             alt="Assigned milkman profile" 
+                             class="w-12 h-12 rounded-full object-cover border-2 border-white/20" data-mock-image="true">
+                        <div class="ml-3">
+                            <h3 class="font-semibold" data-bind="assignedMilkman.name">Rajesh Kumar</h3>
+                            <p class="text-blue-100 text-sm" data-bind="assignedMilkman.rating">⭐ 4.8 • 2.3 km away</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center text-green-300">
+                        <i class="fas fa-circle text-xs mr-1"></i>
+                        <span class="text-sm">Available</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <button data-event="click:quickOrder" data-implementation="Should place order for regular milk quantity" 
+                            class="bg-dairy-green hover:bg-green-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-glass-milk mr-2"></i>
+                        Quick Order (500ml)
+                    </button>
+                    <button data-event="click:customOrder" 
+                            class="bg-white/20 hover:bg-white/30 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-edit mr-2"></i>
+                        Custom Order
+                    </button>
+                </div>
+                
+                <div class="text-center">
+                    <button data-event="click:trackMilkman" class="text-blue-100 hover:text-white text-sm underline">
+                        <i class="fas fa-map-marker-alt mr-1"></i>
+                        Track Your Doodhwala
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: QuickOrderSection -->
+
+    <!-- @COMPONENT: AvailableMilkmenSection [browse and select milkmen] -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-gray-900">Available Milkmen</h2>
+            <button class="text-dairy-blue hover:text-blue-700 text-sm font-medium">
+                <i class="fas fa-filter mr-1"></i>
+                Filter
+            </button>
+        </div>
+
+        <!-- @MAP: availableMilkmen.map(milkman => ( -->
+        <div class="space-y-4">
+            <div class="bg-white rounded-xl shadow-sm border p-4 hover:shadow-md transition-shadow" data-mock="true">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start">
+                        <!-- Individual milkman profile image -->
+                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&w=150&h=150&fit=crop" 
+                             alt="Milkman profile" 
+                             class="w-12 h-12 rounded-full object-cover" data-mock-image="true">
+                        <div class="ml-3 flex-1">
+                            <h3 class="font-semibold text-gray-900" data-bind="milkman.name">Suresh Patel</h3>
+                            <p class="text-gray-600 text-sm" data-bind="milkman.experience">5 years experience • Pure Desi Cow Milk</p>
+                            <div class="flex items-center mt-1">
+                                <span class="text-yellow-500 text-sm">⭐ 4.9</span>
+                                <span class="text-gray-500 text-sm ml-1" data-bind="milkman.reviews">(127 reviews)</span>
+                                <span class="text-gray-400 mx-2">•</span>
+                                <span class="text-gray-600 text-sm" data-bind="milkman.distance">1.8 km away</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold text-gray-900" data-bind="milkman.price">₹25/L</p>
+                        <div class="flex items-center text-green-600 text-sm mt-1">
+                            <i class="fas fa-circle text-xs mr-1"></i>
+                            <span>Available Now</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 flex space-x-3">
+                    <button data-event="click:orderNow" data-implementation="Should open order dialog" 
+                            class="flex-1 bg-dairy-blue hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                        Order Now
+                    </button>
+                    <button data-event="click:assignAsYD" data-implementation="Should assign as regular milkman" 
+                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors">
+                        Assign as YD
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border p-4" data-mock="true">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start">
+                        <!-- Another milkman profile image -->
+                        <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&w=150&h=150&fit=crop" 
+                             alt="Milkman profile" 
+                             class="w-12 h-12 rounded-full object-cover" data-mock-image="true">
+                        <div class="ml-3 flex-1">
+                            <h3 class="font-semibold text-gray-900" data-bind="milkman.name">Amit Sharma</h3>
+                            <p class="text-gray-600 text-sm" data-bind="milkman.experience">8 years experience • A2 Milk Available</p>
+                            <div class="flex items-center mt-1">
+                                <span class="text-yellow-500 text-sm">⭐ 4.7</span>
+                                <span class="text-gray-500 text-sm ml-1" data-bind="milkman.reviews">(89 reviews)</span>
+                                <span class="text-gray-400 mx-2">•</span>
+                                <span class="text-gray-600 text-sm" data-bind="milkman.distance">2.1 km away</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold text-gray-900" data-bind="milkman.price">₹30/L</p>
+                        <div class="flex items-center text-orange-600 text-sm mt-1">
+                            <i class="fas fa-clock text-xs mr-1"></i>
+                            <span>Busy (30 min)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 flex space-x-3">
+                    <button disabled class="flex-1 bg-gray-300 text-gray-500 font-medium py-2 px-4 rounded-lg cursor-not-allowed">
+                        Currently Busy
+                    </button>
+                    <button data-event="click:assignAsYD" 
+                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors">
+                        Assign as YD
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- @END_MAP )) -->
+    </section>
+    <!-- @END_COMPONENT: AvailableMilkmenSection -->
+
+    <!-- @COMPONENT: TrackingSection [track milkman location] -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">Track Your Doodhwala</h2>
+        
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <!-- @FUNCTIONALITY: This map should show real-time location tracking using Google Maps or similar -->
+            <div class="relative h-64 bg-gray-200 flex items-center justify-center" data-implementation="Integrate with Google Maps API for real-time tracking">
+                <!-- Static map placeholder showing delivery route -->
+                <img src="https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?ixlib=rb-4.0.3&w=800&h=400&fit=crop" 
+                     alt="Map showing delivery route" 
+                     class="w-full h-full object-cover" data-mock-image="true">
+                <div class="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <div class="bg-white rounded-lg p-4 text-center shadow-lg">
+                        <i class="fas fa-map-marked-alt text-dairy-blue text-2xl mb-2"></i>
+                        <p class="text-gray-800 font-medium">Live Tracking</p>
+                        <p class="text-gray-600 text-sm">Rajesh is 5 min away</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                        <span class="text-sm font-medium text-gray-900">En Route to Your Location</span>
+                    </div>
+                    <span class="text-sm text-gray-600">ETA: 5 minutes</span>
+                </div>
+                <div class="mt-2 bg-gray-200 rounded-full h-2">
+                    <div class="bg-dairy-green h-2 rounded-full w-3/4 transition-all duration-500"></div>
+                </div>
+                <div class="mt-3 flex justify-between items-center">
+                    <button data-event="click:callMilkman" class="flex items-center text-dairy-blue hover:text-blue-700 text-sm font-medium">
+                        <i class="fas fa-phone mr-1"></i>
+                        Call Rajesh
+                    </button>
+                    <button data-event="click:cancelOrder" class="flex items-center text-dairy-red hover:text-red-700 text-sm font-medium">
+                        <i class="fas fa-times mr-1"></i>
+                        Cancel Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: TrackingSection -->
+
+    <!-- @COMPONENT: BillingSection [monthly billing page] -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-gray-900">Monthly Billing</h2>
+            <div class="flex items-center space-x-2">
+                <span class="text-sm text-gray-600">Billing Cycle:</span>
+                <span class="text-sm font-medium text-dairy-blue" data-bind="billingCycle">Oct 1 - Oct 31, 2024</span>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div class="p-6 border-b bg-dairy-cream/30">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-gray-900" data-bind="totalOrders">28</p>
+                        <p class="text-sm text-gray-600">Total Orders</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-gray-900" data-bind="totalLiters">14.5L</p>
+                        <p class="text-sm text-gray-600">Total Milk</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-dairy-green" data-bind="savedAmount">₹75</p>
+                        <p class="text-sm text-gray-600">Savings</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-dairy-blue" data-bind="totalAmount">₹725</p>
+                        <p class="text-sm text-gray-600">Total Amount</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Milkman</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <!-- @MAP: billingData.map(entry => ( -->
+                        <tr data-mock="true">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-bind="entry.date">Oct 1, 2024</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-bind="entry.milkman">Rajesh Kumar</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-bind="entry.quantity">500ml</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-bind="entry.rate">₹25/L</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-bind="entry.amount">₹12.50</td>
+                        </tr>
+                        <tr data-mock="true">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Oct 2, 2024</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rajesh Kumar</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">500ml</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹25/L</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹12.50</td>
+                        </tr>
+                        <tr data-mock="true">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Oct 3, 2024</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Suresh Patel</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">1L</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹25/L</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹25.00</td>
+                        </tr>
+                        <!-- @END_MAP )) -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-6 border-t bg-gray-50">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-lg font-semibold text-gray-900">Total Amount Due:</span>
+                    <span class="text-2xl font-bold text-dairy-blue" data-bind="totalDue">₹725.00</span>
+                </div>
+                <button data-event="click:proceedToPayment" data-implementation="Should open payment gateway" 
+                        class="w-full bg-dairy-green hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                    <i class="fas fa-credit-card mr-2"></i>
+                    Proceed to Payment
+                </button>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: BillingSection -->
+
+    <!-- @COMPONENT: PaymentGateway [payment processing interface] -->
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden" id="paymentModal" data-implementation="Show/hide based on payment trigger">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-900">Complete Payment</h3>
+                    <button data-event="click:closePayment" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <div class="bg-dairy-cream/50 rounded-lg p-4 mb-6">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Amount to Pay:</span>
+                        <span class="text-xl font-bold text-dairy-blue" data-bind="paymentAmount">₹725.00</span>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="paymentMethod" value="upi" class="mr-3" checked>
+                                <i class="fas fa-mobile-alt text-dairy-blue mr-2"></i>
+                                <span>UPI Payment</span>
+                            </label>
+                            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="paymentMethod" value="card" class="mr-3">
+                                <i class="fas fa-credit-card text-dairy-blue mr-2"></i>
+                                <span>Credit/Debit Card</span>
+                            </label>
+                            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="paymentMethod" value="netbanking" class="mr-3">
+                                <i class="fas fa-university text-dairy-blue mr-2"></i>
+                                <span>Net Banking</span>
+                            </label>
+                            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                <input type="radio" name="paymentMethod" value="cod" class="mr-3">
+                                <i class="fas fa-money-bill-wave text-dairy-blue mr-2"></i>
+                                <span>Cash on Delivery</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div data-payment-form="upi">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">UPI ID</label>
+                        <input type="text" placeholder="yourname@upi" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-dairy-blue focus:border-transparent">
+                    </div>
+                </div>
+
+                <button data-event="click:processPayment" data-implementation="Should process payment via selected method" 
+                        class="w-full mt-6 bg-dairy-green hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                    <i class="fas fa-lock mr-2"></i>
+                    Secure Payment - ₹725.00
+                </button>
+
+                <p class="text-xs text-gray-500 text-center mt-4">
+                    <i class="fas fa-shield-alt mr-1"></i>
+                    Your payment is secured with 256-bit SSL encryption
+                </p>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: PaymentGateway -->
+
+    <!-- @COMPONENT: MilkmanDashboardPreview [separate interface for milkmen] -->
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden" id="milkmanDashboard" data-implementation="Show when milkman interface is selected">
+        <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b bg-dairy-blue text-white">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-xl font-semibold">Milkman Dashboard</h3>
+                        <p class="text-blue-100">Welcome back, Rajesh Kumar</p>
+                    </div>
+                    <button data-event="click:closeMilkmanDashboard" class="text-blue-100 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <!-- Today's Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-green-50 rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-green-600" data-bind="todayOrders">12</p>
+                        <p class="text-sm text-green-700">Today's Orders</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-blue-600" data-bind="totalEarnings">₹350</p>
+                        <p class="text-sm text-blue-700">Today's Earnings</p>
+                    </div>
+                    <div class="bg-orange-50 rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-orange-600" data-bind="pendingOrders">3</p>
+                        <p class="text-sm text-orange-700">Pending Orders</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-purple-600" data-bind="rating">4.8</p>
+                        <p class="text-sm text-purple-700">Rating</p>
+                    </div>
+                </div>
+
+                <!-- Orders Management -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Order List -->
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-900 mb-4">Today's Orders</h4>
+                        <div class="space-y-3">
+                            <!-- @MAP: todayOrders.map(order => ( -->
+                            <div class="border rounded-lg p-4 hover:shadow-sm transition-shadow" data-mock="true">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h5 class="font-medium text-gray-900" data-bind="order.customerName">Priya Sharma</h5>
+                                        <p class="text-sm text-gray-600" data-bind="order.address">A-201, Green Valley, Sector 12</p>
+                                    </div>
+                                    <span class="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">Pending</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm text-gray-600">
+                                        <span data-bind="order.quantity">500ml</span> • <span data-bind="order.time">8:00 AM</span>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button data-event="click:acceptOrder" class="text-green-600 hover:text-green-800 text-sm">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button data-event="click:viewCustomerLocation" class="text-blue-600 hover:text-blue-800 text-sm">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                    </div>
+
+                    <!-- Customer Tracking Map -->
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-900 mb-4">Customer Locations</h4>
+                        <div class="bg-gray-200 rounded-lg h-64 flex items-center justify-center" data-implementation="Integrate with Google Maps API for customer tracking">
+                            <!-- Map showing customer locations -->
+                            <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?ixlib=rb-4.0.3&w=600&h=400&fit=crop" 
+                                 alt="Map showing customer delivery locations" 
+                                 class="w-full h-full object-cover rounded-lg" data-mock-image="true">
+                            <div class="absolute inset-0 bg-black/20 flex items-center justify-center rounded-lg">
+                                <div class="bg-white rounded-lg p-4 text-center shadow-lg">
+                                    <i class="fas fa-route text-dairy-blue text-2xl mb-2"></i>
+                                    <p class="text-gray-800 font-medium">Delivery Route</p>
+                                    <p class="text-gray-600 text-sm">12 stops remaining</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: MilkmanDashboardPreview -->
+
+    <!-- @COMPONENT: BottomNavigation [mobile navigation] -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg md:hidden z-30">
+        <div class="grid grid-cols-5 py-2">
+            <button class="flex flex-col items-center py-2 px-1 text-dairy-blue">
+                <i class="fas fa-home text-lg"></i>
+                <span class="text-xs mt-1">Home</span>
+            </button>
+            <button class="flex flex-col items-center py-2 px-1 text-gray-600 hover:text-dairy-blue">
+                <i class="fas fa-search text-lg"></i>
+                <span class="text-xs mt-1">Browse</span>
+            </button>
+            <button class="flex flex-col items-center py-2 px-1 text-gray-600 hover:text-dairy-blue">
+                <i class="fas fa-map-marked-alt text-lg"></i>
+                <span class="text-xs mt-1">Track</span>
+            </button>
+            <button class="flex flex-col items-center py-2 px-1 text-gray-600 hover:text-dairy-blue">
+                <i class="fas fa-receipt text-lg"></i>
+                <span class="text-xs mt-1">Bills</span>
+            </button>
+            <button class="flex flex-col items-center py-2 px-1 text-gray-600 hover:text-dairy-blue">
+                <i class="fas fa-user text-lg"></i>
+                <span class="text-xs mt-1">Profile</span>
+            </button>
+        </div>
+    </nav>
+    <!-- @END_COMPONENT: BottomNavigation -->
+
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        (function() {
+            // Interface switching functionality
+            const authButtons = document.querySelectorAll('[data-auth-toggle]');
+            const milkmanDashboard = document.getElementById('milkmanDashboard');
+            
+            authButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const role = this.getAttribute('data-auth-toggle');
+                    
+                    // Update active button
+                    authButtons.forEach(btn => {
+                        btn.classList.remove('bg-dairy-blue', 'text-white');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    });
+                    this.classList.add('bg-dairy-blue', 'text-white');
+                    this.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    
+                    // Show milkman dashboard if milkman is selected
+                    if (role === 'milkman') {
+                        milkmanDashboard.classList.remove('hidden');
+                    }
+                });
+            });
+
+            // Payment modal functionality
+            const paymentModal = document.getElementById('paymentModal');
+            const proceedPaymentBtn = document.querySelector('[data-event="click:proceedToPayment"]');
+            const closePaymentBtn = document.querySelector('[data-event="click:closePayment"]');
+
+            if (proceedPaymentBtn) {
+                proceedPaymentBtn.addEventListener('click', function() {
+                    paymentModal.classList.remove('hidden');
+                });
+            }
+
+            if (closePaymentBtn) {
+                closePaymentBtn.addEventListener('click', function() {
+                    paymentModal.classList.add('hidden');
+                });
+            }
+
+            // Close milkman dashboard
+            const closeMilkmanBtn = document.querySelector('[data-event="click:closeMilkmanDashboard"]');
+            if (closeMilkmanBtn) {
+                closeMilkmanBtn.addEventListener('click', function() {
+                    milkmanDashboard.classList.add('hidden');
+                    // Reset to customer view
+                    authButtons.forEach(btn => {
+                        btn.classList.remove('bg-dairy-blue', 'text-white');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    });
+                    document.querySelector('[data-auth-toggle="customer"]').classList.add('bg-dairy-blue', 'text-white');
+                    document.querySelector('[data-auth-toggle="customer"]').classList.remove('text-gray-600', 'hover:bg-gray-100');
+                });
+            }
+
+            // Payment method selection
+            const paymentMethodInputs = document.querySelectorAll('input[name="paymentMethod"]');
+            paymentMethodInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    // Hide all payment forms
+                    document.querySelectorAll('[data-payment-form]').forEach(form => {
+                        form.classList.add('hidden');
+                    });
+                    
+                    // Show selected payment form
+                    const selectedForm = document.querySelector(`[data-payment-form="${this.value}"]`);
+                    if (selectedForm) {
+                        selectedForm.classList.remove('hidden');
+                    }
+                });
+            });
+
+            // Simulate order status updates
+            setTimeout(() => {
+                const statusElements = document.querySelectorAll('.animate-pulse');
+                statusElements.forEach(el => {
+                    // Simulate status changes
+                });
+            }, 3000);
+        })();
+    </script>
+</body>
+</html>

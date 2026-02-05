@@ -1,0 +1,1010 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DairyDash - Your Daily Milk Delivery Partner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    'inter': ['Inter', 'sans-serif'],
+                },
+                colors: {
+                    'dairy-blue': '#E3F2FD',
+                    'dairy-green': '#E8F5E8',
+                    'primary-blue': '#2196F3',
+                    'secondary-green': '#4CAF50',
+                    'accent-orange': '#FF9800',
+                }
+            }
+        }
+    };
+    </script>
+</head>
+<body class="font-inter bg-gray-50">
+    <!-- Navigation Header -->
+    <nav class="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-glass-whiskey text-primary-blue text-2xl"></i>
+                    <span class="text-xl font-bold text-gray-900">DairyDash</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <button onclick="showSection('home')" class="nav-btn text-gray-600 hover:text-primary-blue transition-colors">Home</button>
+                    <button onclick="showSection('customer')" class="nav-btn text-gray-600 hover:text-primary-blue transition-colors">Customer</button>
+                    <button onclick="showSection('milkman')" class="nav-btn text-gray-600 hover:text-primary-blue transition-colors">Milkman</button>
+                    <button onclick="showSection('yd')" class="nav-btn text-gray-600 hover:text-primary-blue transition-colors font-medium">YD</button>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="text-primary-blue hover:bg-dairy-blue px-3 py-2 rounded-lg transition-colors">Login</button>
+                    <button class="bg-primary-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">Sign Up</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Bottom Navigation -->
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+        <div class="flex justify-around py-2">
+            <button onclick="showSection('home')" class="mobile-nav-btn flex flex-col items-center py-1 px-3">
+                <i class="fas fa-home text-xl"></i>
+                <span class="text-xs mt-1">Home</span>
+            </button>
+            <button onclick="showSection('customer')" class="mobile-nav-btn flex flex-col items-center py-1 px-3">
+                <i class="fas fa-user text-xl"></i>
+                <span class="text-xs mt-1">Customer</span>
+            </button>
+            <button onclick="showSection('milkman')" class="mobile-nav-btn flex flex-col items-center py-1 px-3">
+                <i class="fas fa-truck text-xl"></i>
+                <span class="text-xs mt-1">Milkman</span>
+            </button>
+            <button onclick="showSection('yd')" class="mobile-nav-btn flex flex-col items-center py-1 px-3">
+                <i class="fas fa-star text-xl"></i>
+                <span class="text-xs mt-1">YD</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- HOME SECTION -->
+    <div id="home-section" class="section-content">
+        <!-- Hero Section -->
+        <!-- A fresh glass of milk on a wooden table with morning sunlight -->
+        <div class="relative bg-gradient-to-br from-dairy-blue to-white py-20 px-4">
+            <div class="max-w-6xl mx-auto text-center">
+                <div class="mb-8">
+                    <i class="fas fa-glass-whiskey text-6xl text-primary-blue mb-4"></i>
+                </div>
+                <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+                    Fresh Milk, <span class="text-primary-blue">Daily Delivered</span>
+                </h1>
+                <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                    Connect with trusted local milkmen for fresh dairy products delivered right to your doorstep. 
+                    Track deliveries, manage orders, and enjoy the convenience of daily milk delivery.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="showSection('customer')" class="bg-primary-blue text-white px-8 py-4 rounded-xl text-lg font-medium hover:bg-blue-600 transition-all transform hover:scale-105">
+                        <i class="fas fa-user mr-2"></i>
+                        Order as Customer
+                    </button>
+                    <button onclick="showSection('milkman')" class="bg-secondary-green text-white px-8 py-4 rounded-xl text-lg font-medium hover:bg-green-600 transition-all transform hover:scale-105">
+                        <i class="fas fa-truck mr-2"></i>
+                        Join as Milkman
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="py-20 px-4">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Choose DairyDash?</h2>
+                    <p class="text-xl text-gray-600">Everything you need for seamless dairy delivery experience</p>
+                </div>
+                
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-shadow">
+                        <div class="bg-dairy-blue p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6">
+                            <i class="fas fa-map-marker-alt text-2xl text-primary-blue"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Live Tracking</h3>
+                        <p class="text-gray-600">Track your milkman in real-time and know exactly when your fresh milk will arrive at your doorstep.</p>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-shadow">
+                        <div class="bg-dairy-green p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6">
+                            <i class="fas fa-credit-card text-2xl text-secondary-green"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Monthly Billing</h3>
+                        <p class="text-gray-600">Convenient 30-day billing cycles with secure payment options. No daily payment hassles.</p>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-shadow">
+                        <div class="bg-orange-100 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6">
+                            <i class="fas fa-star text-2xl text-accent-orange"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Your Doodhwala</h3>
+                        <p class="text-gray-600">Assign a dedicated milkman and enjoy one-click daily ordering with personalized service.</p>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-shadow">
+                        <div class="bg-dairy-blue p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6">
+                            <i class="fas fa-mobile-alt text-2xl text-primary-blue"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Mobile First</h3>
+                        <p class="text-gray-600">Optimized for mobile devices with intuitive interface for both customers and milkmen.</p>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-shadow">
+                        <div class="bg-dairy-green p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6">
+                            <i class="fas fa-clock text-2xl text-secondary-green"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Flexible Scheduling</h3>
+                        <p class="text-gray-600">Set your preferred delivery times and manage your daily milk requirements effortlessly.</p>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-md transition-shadow">
+                        <div class="bg-orange-100 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6">
+                            <i class="fas fa-shield-alt text-2xl text-accent-orange"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Quality Assured</h3>
+                        <p class="text-gray-600">All our milkmen are verified and committed to delivering fresh, quality dairy products.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="bg-gradient-to-r from-primary-blue to-blue-600 py-20 px-4">
+            <div class="max-w-4xl mx-auto text-center text-white">
+                <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to Start Your Dairy Journey?</h2>
+                <p class="text-xl mb-8 text-blue-100">Join thousands of satisfied customers enjoying fresh milk delivery every day</p>
+                <button onclick="showSection('customer')" class="bg-white text-primary-blue px-8 py-4 rounded-xl text-lg font-medium hover:bg-gray-100 transition-all transform hover:scale-105">
+                    Get Started Today
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOMER SECTION -->
+    <div id="customer-section" class="section-content hidden">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Customer Dashboard Header -->
+            <div class="bg-white rounded-2xl shadow-sm border p-6 mb-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Welcome back, Priya!</h1>
+                        <p class="text-gray-600">Manage your daily milk orders and track deliveries</p>
+                    </div>
+                    <div class="mt-4 md:mt-0 flex items-center space-x-4">
+                        <div class="bg-dairy-blue px-4 py-2 rounded-lg">
+                            <span class="text-sm font-medium text-primary-blue">Next Delivery: Tomorrow 7:00 AM</span>
+                        </div>
+                        <button class="bg-primary-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>New Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <button class="bg-white p-6 rounded-xl shadow-sm border hover:shadow-md transition-all text-center">
+                    <div class="bg-dairy-blue p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-shopping-cart text-primary-blue"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-1">Quick Order</h3>
+                    <p class="text-sm text-gray-600">Place today's order</p>
+                </button>
+
+                <button class="bg-white p-6 rounded-xl shadow-sm border hover:shadow-md transition-all text-center">
+                    <div class="bg-dairy-green p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-map-marker-alt text-secondary-green"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-1">Track Delivery</h3>
+                    <p class="text-sm text-gray-600">See live location</p>
+                </button>
+
+                <button class="bg-white p-6 rounded-xl shadow-sm border hover:shadow-md transition-all text-center">
+                    <div class="bg-orange-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-receipt text-accent-orange"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-1">View Bills</h3>
+                    <p class="text-sm text-gray-600">Monthly billing</p>
+                </button>
+
+                <button onclick="showSection('yd')" class="bg-white p-6 rounded-xl shadow-sm border hover:shadow-md transition-all text-center">
+                    <div class="bg-purple-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-star text-purple-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-1">Your Doodhwala</h3>
+                    <p class="text-sm text-gray-600">Manage YD settings</p>
+                </button>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div class="grid lg:grid-cols-3 gap-8">
+                <!-- Available Milkmen -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-xl font-semibold text-gray-900">Available Milkmen Near You</h2>
+                            <button class="text-primary-blue hover:bg-dairy-blue px-3 py-1 rounded-lg transition-colors">
+                                <i class="fas fa-filter mr-1"></i>Filter
+                            </button>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Milkman Card 1 -->
+                            <div class="border rounded-xl p-4 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <!-- Profile photo of a friendly Indian milkman in traditional white attire -->
+                                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=100&h=100" alt="Milkman profile" class="w-12 h-12 rounded-full object-cover">
+                                        <div>
+                                            <h3 data-bind="milkman.name" class="font-semibold text-gray-900">Rajesh Kumar</h3>
+                                            <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                                <i class="fas fa-star text-yellow-400"></i>
+                                                <span data-bind="milkman.rating">4.8 (127 reviews)</span>
+                                                <span class="text-gray-400">•</span>
+                                                <span data-bind="milkman.distance">0.5 km away</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                            <i class="fas fa-circle text-green-500 mr-1"></i>Available
+                                        </div>
+                                        <button class="bg-primary-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                                            Order Now
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+                                    <span><i class="fas fa-glass-whiskey mr-1 text-primary-blue"></i>₹25/L</span>
+                                    <span><i class="fas fa-clock mr-1 text-secondary-green"></i>6:00 - 9:00 AM</span>
+                                    <span><i class="fas fa-truck mr-1 text-accent-orange"></i>Free delivery</span>
+                                </div>
+                            </div>
+
+                            <!-- Milkman Card 2 -->
+                            <div class="border rounded-xl p-4 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <!-- Profile photo of another friendly Indian milkman -->
+                                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=100&h=100" alt="Milkman profile" class="w-12 h-12 rounded-full object-cover">
+                                        <div>
+                                            <h3 data-bind="milkman.name" class="font-semibold text-gray-900">Suresh Yadav</h3>
+                                            <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                                <i class="fas fa-star text-yellow-400"></i>
+                                                <span data-bind="milkman.rating">4.6 (89 reviews)</span>
+                                                <span class="text-gray-400">•</span>
+                                                <span data-bind="milkman.distance">0.8 km away</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                                            <i class="fas fa-circle text-yellow-500 mr-1"></i>Busy
+                                        </div>
+                                        <button class="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg">
+                                            Notify Me
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+                                    <span><i class="fas fa-glass-whiskey mr-1 text-primary-blue"></i>₹22/L</span>
+                                    <span><i class="fas fa-clock mr-1 text-secondary-green"></i>5:30 - 8:30 AM</span>
+                                    <span><i class="fas fa-truck mr-1 text-accent-orange"></i>₹5 delivery</span>
+                                </div>
+                            </div>
+
+                            <!-- Milkman Card 3 -->
+                            <div class="border rounded-xl p-4 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <!-- Profile photo of third milkman -->
+                                        <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=100&h=100" alt="Milkman profile" class="w-12 h-12 rounded-full object-cover">
+                                        <div>
+                                            <h3 data-bind="milkman.name" class="font-semibold text-gray-900">Amit Sharma</h3>
+                                            <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                                <i class="fas fa-star text-yellow-400"></i>
+                                                <span data-bind="milkman.rating">4.9 (203 reviews)</span>
+                                                <span class="text-gray-400">•</span>
+                                                <span data-bind="milkman.distance">1.2 km away</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                            <i class="fas fa-circle text-green-500 mr-1"></i>Available
+                                        </div>
+                                        <button class="bg-primary-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                                            Order Now
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+                                    <span><i class="fas fa-glass-whiskey mr-1 text-primary-blue"></i>₹28/L</span>
+                                    <span><i class="fas fa-clock mr-1 text-secondary-green"></i>6:30 - 9:30 AM</span>
+                                    <span><i class="fas fa-truck mr-1 text-accent-orange"></i>Free delivery</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="space-y-6">
+                    <!-- Order Status -->
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Today's Order</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">2L Milk</span>
+                                <span class="font-medium">₹50</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="bg-secondary-green text-white p-1 rounded-full">
+                                    <i class="fas fa-check text-xs"></i>
+                                </div>
+                                <span class="text-sm text-gray-600">Order confirmed</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="bg-yellow-400 text-white p-1 rounded-full">
+                                    <i class="fas fa-truck text-xs"></i>
+                                </div>
+                                <span class="text-sm text-gray-600">Out for delivery</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Billing Summary -->
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">This Month's Bill</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Days ordered: 15</span>
+                                <span class="font-medium">₹750</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Delivery charges</span>
+                                <span class="font-medium">₹0</span>
+                            </div>
+                            <hr>
+                            <div class="flex justify-between text-lg font-semibold">
+                                <span>Total</span>
+                                <span class="text-primary-blue">₹750</span>
+                            </div>
+                            <button class="w-full bg-primary-blue text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                                Pay Now
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Tracking -->
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Track Your Milkman</h3>
+                        <!-- Simple map placeholder showing delivery route with markers -->
+                        <div class="bg-gray-100 rounded-lg h-40 flex items-center justify-center mb-4">
+                            <div class="text-center text-gray-500">
+                                <i class="fas fa-map text-2xl mb-2"></i>
+                                <p class="text-sm">Map showing live location</p>
+                                <p class="text-xs">Rajesh is 5 mins away</p>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-clock text-primary-blue"></i>
+                                <span>Estimated arrival: 7:15 AM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MILKMAN SECTION -->
+    <div id="milkman-section" class="section-content hidden">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Milkman Dashboard Header -->
+            <div class="bg-white rounded-2xl shadow-sm border p-6 mb-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Good morning, Rajesh!</h1>
+                        <p class="text-gray-600">You have 8 deliveries scheduled for today</p>
+                    </div>
+                    <div class="mt-4 md:mt-0 flex items-center space-x-4">
+                        <div class="bg-secondary-green text-white px-4 py-2 rounded-lg">
+                            <i class="fas fa-check mr-2"></i>
+                            <span class="font-medium">Online</span>
+                        </div>
+                        <button class="bg-primary-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-route mr-2"></i>Start Route
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Today's Orders</p>
+                            <p class="text-2xl font-bold text-gray-900" data-bind="stats.todayOrders">8</p>
+                        </div>
+                        <div class="bg-dairy-blue p-3 rounded-full">
+                            <i class="fas fa-shopping-cart text-primary-blue"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Completed</p>
+                            <p class="text-2xl font-bold text-gray-900" data-bind="stats.completed">3</p>
+                        </div>
+                        <div class="bg-dairy-green p-3 rounded-full">
+                            <i class="fas fa-check text-secondary-green"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Revenue</p>
+                            <p class="text-2xl font-bold text-gray-900" data-bind="stats.revenue">₹1,240</p>
+                        </div>
+                        <div class="bg-orange-100 p-3 rounded-full">
+                            <i class="fas fa-rupee-sign text-accent-orange"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Rating</p>
+                            <p class="text-2xl font-bold text-gray-900" data-bind="stats.rating">4.8</p>
+                        </div>
+                        <div class="bg-yellow-100 p-3 rounded-full">
+                            <i class="fas fa-star text-yellow-500"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div class="grid lg:grid-cols-3 gap-8">
+                <!-- Orders List -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-xl font-semibold text-gray-900">Today's Deliveries</h2>
+                            <button class="text-primary-blue hover:bg-dairy-blue px-3 py-1 rounded-lg transition-colors">
+                                <i class="fas fa-sort mr-1"></i>Sort by Route
+                            </button>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Order Card 1 -->
+                            <div class="border rounded-xl p-4 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="bg-secondary-green text-white p-2 rounded-full">
+                                            <i class="fas fa-check"></i>
+                                        </div>
+                                        <div>
+                                            <h3 data-bind="order.customerName" class="font-semibold text-gray-900">Priya Sharma</h3>
+                                            <p data-bind="order.address" class="text-sm text-gray-600">Block A-102, Green Park</p>
+                                            <div class="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                                                <span data-bind="order.time">7:00 AM</span>
+                                                <span>•</span>
+                                                <span data-bind="order.distance">0.5 km</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-semibold text-gray-900" data-bind="order.amount">₹50</p>
+                                        <p class="text-sm text-gray-600" data-bind="order.quantity">2L Milk</p>
+                                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Delivered</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Order Card 2 -->
+                            <div class="border-2 border-primary-blue rounded-xl p-4 bg-blue-50">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="bg-primary-blue text-white p-2 rounded-full">
+                                            <i class="fas fa-truck"></i>
+                                        </div>
+                                        <div>
+                                            <h3 data-bind="order.customerName" class="font-semibold text-gray-900">Arjun Patel</h3>
+                                            <p data-bind="order.address" class="text-sm text-gray-600">Flat 205, Sunrise Apartments</p>
+                                            <div class="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                                                <span data-bind="order.time">7:30 AM</span>
+                                                <span>•</span>
+                                                <span data-bind="order.distance">0.8 km</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-semibold text-gray-900" data-bind="order.amount">₹75</p>
+                                        <p class="text-sm text-gray-600" data-bind="order.quantity">3L Milk</p>
+                                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">In Progress</span>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex space-x-2">
+                                    <button class="flex-1 bg-primary-blue text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                                        Mark Delivered
+                                    </button>
+                                    <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
+                                        <i class="fas fa-phone"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Order Card 3 -->
+                            <div class="border rounded-xl p-4 hover:shadow-md transition-shadow">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="bg-gray-200 text-gray-600 p-2 rounded-full">
+                                            <i class="fas fa-clock"></i>
+                                        </div>
+                                        <div>
+                                            <h3 data-bind="order.customerName" class="font-semibold text-gray-900">Meera Singh</h3>
+                                            <p data-bind="order.address" class="text-sm text-gray-600">House 15, Sector 7</p>
+                                            <div class="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                                                <span data-bind="order.time">8:00 AM</span>
+                                                <span>•</span>
+                                                <span data-bind="order.distance">1.2 km</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-semibold text-gray-900" data-bind="order.amount">₹100</p>
+                                        <p class="text-sm text-gray-600" data-bind="order.quantity">4L Milk</p>
+                                        <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">Pending</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- More orders... -->
+                            <button class="w-full text-primary-blue py-3 rounded-lg border border-primary-blue hover:bg-dairy-blue transition-colors">
+                                View All Orders (5 more)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="space-y-6">
+                    <!-- Route Map -->
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Route Map</h3>
+                        <!-- Map showing delivery route with customer locations marked -->
+                        <div class="bg-gray-100 rounded-lg h-48 flex items-center justify-center mb-4">
+                            <div class="text-center text-gray-500">
+                                <i class="fas fa-route text-3xl mb-2"></i>
+                                <p class="text-sm">Optimized delivery route</p>
+                                <p class="text-xs">8 stops • 12.5 km total</p>
+                            </div>
+                        </div>
+                        <button class="w-full bg-primary-blue text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-navigation mr-2"></i>
+                            Start Navigation
+                        </button>
+                    </div>
+
+                    <!-- Daily Summary -->
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Daily Summary</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Orders completed</span>
+                                <span class="font-medium">3/8</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Distance covered</span>
+                                <span class="font-medium">4.2 km</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Earnings today</span>
+                                <span class="font-medium text-secondary-green">₹375</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-secondary-green h-2 rounded-full" style="width: 37.5%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500">37.5% of daily target completed</p>
+                        </div>
+                    </div>
+
+                    <!-- Customer Feedback -->
+                    <div class="bg-white rounded-2xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Feedback</h3>
+                        <div class="space-y-3">
+                            <div class="border-l-4 border-secondary-green pl-3">
+                                <div class="flex items-center space-x-1 mb-1">
+                                    <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                    <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                    <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                    <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                    <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                </div>
+                                <p class="text-sm text-gray-600">"Always on time and friendly!"</p>
+                                <p class="text-xs text-gray-500">- Priya S.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- YD (YOUR DOODHWALA) SECTION -->
+    <div id="yd-section" class="section-content hidden">
+        <div class="max-w-6xl mx-auto px-4 py-8">
+            <!-- YD Header -->
+            <div class="text-center mb-12">
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-8 rounded-3xl">
+                    <i class="fas fa-star text-4xl mb-4"></i>
+                    <h1 class="text-3xl md:text-4xl font-bold mb-4">Your Doodhwala (YD)</h1>
+                    <p class="text-xl text-purple-100 max-w-2xl mx-auto">
+                        Assign your dedicated milkman and enjoy hassle-free daily milk delivery with one-click ordering
+                    </p>
+                </div>
+            </div>
+
+            <!-- YD Status -->
+            <div class="bg-white rounded-2xl shadow-sm border p-8 mb-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between">
+                    <div class="flex items-center space-x-6">
+                        <!-- Profile photo of assigned milkman -->
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=100&h=100" alt="Your assigned milkman" class="w-20 h-20 rounded-full object-cover">
+                        <div>
+                            <div class="flex items-center space-x-2 mb-2">
+                                <h2 class="text-2xl font-bold text-gray-900" data-bind="yd.milkmanName">Rajesh Kumar</h2>
+                                <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                                    <i class="fas fa-crown mr-1"></i>Your YD
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 text-gray-600">
+                                <div class="flex items-center space-x-1">
+                                    <i class="fas fa-star text-yellow-400"></i>
+                                    <span data-bind="yd.rating">4.8 (127 reviews)</span>
+                                </div>
+                                <span>•</span>
+                                <span data-bind="yd.serviceMonths">Serving you for 8 months</span>
+                            </div>
+                            <p class="text-gray-600 mt-2" data-bind="yd.description">Your trusted daily milk partner since March 2024</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 md:mt-0 flex flex-col space-y-3">
+                        <button class="bg-purple-600 text-white px-6 py-3 rounded-xl hover:bg-purple-700 transition-colors">
+                            <i class="fas fa-phone mr-2"></i>
+                            Contact YD
+                        </button>
+                        <button class="text-purple-600 border border-purple-600 px-6 py-3 rounded-xl hover:bg-purple-50 transition-colors">
+                            Change YD
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- One-Click Ordering -->
+            <div class="grid md:grid-cols-2 gap-8 mb-8">
+                <!-- Quick Order Panel -->
+                <div class="bg-white rounded-2xl shadow-sm border p-6">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-6">One-Click Daily Order</h3>
+                    
+                    <!-- Default Order Settings -->
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <h4 class="font-medium text-gray-900 mb-3">Your Regular Order</h4>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-glass-whiskey text-primary-blue"></i>
+                                    <span>Milk (Fresh)</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <button class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">-</button>
+                                    <span class="font-medium" data-bind="order.quantity">2L</span>
+                                    <button class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">+</button>
+                                    <span class="font-medium text-gray-900" data-bind="order.price">₹50</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between text-sm text-gray-600">
+                                <span>Delivery Time</span>
+                                <span data-bind="order.time">7:00 AM - 8:00 AM</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Action Buttons -->
+                    <div class="space-y-3">
+                        <button class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105">
+                            <i class="fas fa-zap mr-2"></i>
+                            Order for Tomorrow (One-Click)
+                        </button>
+                        
+                        <button class="w-full bg-secondary-green text-white py-3 rounded-xl font-medium hover:bg-green-600 transition-colors">
+                            <i class="fas fa-calendar-alt mr-2"></i>
+                            Order for Next 7 Days
+                        </button>
+                        
+                        <button class="w-full border border-purple-600 text-purple-600 py-3 rounded-xl font-medium hover:bg-purple-50 transition-colors">
+                            <i class="fas fa-edit mr-2"></i>
+                            Modify Regular Order
+                        </button>
+                    </div>
+
+                    <!-- Order History Summary -->
+                    <div class="mt-6 pt-6 border-t">
+                        <h4 class="font-medium text-gray-900 mb-3">This Month with YD</h4>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p class="text-2xl font-bold text-purple-600" data-bind="yd.monthlyOrders">22</p>
+                                <p class="text-xs text-gray-600">Orders</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-secondary-green" data-bind="yd.monthlyLiters">44L</p>
+                                <p class="text-xs text-gray-600">Milk</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-accent-orange" data-bind="yd.monthlyAmount">₹1,100</p>
+                                <p class="text-xs text-gray-600">Amount</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- YD Billing & Payment -->
+                <div class="bg-white rounded-2xl shadow-sm border p-6">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-6">YD Monthly Billing</h3>
+                    
+                    <!-- Current Bill -->
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-medium text-gray-900">Current Month Bill</h4>
+                            <span class="bg-purple-600 text-white px-3 py-1 rounded-full text-sm">Day 22/30</span>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Orders completed</span>
+                                <span class="font-medium" data-bind="bill.orders">22</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total quantity</span>
+                                <span class="font-medium" data-bind="bill.quantity">44L</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Subtotal</span>
+                                <span class="font-medium" data-bind="bill.subtotal">₹1,100</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">YD Loyalty Discount</span>
+                                <span class="font-medium text-secondary-green" data-bind="bill.discount">-₹55</span>
+                            </div>
+                            <hr class="border-purple-200">
+                            <div class="flex justify-between text-lg font-semibold">
+                                <span>Current Total</span>
+                                <span class="text-purple-600" data-bind="bill.total">₹1,045</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Billing Settings -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p class="font-medium text-gray-900">Auto-pay on 30th</p>
+                                <p class="text-sm text-gray-600">Automatic payment enabled</p>
+                            </div>
+                            <div class="bg-secondary-green w-12 h-6 rounded-full flex items-center justify-end pr-1">
+                                <div class="bg-white w-4 h-4 rounded-full"></div>
+                            </div>
+                        </div>
+
+                        <button class="w-full bg-primary-blue text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-credit-card mr-2"></i>
+                            Pay Current Bill Now
+                        </button>
+
+                        <button class="w-full border border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors">
+                            <i class="fas fa-history mr-2"></i>
+                            View Billing History
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- YD Benefits -->
+            <div class="bg-white rounded-2xl shadow-sm border p-8">
+                <h3 class="text-xl font-semibold text-gray-900 mb-6 text-center">YD Premium Benefits</h3>
+                
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="text-center">
+                        <div class="bg-purple-100 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-zap text-2xl text-purple-600"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-900 mb-2">One-Click Ordering</h4>
+                        <p class="text-sm text-gray-600">Order your regular milk with just one tap</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="bg-secondary-green bg-opacity-20 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-percentage text-2xl text-secondary-green"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Loyalty Discounts</h4>
+                        <p class="text-sm text-gray-600">5% discount on all orders with your YD</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="bg-primary-blue bg-opacity-20 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-calendar-check text-2xl text-primary-blue"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Priority Delivery</h4>
+                        <p class="text-sm text-gray-600">Get priority slot for your preferred time</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="bg-accent-orange bg-opacity-20 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-headset text-2xl text-accent-orange"></i>
+                        </div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Dedicated Support</h4>
+                        <p class="text-sm text-gray-600">Direct contact with your assigned milkman</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Gateway Modal (Hidden by default) -->
+    <div id="payment-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-900">Payment Gateway</h3>
+                <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Amount to pay</span>
+                        <span class="text-2xl font-bold text-primary-blue">₹1,045</span>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <button class="w-full flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fab fa-google-pay text-2xl"></i>
+                            <span class="font-medium">Google Pay</span>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </button>
+
+                    <button class="w-full flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-mobile-alt text-2xl text-purple-600"></i>
+                            <span class="font-medium">PhonePe</span>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </button>
+
+                    <button class="w-full flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-credit-card text-2xl text-blue-600"></i>
+                            <span class="font-medium">Debit/Credit Card</span>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </button>
+
+                    <button class="w-full flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-university text-2xl text-green-600"></i>
+                            <span class="font-medium">Net Banking</span>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400"></i>
+                    </button>
+                </div>
+
+                <div class="pt-4 border-t">
+                    <p class="text-xs text-gray-500 text-center">
+                        Payments are secured with 256-bit SSL encryption
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        // Section management
+        function showSection(sectionName) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.section-content');
+            sections.forEach(section => section.classList.add('hidden'));
+            
+            // Show selected section
+            const targetSection = document.getElementById(sectionName + '-section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+            
+            // Update navigation active states
+            updateNavigation(sectionName);
+        }
+
+        function updateNavigation(activeSection) {
+            // Desktop navigation
+            const navButtons = document.querySelectorAll('.nav-btn');
+            navButtons.forEach(btn => {
+                btn.classList.remove('text-primary-blue', 'font-semibold');
+                btn.classList.add('text-gray-600');
+            });
+            
+            // Mobile navigation
+            const mobileNavButtons = document.querySelectorAll('.mobile-nav-btn');
+            mobileNavButtons.forEach(btn => {
+                btn.classList.remove('text-primary-blue');
+                btn.classList.add('text-gray-600');
+            });
+            
+            // Set active state for current section
+            const activeButtons = document.querySelectorAll(`[onclick="showSection('${activeSection}')"]`);
+            activeButtons.forEach(btn => {
+                btn.classList.remove('text-gray-600');
+                btn.classList.add('text-primary-blue');
+                if (btn.classList.contains('nav-btn')) {
+                    btn.classList.add('font-semibold');
+                }
+            });
+        }
+
+        // Payment modal functions
+        function openPaymentModal() {
+            document.getElementById('payment-modal').classList.remove('hidden');
+            document.getElementById('payment-modal').classList.add('flex');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('payment-modal').classList.add('hidden');
+            document.getElementById('payment-modal').classList.remove('flex');
+        }
+
+        // Make functions globally available
+        window.showSection = showSection;
+        window.openPaymentModal = openPaymentModal;
+        window.closePaymentModal = closePaymentModal;
+
+        // Initialize with home section
+        showSection('home');
+
+        // TODO: Implement real-time order tracking functionality
+        // TODO: Integrate with actual payment gateways (Razorpay, Stripe, etc.)
+        // TODO: Implement geolocation services for milkman tracking
+        // TODO: Add push notifications for order updates
+        // TODO: Implement automatic billing calculations and recurring payments
+        // TODO: Add form validation for all input fields
+        // TODO: Integrate with backend APIs for order management
+        // TODO: Implement user authentication and session management
+        // TODO: Add offline capability for core features
+        // TODO: Implement data synchronization between customer and milkman apps
+    })();
+    </script>
+</body>
+</html>
