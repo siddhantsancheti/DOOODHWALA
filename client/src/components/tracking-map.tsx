@@ -28,16 +28,9 @@ export function TrackingMap({ customerLocation, orders }: TrackingMapProps) {
 
   return (
     <IndiaMap
-      customerLocation={customerLocation}
+      customerLocation={{ ...customerLocation, name: "Delivery Location" }}
       milkmanLocation={milkmanLocation}
-      deliveryStatus="out_for_delivery"
-      estimatedTime="8 mins"
-      orderDetails={{
-        items: [
-          { name: activeOrder.product, quantity: activeOrder.quantity, price: activeOrder.totalAmount }
-        ],
-        total: activeOrder.totalAmount
-      }}
+      showDeliveryRoute={true}
       onCallMilkman={() => {
         window.location.href = `tel:${milkmanLocation.phone}`;
       }}

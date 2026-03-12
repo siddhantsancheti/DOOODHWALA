@@ -124,6 +124,46 @@ router.patch("/profile", async (req, res) => {
     }
 });
 
+// PATCH /api/customers/profile/preset-order
+router.patch("/profile/preset-order", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+
+        const token = authHeader.split(" ")[1];
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        const userId = payload.id;
+
+        const { presetOrder } = req.body;
+
+        const [customer] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.userId, userId))
+            .limit(1);
+
+        if (!customer) {
+            return res.status(404).json({ message: "Customer profile not found" });
+        }
+
+        const [updatedCustomer] = await db
+            .update(customers)
+            .set({
+                presetOrder,
+                updatedAt: new Date(),
+            })
+            .where(eq(customers.id, customer.id))
+            .returning();
+
+        res.json(updatedCustomer);
+    } catch (error) {
+        console.error("Update preset order error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // POST /api/customers
 router.post("/", async (req, res) => {
     try {

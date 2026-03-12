@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "./db";
 import { milkmen, users, products, customers } from "@shared/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
@@ -389,6 +389,56 @@ router.get("/:id", async (req, res) => {
         res.json(milkman);
     } catch (error) {
         console.error("Get milkman error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// PATCH /api/milkmen/routes
+router.patch("/routes", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+
+        const token = authHeader.split(" ")[1];
+        const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
+        let decoded: any;
+        try {
+            decoded = jwt.verify(token, jwtSecret);
+        } catch (e) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        const userId = decoded.id;
+        const { orderedCustomerIds } = req.body; // Array of customer IDs in desired order
+
+        if (!Array.isArray(orderedCustomerIds)) {
+            return res.status(400).json({ message: "Invalid data format" });
+        }
+
+        const [milkman] = await db
+            .select()
+            .from(milkmen)
+            .where(eq(milkmen.userId, userId))
+            .limit(1);
+
+        if (!milkman) {
+            return res.status(404).json({ message: "Milkman profile not found" });
+        }
+
+        // Update each customer's route order
+        await db.transaction(async (tx) => {
+            for (let i = 0; i < orderedCustomerIds.length; i++) {
+                const customerId = orderedCustomerIds[i];
+                await tx
+                    .update(customers)
+                    .set({ routeOrder: i + 1 })
+                    .where(and(eq(customers.id, customerId), eq(customers.assignedMilkmanId, milkman.id)));
+            }
+        });
+
+        res.json({ message: "Route updated successfully" });
+    } catch (error) {
+        console.error("Update route error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });

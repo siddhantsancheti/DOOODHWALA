@@ -44,3 +44,21 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
         return res.status(403).json({ message: "Invalid or expired token" });
     }
 };
+
+// Middleware to check if the authenticated user has the required role
+export const authorizeRole = (allowedRoles: string[]) => {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized: User not authenticated" });
+        }
+
+        const userType = req.user.userType;
+        if (!userType || !allowedRoles.includes(userType)) {
+            return res.status(403).json({
+                message: `Forbidden: Requires one of these roles: ${allowedRoles.join(', ')}`
+            });
+        }
+
+        next();
+    };
+};

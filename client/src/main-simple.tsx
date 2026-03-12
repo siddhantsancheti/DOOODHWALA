@@ -5,7 +5,7 @@ import "./index.css";
 function SimpleApp() {
   return (
     <div style={{
-      padding: '20px', 
+      padding: '20px',
       fontFamily: 'Arial, sans-serif',
       backgroundColor: '#f0f9ff',
       minHeight: '100vh',
@@ -44,11 +44,11 @@ function SimpleApp() {
           borderRadius: '8px',
           marginBottom: '20px'
         }}>
-          ✅ React is working correctly<br/>
-          ✅ CSS styles are loading<br/>
+          ✅ React is working correctly<br />
+          ✅ CSS styles are loading<br />
           ✅ Production build successful
         </div>
-        <button 
+        <button
           style={{
             background: '#1e40af',
             color: 'white',
@@ -98,15 +98,15 @@ try {
 
   console.log('🥛 DOOODHWALA: Root element found, creating React root...');
   const root = createRoot(rootElement);
-  
+
   console.log('🥛 DOOODHWALA: Rendering simple test app...');
   root.render(<SimpleApp />);
-  
+
   console.log('🥛 DOOODHWALA: Simple test app rendered successfully!');
-  
+
 } catch (error) {
   console.error('🥛 DOOODHWALA: Failed to start test application:', error);
-  
+
   const errorDiv = document.createElement('div');
   errorDiv.style.cssText = `
     position: fixed;
@@ -124,13 +124,13 @@ try {
     z-index: 10000;
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
   `;
-  
+
   errorDiv.innerHTML = `
     <h2 style="margin-top: 0;">🥛 DOOODHWALA Deployment Error</h2>
-    <p><strong>Error:</strong> ${error.message}</p>
-    <pre style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: left; overflow-x: auto; font-size: 12px;">${error.stack || 'No stack trace available'}</pre>
+    <p><strong>Error:</strong> ${(error as any).message}</p>
+    <pre style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: left; overflow-x: auto; font-size: 12px;">${(error as any).stack || 'No stack trace available'}</pre>
     <p style="color: #666; font-size: 14px;">Please refresh the page or contact support if the issue persists.</p>
   `;
-  
+
   document.body.appendChild(errorDiv);
 }

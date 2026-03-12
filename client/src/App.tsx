@@ -35,6 +35,26 @@ import Gateway from "@/pages/gateway";
 
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
+import { Redirect } from "wouter";
+
+// Helper component for role-based route protection
+const ProtectedRoute = ({
+  component: Component,
+  allowedRoles,
+  userRole,
+  fallbackPath
+}: {
+  component: React.ComponentType<any>,
+  allowedRoles: string[],
+  userRole: string | null,
+  fallbackPath: string
+}) => {
+  if (!userRole || !allowedRoles.includes(userRole)) {
+    return <Redirect to={fallbackPath} />;
+  }
+  return <Component />;
+};
+
 function AppRouter() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -43,10 +63,18 @@ function AppRouter() {
   // If user is authenticated, check if they need to complete onboarding
   const needsOnboarding = isAuthenticated && user && (!user.userType || user.userType === null);
 
-  // Debug authentication state
-  console.log('App debug - user object:', user);
-  console.log('App debug - user.userType:', user?.userType);
-  console.log('App debug - needsOnboarding:', needsOnboarding);
+  // Determine fallback path based on user role
+  const getFallbackPath = (userType: string | null) => {
+    switch (userType) {
+      case 'customer': return '/customer';
+      case 'milkman': return '/milkman';
+      case 'admin': return '/admin';
+      default: return '/';
+    }
+  };
+
+  const userRole = user?.userType || null;
+  const fallbackPath = getFallbackPath(userRole);
 
   return (
     <Switch>
@@ -70,23 +98,54 @@ function AppRouter() {
       ) : (
         // All protected routes when authenticated
         <>
-          <Route path="/" component={Home} />
+          <Route path="/" component={() => <Redirect to={fallbackPath} />} />
           <Route path="/gateway" component={Gateway} />
-          <Route path="/customer" component={CustomerDashboard} />
-          <Route path="/milkman" component={MilkmanDashboard} />
-          <Route path="/yd" component={YDPage} />
-          <Route path="/checkout" component={Checkout} />
           <Route path="/profile" component={Profile} />
+
+          {/* Customer Routes */}
+          <Route path="/customer">
+            {() => <ProtectedRoute component={CustomerDashboard} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/checkout">
+            {() => <ProtectedRoute component={Checkout} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/yd">
+            {() => <ProtectedRoute component={YDPage} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/track-delivery">
+            {() => <ProtectedRoute component={TrackDelivery} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/view-orders">
+            {() => <ProtectedRoute component={ViewOrders} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/service-requests">
+            {() => <ProtectedRoute component={ServiceRequests} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/order">
+            {() => <ProtectedRoute component={OrderPage} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+
+          {/* Milkman Routes */}
+          <Route path="/milkman">
+            {() => <ProtectedRoute component={MilkmanDashboard} allowedRoles={['milkman', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/your-doodhwala">
+            {() => <ProtectedRoute component={YourDoodhwala} allowedRoles={['milkman', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+
+          {/* Admin Routes */}
+          <Route path="/admin">
+            {() => <ProtectedRoute component={AdminDashboard} allowedRoles={['admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/customer-analytics/:customerId">
+            {() => <ProtectedRoute component={CustomerAnalytics} allowedRoles={['admin', 'milkman']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+          <Route path="/location-recommendations">
+            {() => <ProtectedRoute component={LocationRecommendations} allowedRoles={['admin', 'milkman']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
+
+          {/* Shared / Public Auth Routes */}
           <Route path="/features" component={Features} />
-          {/* <Route path="/quick-order" component={QuickOrder} /> */}
-          <Route path="/track-delivery" component={TrackDelivery} />
-          <Route path="/view-orders" component={ViewOrders} />
-          <Route path="/your-doodhwala" component={YourDoodhwala} />
-          <Route path="/service-requests" component={ServiceRequests} />
-          <Route path="/order" component={OrderPage} />
-          <Route path="/customer-analytics/:customerId" component={CustomerAnalytics} />
-          <Route path="/location-recommendations" component={LocationRecommendations} />
-          <Route path="/admin" component={AdminDashboard} />
 
           {/* 404 fallback - only when authenticated */}
           <Route component={NotFound} />

@@ -191,13 +191,7 @@ router.post("/razorpay/create-order", async (req, res) => {
 
     } catch (error) {
         console.error("Razorpay create order error:", error);
-        // Fallback for development/demo if credentials fail
-        res.json({
-            success: true,
-            razorpayOrderId: `order_${Date.now()}_mock`,
-            key: "rzp_test_placeholder"
-        });
-        // In prod: res.status(500).json({ message: "Payment initialization failed" });
+        res.status(500).json({ message: "Payment initialization failed" });
     }
 });
 
@@ -228,10 +222,6 @@ router.post("/razorpay/verify", async (req, res) => {
             }
 
             // Save successful payment to DB
-            // Note: In a real app, you would fetch userId, customerId, etc. from the order metadata or session
-            // For this audit, we'll assume the client sends necessary context or we default secure placeholders
-            // ideally we should look up the internal order via razorpay_order_id mapping if we stored it
-
             await db.insert(payments).values({
                 userId: "system_verified", // This needs to be linked to actual user
                 orderId: razorpay_order_id,
@@ -254,6 +244,75 @@ router.post("/razorpay/verify", async (req, res) => {
     } catch (error) {
         console.error("Razorpay verify error:", error);
         res.status(500).json({ message: "Verification failed" });
+    }
+});
+
+// Razorpay Webhook
+router.post("/razorpay/webhook", async (req, res) => {
+    try {
+        const secret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+        if (!secret) return res.status(500).send("Webhook secret missing");
+
+        const signature = req.headers["x-razorpay-signature"] as string;
+        if (!signature) return res.status(400).send("Missing signature");
+
+        const expectedSignature = crypto
+            .createHmac("sha256", secret)
+            .update(JSON.stringify(req.body))
+            .digest("hex");
+
+        if (expectedSignature !== signature) {
+            return res.status(400).send("Invalid webhook signature");
+        }
+
+        const event = req.body;
+
+        if (event.event === "payment.captured") {
+            const paymentEntity = event.payload.payment.entity;
+            console.log("Razorpay payment captured via webhook:", paymentEntity.id);
+
+            // Mark payment as complete in DB here (finding by order_id or payment_id)
+            // Example logic (skipped full mapping for brevity, but you'd match the order)
+        }
+
+        res.json({ status: "ok" });
+    } catch (error) {
+        console.error("Razorpay webhook error:", error);
+        res.status(500).send("Webhook Error");
+    }
+});
+
+// Stripe Stripe Webhook
+router.post("/stripe/webhook", async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!endpointSecret || !sig) {
+        // Warning: This route MUST use express.raw({type: 'application/json'}) in index.ts for the exact buffer
+        return res.status(400).send(`Webhook Error: Missing secret or signature`);
+    }
+
+    try {
+        // Important: this requires req.body to be the raw buffer, which requires index.ts changes
+        // For standard express.json(), Stripe signature verification will fail.
+        let event;
+        try {
+            event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        } catch (err: any) {
+            console.warn("Stripe webhook constructEvent failed - ensuring raw body parsing is set up in index.ts", err.message);
+            return res.status(400).send(`Webhook Error: ${err.message}`);
+        }
+
+        if (event.type === 'payment_intent.succeeded') {
+            const paymentIntent = event.data.object as Stripe.PaymentIntent;
+            console.log('Stripe PaymentIntent was successful!', paymentIntent.id);
+            // Update DB
+        }
+
+        res.json({ received: true });
+    } catch (err: any) {
+        console.error("Stripe webhook error:", err);
+        res.status(500).send(`Webhook Error: ${err.message}`);
     }
 });
 

@@ -39,6 +39,7 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
   isVerified: boolean("is_verified").default(false),
+  fcmToken: varchar("fcm_token", { length: 255 }), // Firebase Cloud Messaging token for mobile push notifications
   // Location fields for proximity notifications
   latitude: varchar("latitude"),
   longitude: varchar("longitude"),
@@ -98,6 +99,7 @@ export const customers = pgTable("customers", {
   assignedMilkmanId: integer("assigned_milkman_id").references(() => milkmen.id),
   regularOrderQuantity: decimal("regular_order_quantity", { precision: 5, scale: 2 }),
   routeOrder: integer("route_order").default(0),
+  presetOrder: jsonb("preset_order"), // { items: [{ productId: number, quantity: number }] }
   autoPayEnabled: boolean("auto_pay_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -518,3 +520,63 @@ export type InsertSmsQueue = z.infer<typeof insertSmsQueueSchema>;
 export type SmsQueue = typeof smsQueue.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
+
+export const settings = pgTable("settings", {
+  keyName: varchar("key_name", { length: 50 }).primaryKey(),
+  value: varchar("value", { length: 255 }),
+});
+
+export const agentStatus = pgTable("agent_status", {
+  agentName: varchar("agent_name", { length: 50 }).primaryKey(),
+  status: varchar("status", { length: 20 }),
+  lastSeen: timestamp("last_seen"),
+});
+
+export const agentPrompts = pgTable("agent_prompts", {
+  id: serial("id").primaryKey(),
+  agentName: varchar("agent_name", { length: 50 }),
+  instruction: text("instruction"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSettingsSchema = createInsertSchema(settings);
+export const insertAgentStatusSchema = createInsertSchema(agentStatus);
+export const insertAgentPromptsSchema = createInsertSchema(agentPrompts).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = z.infer<typeof insertSettingsSchema>;
+export type AgentStatus = typeof agentStatus.$inferSelect;
+export type InsertAgentStatus = z.infer<typeof insertAgentStatusSchema>;
+export type AgentPrompt = typeof agentPrompts.$inferSelect;
+export type InsertAgentPrompt = z.infer<typeof insertAgentPromptsSchema>;
+
+// Subscriptions table for recurring orders
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull().references(() => customers.id),
+  milkmanId: integer("milkman_id").notNull().references(() => milkmen.id),
+  productName: varchar("product_name").notNull(),
+  quantity: decimal("quantity", { precision: 5, scale: 2 }).notNull(),
+  unit: varchar("unit").default("liter"),
+  priceSnapshot: decimal("price_snapshot", { precision: 10, scale: 2 }),
+  frequencyType: varchar("frequency_type").notNull(), // 'daily' | 'weekly' | 'monthly'
+  daysOfWeek: jsonb("days_of_week"), // e.g. [1,3,5] for Mon/Wed/Fri (0=Sun)
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true),
+  specialInstructions: text("special_instructions"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;

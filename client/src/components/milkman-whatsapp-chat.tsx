@@ -53,7 +53,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
   const [isOrderMode, setIsOrderMode] = useState(false);
   const [orderProduct, setOrderProduct] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("");
-  const [orderItems, setOrderItems] = useState<Array<{product: string, quantity: number, price: number}>>([]);
+  const [orderItems, setOrderItems] = useState<Array<{ product: string, quantity: number, price: number }>>([]);
   const [editingMessage, setEditingMessage] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [showGroupInfo, setShowGroupInfo] = useState(false);
@@ -64,13 +64,13 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
   const { sendMessage, isConnected } = useWebSocket();
 
   // Get all customers assigned to this milkman for group chat
-  const { data: groupMembers = [] } = useQuery({
+  const { data: groupMembers = [] } = useQuery<any[]>({
     queryKey: [`/api/customers/group/${milkmanProfile.id}`],
     enabled: !!milkmanProfile?.id,
   });
 
   // Get chat messages for the group
-  const { data: chatMessages = [] } = useQuery({
+  const { data: chatMessages = [] } = useQuery<any[]>({
     queryKey: [`/api/chat/group/${milkmanProfile.id}`],
     enabled: !!milkmanProfile?.id,
   });
@@ -97,7 +97,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
   const sendMessageMutation = useMutation({
     mutationFn: async (messageData: any) => {
       const response = await apiRequest("/api/chat/send", "POST", messageData);
-      return response;
+      return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanProfile.id}`] });
@@ -106,11 +106,12 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
         queryClient.invalidateQueries({ queryKey: [`/api/bills/current`] });
       }
       if (sendMessage) {
-        sendMessage({
-          type: "chat_message",
-          message: data,
-          milkmanId: milkmanProfile.id,
-        });
+        sendMessage(
+          milkmanProfile.id,
+          milkmanProfile.id,
+          data.message,
+          (user as any)?.userType || 'customer'
+        );
       }
     },
     onError: (error: any) => {
@@ -124,9 +125,9 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
 
   const editMessageMutation = useMutation({
     mutationFn: async ({ messageId, newText, quantity }: any) => {
-      return await apiRequest(`/api/chat/edit/${messageId}`, "PUT", { 
-        message: newText, 
-        orderQuantity: quantity 
+      return await apiRequest(`/api/chat/edit/${messageId}`, "PUT", {
+        message: newText,
+        orderQuantity: quantity
       });
     },
     onSuccess: () => {
@@ -272,7 +273,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
             <ShoppingCart className="h-4 w-4" />
             {isOrderMode ? "Cancel Order" : "Order"}
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -282,7 +283,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
             <Paperclip className="h-4 w-4" />
             Share
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -300,18 +301,17 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
           const isOwnMessage = message.senderType === 'milkman';
           const isOrderMessage = message.messageType === 'order';
           const isEditing = editingMessage === message.id;
-          
+
           return (
             <div
               key={message.id}
               className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-md px-4 py-2 rounded-lg shadow-sm ${
-                  isOwnMessage
-                    ? 'bg-green-500 dark:bg-green-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white border dark:border-gray-700'
-                }`}
+                className={`max-w-md px-4 py-2 rounded-lg shadow-sm ${isOwnMessage
+                  ? 'bg-green-500 dark:bg-green-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white border dark:border-gray-700'
+                  }`}
               >
                 {isOrderMessage && !isOwnMessage && (
                   <div className="flex items-center gap-2 mb-2 p-2 bg-orange-50 dark:bg-orange-900/30 rounded border-orange-200 dark:border-orange-700 border">
@@ -319,7 +319,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
                     <span className="text-sm font-semibold text-orange-800 dark:text-orange-300">Order Request</span>
                   </div>
                 )}
-                
+
                 {isEditing ? (
                   <div className="space-y-2">
                     <Input
@@ -361,7 +361,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
                         </Button>
                       )}
                     </div>
-                    
+
                     {message.orderQuantity && (
                       <div className="text-xs mt-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">
                         Quantity: {message.orderQuantity} units
@@ -369,7 +369,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
                     )}
                   </>
                 )}
-                
+
                 <div className="flex items-center justify-between mt-2">
                   <p className="text-xs opacity-70">
                     {new Date(message.timestamp || message.createdAt).toLocaleTimeString()}
@@ -395,7 +395,7 @@ export function MilkmanWhatsAppChat({ selectedCustomer, milkmanProfile, onClose 
                     </div>
                   </div>
                 </div>
-                
+
                 {isOrderMessage && !isOwnMessage && (
                   <div className="mt-2 pt-2 border-t dark:border-gray-600">
                     {!message.isAccepted ? (

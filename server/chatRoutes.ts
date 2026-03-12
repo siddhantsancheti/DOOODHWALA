@@ -3,6 +3,7 @@ import { db } from "./db";
 import { chatMessages, users, orders, milkmen, products, notifications, customers } from "@shared/schema";
 import { eq, or, and, asc, gt, gte, lt } from "drizzle-orm";
 import { broadcast } from "./websocket";
+import { sendPushNotification } from "./services/fcmService";
 
 const router = Router();
 
@@ -261,6 +262,24 @@ router.post("/messages/:id/accepted", async (req, res) => {
                     relatedId: updatedMessage.id, // chat message id
                     isRead: false
                 });
+
+                // Send push notification
+                const customerUser = await db.query.users.findFirst({
+                    where: eq(users.id, updatedMessage.senderId)
+                });
+
+                if (customerUser && customerUser.fcmToken) {
+                    await sendPushNotification(
+                        customerUser.fcmToken,
+                        "Order Confirmed",
+                        `Your order for ${updatedMessage.orderProduct || 'items'} has been confirmed.`,
+                        {
+                            type: 'order_status',
+                            status: 'confirmed',
+                            orderId: String(updatedMessage.id)
+                        }
+                    );
+                }
             } catch (notifError) {
                 console.error("Failed to send notification:", notifError);
             }
@@ -327,6 +346,26 @@ router.post("/messages/:id/delivered", async (req, res) => {
             if (updatedOrder) {
                 console.log(`Order ${updatedOrder.id} confirmed as delivered from chat message ${messageId}`);
             }
+
+            // Send push notification for delivery
+            if (updatedMessage.customerId) {
+                const customerUser = await db.query.users.findFirst({
+                    where: eq(users.id, updatedMessage.senderId)
+                });
+
+                if (customerUser && customerUser.fcmToken) {
+                    await sendPushNotification(
+                        customerUser.fcmToken,
+                        "Order Delivered",
+                        `Your order for ${updatedMessage.orderProduct || 'items'} has been successfully delivered.`,
+                        {
+                            type: 'order_status',
+                            status: 'delivered',
+                            orderId: String(updatedMessage.id)
+                        }
+                    );
+                }
+            }
         }
 
 
@@ -383,6 +422,23 @@ router.post("/messages/:id/delivered", async (req, res) => {
                                 type: "proximity",
                                 isRead: false
                             });
+
+                            // Send push notification for 'out for delivery'
+                            const nextCustomerUser = await db.query.users.findFirst({
+                                where: eq(users.id, nextCustomer.userId)
+                            });
+
+                            if (nextCustomerUser && nextCustomerUser.fcmToken) {
+                                await sendPushNotification(
+                                    nextCustomerUser.fcmToken,
+                                    "Out for Delivery",
+                                    "Your milkman is at the previous stop! Get ready.",
+                                    {
+                                        type: 'order_status',
+                                        status: 'out_for_delivery'
+                                    }
+                                );
+                            }
 
                             console.log(`Proactive notification sent to Customer ${nextCustomer.id}`);
                         }

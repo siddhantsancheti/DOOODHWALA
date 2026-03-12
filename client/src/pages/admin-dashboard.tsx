@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { 
-  Users, 
-  Truck, 
-  ShoppingCart, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Users,
+  Truck,
+  ShoppingCart,
+  DollarSign,
+  TrendingUp,
   Bell,
   Shield,
   Settings,
@@ -161,9 +161,10 @@ export default function AdminDashboard() {
   const generateMonthlyBills = async () => {
     try {
       const response = await apiRequest('/api/admin/generate-monthly-bills', 'POST');
+      const data = await response.json();
       toast({
         title: "Monthly Bills Generated",
-        description: `Successfully generated ${response.bills.length} monthly bills for the previous month`,
+        description: `Successfully generated ${data.bills.length} monthly bills for the previous month`,
       });
     } catch (error: any) {
       toast({
@@ -271,31 +272,31 @@ export default function AdminDashboard() {
                     <h4 className="font-semibold text-sm">Users</h4>
                     <p className="text-xs text-gray-600">Manage customers</p>
                   </div>
-                  
+
                   <div className="text-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => (document.querySelector('[value="milkmen"]') as HTMLElement)?.click()}>
                     <Truck className="h-8 w-8 mx-auto mb-2 text-green-600" />
                     <h4 className="font-semibold text-sm">Milkmen</h4>
                     <p className="text-xs text-gray-600">Manage vendors</p>
                   </div>
-                  
+
                   <div className="text-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => (document.querySelector('[value="orders"]') as HTMLElement)?.click()}>
                     <ShoppingCart className="h-8 w-8 mx-auto mb-2 text-purple-600" />
                     <h4 className="font-semibold text-sm">Orders</h4>
                     <p className="text-xs text-gray-600">Order management</p>
                   </div>
-                  
+
                   <div className="text-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => (document.querySelector('[value="payments"]') as HTMLElement)?.click()}>
                     <DollarSign className="h-8 w-8 mx-auto mb-2 text-yellow-600" />
                     <h4 className="font-semibold text-sm">Payments</h4>
                     <p className="text-xs text-gray-600">Payment tracking</p>
                   </div>
-                  
+
                   <div className="text-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => (document.querySelector('[value="billing"]') as HTMLElement)?.click()}>
                     <Receipt className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
                     <h4 className="font-semibold text-sm">Bills</h4>
                     <p className="text-xs text-gray-600">Monthly billing</p>
                   </div>
-                  
+
                   <div className="text-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => (document.querySelector('[value="analytics"]') as HTMLElement)?.click()}>
                     <TrendingUp className="h-8 w-8 mx-auto mb-2 text-red-600" />
                     <h4 className="font-semibold text-sm">Analytics</h4>
@@ -304,7 +305,7 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -380,8 +381,8 @@ export default function AdminDashboard() {
                     {users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>
-                          {user.firstName && user.lastName 
-                            ? `${user.firstName} ${user.lastName}` 
+                          {user.firstName && user.lastName
+                            ? `${user.firstName} ${user.lastName}`
                             : 'N/A'
                           }
                         </TableCell>
@@ -519,11 +520,11 @@ export default function AdminDashboard() {
                         <TableCell>Milkman {order.milkmanId}</TableCell>
                         <TableCell>₹{order.totalAmount}</TableCell>
                         <TableCell>
-                          <Badge 
+                          <Badge
                             variant={
-                              order.status === 'delivered' ? 'default' : 
-                              order.status === 'cancelled' ? 'destructive' : 
-                              'secondary'
+                              order.status === 'delivered' ? 'default' :
+                                order.status === 'cancelled' ? 'destructive' :
+                                  'secondary'
                             }
                           >
                             {order.status}
@@ -580,11 +581,11 @@ export default function AdminDashboard() {
                           <Badge variant="outline">{payment.method}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge 
+                          <Badge
                             variant={
-                              payment.status === 'completed' ? 'default' : 
-                              payment.status === 'failed' ? 'destructive' : 
-                              'secondary'
+                              payment.status === 'completed' ? 'default' :
+                                payment.status === 'failed' ? 'destructive' :
+                                  'secondary'
                             }
                           >
                             {payment.status}
@@ -617,7 +618,7 @@ export default function AdminDashboard() {
                     <p className="text-blue-600 text-sm mb-3">
                       Monthly bills are automatically generated on the 1st of each month for all customers with delivered orders from the previous month.
                     </p>
-                    <Button 
+                    <Button
                       onClick={generateMonthlyBills}
                       className="flex items-center gap-2"
                     >
@@ -625,7 +626,7 @@ export default function AdminDashboard() {
                       Generate Bills Manually (Test)
                     </Button>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Billing System Status</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -640,7 +641,7 @@ export default function AdminDashboard() {
                           </p>
                         </CardContent>
                       </Card>
-                      
+
                       <Card>
                         <CardContent className="p-4">
                           <div className="flex items-center gap-2">
@@ -652,7 +653,7 @@ export default function AdminDashboard() {
                           </p>
                         </CardContent>
                       </Card>
-                      
+
                       <Card>
                         <CardContent className="p-4">
                           <div className="flex items-center gap-2">
@@ -666,7 +667,7 @@ export default function AdminDashboard() {
                       </Card>
                     </div>
                   </div>
-                  
+
                   <div>
                     <h3 className="text-lg font-semibold mb-4">How It Works</h3>
                     <div className="space-y-3">
@@ -726,7 +727,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Revenue Metrics</h3>
                     <div className="space-y-2">

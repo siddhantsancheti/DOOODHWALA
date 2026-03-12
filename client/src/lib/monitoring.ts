@@ -1,6 +1,6 @@
 // Error Monitoring & Observability Setup for DOOODHWALA
 
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 
 /**
  * Initialize error monitoring based on environment
@@ -9,57 +9,9 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 export async function initializeErrorMonitoring() {
   const env = process.env.NODE_ENV;
   const isDevelopment = env === 'development';
-  
-  // Sentry for error tracking and performance monitoring
-  if (process.env.REACT_APP_SENTRY_DSN && !isDevelopment) {
-    try {
-      const Sentry = await import('@sentry/react');
-      Sentry.init({
-        dsn: process.env.REACT_APP_SENTRY_DSN,
-        environment: env,
-        tracesSampleRate: 0.1, // 10% of transactions
-        beforeSend(event, hint) {
-          // Filter out sensitive data
-          if (event.request) {
-            delete event.request.headers;
-            delete event.request.url;
-          }
-          return event;
-        },
-      });
-      console.log('✓ Sentry initialized for error tracking');
-    } catch (error) {
-      console.warn('Sentry initialization failed:', error);
-    }
-  }
 
-  // LogRocket for session replay and error tracking
-  if (process.env.REACT_APP_LOGROCKET_ID && !isDevelopment) {
-    try {
-      const LogRocket = (await import('logrocket')).default;
-      LogRocket.init(process.env.REACT_APP_LOGROCKET_ID, {
-        console: {
-          shouldAggregateConsoleErrors: true,
-        },
-        network: {
-          requestSanitizer: (request) => {
-            // Remove sensitive headers
-            if (request.headers) {
-              delete request.headers['Authorization'];
-              delete request.headers['Cookie'];
-            }
-            return request;
-          },
-          responseSanitizer: (response) => {
-            return response;
-          },
-        },
-      });
-      console.log('✓ LogRocket initialized for session replay');
-    } catch (error) {
-      console.warn('LogRocket initialization failed:', error);
-    }
-  }
+  // Sentry and LogRocket integration removed during deep clean as dependencies were not found.
+  // Re-install @sentry/react and logrocket if needed.
 
   // Firebase Crashlytics for mobile apps
   if (typeof window !== 'undefined' && process.env.REACT_APP_FIREBASE_PROJECT_ID) {
@@ -77,9 +29,9 @@ export async function initializeErrorMonitoring() {
  */
 export function setupStructuredLogging() {
   const isDevelopment = process.env.NODE_ENV === 'development';
-  
+
   // Create structured log function
-  window.log = {
+  (window as any).log = {
     info: (message: string, data?: any) => {
       if (isDevelopment) {
         console.log(`[INFO] ${message}`, data);
@@ -108,7 +60,7 @@ export function setupStructuredLogging() {
  */
 function sendLog(level: string, message: string, data?: any) {
   if (process.env.NODE_ENV === 'development') return;
-  
+
   // Queue logs to send to server
   try {
     navigator.sendBeacon('/api/logs', JSON.stringify({
@@ -129,7 +81,7 @@ function sendLog(level: string, message: string, data?: any) {
  */
 function sanitizeData(data: any): any {
   if (!data) return data;
-  
+
   const sensitiveKeys = [
     'password',
     'token',
@@ -140,16 +92,16 @@ function sanitizeData(data: any): any {
     'ssn',
     'authorization',
   ];
-  
+
   if (typeof data !== 'object') return data;
-  
+
   const sanitized = { ...data };
   Object.keys(sanitized).forEach(key => {
     if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk.toLowerCase()))) {
       sanitized[key] = '***REDACTED***';
     }
   });
-  
+
   return sanitized;
 }
 
@@ -174,21 +126,7 @@ export function setupPerformanceMonitoring() {
     }
   }
 
-  // Monitor Core Web Vitals
-  if ('web-vital' in window) {
-    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
-      getCLS((metric) => reportWebVital('CLS', metric));
-      getFID((metric) => reportWebVital('FID', metric));
-      getFCP((metric) => reportWebVital('FCP', metric));
-      getLCP((metric) => reportWebVital('LCP', metric));
-      getTTFB((metric) => reportWebVital('TTFB', metric));
-    });
-  }
-}
-
-function reportWebVital(name: string, metric: any) {
-  console.log(`[PERF] ${name}: ${metric.value.toFixed(0)}`);
-  // Send to monitoring service
+  // Web Vitals integration removed (dependency missing)
 }
 
 /**
@@ -199,8 +137,8 @@ export function setupGlobalErrorHandlers() {
   window.addEventListener('unhandledrejection', (event) => {
     console.error('[UNHANDLED_REJECTION]', event.reason);
     // Report to monitoring service
-    if (typeof window.log?.error === 'function') {
-      window.log.error('Unhandled promise rejection', event.reason);
+    if (typeof (window as any).log?.error === 'function') {
+      (window as any).log.error('Unhandled promise rejection', event.reason);
     }
   });
 
@@ -208,8 +146,8 @@ export function setupGlobalErrorHandlers() {
   window.addEventListener('error', (event) => {
     console.error('[GLOBAL_ERROR]', event.error);
     // Report to monitoring service
-    if (typeof window.log?.error === 'function') {
-      window.log.error('Global error', event.error);
+    if (typeof (window as any).log?.error === 'function') {
+      (window as any).log.error('Global error', event.error);
     }
   });
 }
@@ -227,13 +165,6 @@ export function setupQueryClientErrorLogging(queryClient: QueryClient) {
         }
         // Retry up to 3 times
         return failureCount < 3;
-      },
-      onError: (error: any) => {
-        console.error('[QUERY_ERROR]', {
-          message: error?.message,
-          status: error?.status,
-          response: error?.body,
-        });
       },
     },
     mutations: {
@@ -253,7 +184,7 @@ export function setupQueryClientErrorLogging(queryClient: QueryClient) {
  */
 export function logApiRequest(method: string, url: string, data?: any) {
   if (process.env.NODE_ENV === 'production') return;
-  
+
   console.log(`[API] ${method} ${url}`, {
     timestamp: new Date().toISOString(),
     data: sanitizeData(data),
@@ -262,9 +193,9 @@ export function logApiRequest(method: string, url: string, data?: any) {
 
 export function logApiResponse(method: string, url: string, status: number, duration: number) {
   if (process.env.NODE_ENV === 'production') return;
-  
+
   const isError = status >= 400;
   const level = isError ? 'warn' : 'info';
-  
+
   console.log(`[API] ${method} ${url} - ${status} (${duration}ms)`);
 }

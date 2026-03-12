@@ -100,8 +100,8 @@ export default function Login() {
       if (data.success) {
         toast({
           title: "OTP Sent",
-          description: data.debugCode
-            ? `Your code is: ${data.debugCode}`
+          description: (data as any).debugCode
+            ? `Your code is: ${(data as any).debugCode}`
             : "Please check your phone for the verification code.",
         });
         setStep("otp");

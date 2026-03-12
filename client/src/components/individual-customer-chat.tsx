@@ -514,7 +514,7 @@ export function IndividualCustomerChat({ selectedCustomer, milkmanProfile, onClo
                     {!message.isAccepted ? (
                       <Button
                         size="sm"
-                        onClick={() => handleAcceptOrder(message)}
+                        onClick={() => handleAcceptOrder(message.id, message.orderQuantity || "1", message.orderProduct || "Milk")}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                         disabled={acceptOrderMutation.isPending}
                       >

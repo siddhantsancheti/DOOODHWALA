@@ -2,5 +2,12 @@
 	"appId": "com.dooodhwala.app",
 	"appName": "DOOODHWALA",
 	"webDir": "dist/public",
-	"packageClassList": []
+	"server": {
+		"url": "http://localhost:5001",
+		"cleartext": true,
+		"androidScheme": "https"
+	},
+	"packageClassList": [
+		"CDVPlugin"
+	]
 }

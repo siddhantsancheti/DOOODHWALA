@@ -172,11 +172,18 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
           
+          # Sync necessary files needed to run the app
           rsync -avz -e "ssh -i ~/.ssh/deploy_key" \
-            dist/ $DEPLOY_USER@$DEPLOY_HOST:/app/dist/
+            dist/ package.json package-lock.json \
+            $DEPLOY_USER@$DEPLOY_HOST:/app/
           
+          # Install production dependencies and start with PM2 so SSH doesn't hang
           ssh -i ~/.ssh/deploy_key $DEPLOY_USER@$DEPLOY_HOST \
-            "cd /app && npm install && npm run start"
+            "cd /app && \
+             npm ci --omit=dev && \
+             sudo npm install -g pm2 || npm install -g pm2 && \
+             pm2 restart dooodhwala || pm2 start npm --name 'dooodhwala' -- run start && \
+             pm2 save"
 
   notify:
     runs-on: ubuntu-latest

@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +57,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { RouteMap } from "@/components/route-map";
+import { RouteManager } from "@/components/route-manager";
+import { DeliveryMode } from "@/components/delivery-mode";
 
 export default function MilkmanDashboard() {
   const { user } = useAuth();
@@ -100,6 +103,8 @@ export default function MilkmanDashboard() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
+  // Consolidated bill data (placeholder/mock if not available from API yet)
+  const consolidatedBill = { totalAmount: "0.00" };
   const [newMessage, setNewMessage] = useState("");
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [orderModalType, setOrderModalType] = useState<'today' | 'completed'>('today');
@@ -2884,6 +2889,32 @@ export default function MilkmanDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Route Management Section */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+          <Route className="h-5 w-5" />
+          Route Management
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Route Reordering */}
+          <RouteManager customers={assignedCustomers} />
+
+          {/* Delivery Mode (Placeholder for now, can be expanded) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5 text-green-600" />
+                Active Delivery Mode
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DeliveryMode customers={assignedCustomers} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Existing elements... */}
     </div>
 
   );
