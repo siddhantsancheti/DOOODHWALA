@@ -12,3 +12,8 @@ build_errors_6.log
 build_errors_7.log
 build_errors_8.log
 build_errors.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local

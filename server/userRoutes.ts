@@ -31,4 +31,25 @@ router.post("/profile-image", authenticateToken, upload.single("image"), async (
     }
 });
 
+// PATCH /api/users/fcm-token
+router.patch("/fcm-token", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const { fcmToken } = req.body;
+        const userId = req.user.id;
+
+        if (!fcmToken) {
+            return res.status(400).json({ message: "fcmToken is required" });
+        }
+
+        await db.update(users)
+            .set({ fcmToken })
+            .where(eq(users.id, userId));
+
+        res.json({ success: true, message: "FCM token updated successfully" });
+    } catch (error) {
+        console.error("FCM token update error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 export default router;

@@ -8,6 +8,18 @@ import { LocationRecommendations } from "@/components/location-recommendations";
 import { ArrowLeft, MapPin, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+interface Milkman {
+  id: number;
+  businessName: string;
+  contactName: string;
+  address: string;
+  latitude?: string;
+  longitude?: string;
+  rating?: number;
+  deliverySlots?: any[];
+  dairyItems?: any[];
+}
+
 export default function LocationRecommendationsPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -39,14 +51,19 @@ export default function LocationRecommendationsPage() {
 
   // Extract location from customer profile or use geolocation
   const getCustomerLocation = () => {
-    if (customerProfile?.latitude && customerProfile?.longitude) {
-      const milkmanLocation = extractLocationParts(milkman.address);
-      // Use a default location if address parsing fails or returns defaults
-      // This is a simplification as we don't have real lat/lng in address string usually
-      // We would need a geocoding service or stored lat/lng
+    const profile = customerProfile as any;
+    if (profile?.latitude && profile?.longitude) {
       return {
-        latitude: 18.5204, // Default Pune lat
-        longitude: 73.8567 // Default Pune lng
+        lat: parseFloat(profile.latitude),
+        lng: parseFloat(profile.longitude)
+      };
+    }
+    // Fallback or attempt to parse address
+    if (profile?.address) {
+      // Mock coordinates for Pune if address exists but no coords
+      return {
+        lat: 18.5204,
+        lng: 73.8567
       };
     }
     return undefined;

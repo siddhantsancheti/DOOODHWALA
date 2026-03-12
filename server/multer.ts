@@ -12,7 +12,7 @@ cloudinary.config({
 // Configure Storage Engine
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: async (req, file) => {
+    params: async (req: any, file: any) => {
         // Generate a unique public ID (filename)
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         return {

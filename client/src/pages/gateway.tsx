@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Send, CheckCircle, XCircle, RefreshCw, ShieldAlert, Smartphone } from "lucide-react";
-import { SMS } from '@awesome-cordova-plugins/sms';
+// import { SMS } from '@awesome-cordova-plugins/sms';
 import { Capacitor } from '@capacitor/core';
 
 interface SmsMessage {
@@ -78,9 +78,16 @@ export default function Gateway() {
             if ((window as any).cordova) {
                 const options = isIOS ? { android: { intent: '' } } : { android: { intent: '' } };
 
-                // On iOS, this opens the composer. The promise resolves when the composer opens (usually).
+                // On iOS, this opens the composer.
                 // We can't easily know if they actually clicked send in the native UI.
-                await SMS.send(msg.phone, msg.message, options);
+                const sms = (window as any).sms;
+                if (sms) {
+                    await new Promise((resolve, reject) => {
+                        sms.send(msg.phone, msg.message, options, resolve, reject);
+                    });
+                } else {
+                    console.error("SMS plugin not available");
+                }
 
                 if (isIOS) {
                     // For iOS, we assume success if the composer opened, or we ask user to confirm.

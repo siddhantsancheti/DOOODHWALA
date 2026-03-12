@@ -647,7 +647,7 @@ export default function YourDoodhwala() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 mt-4">
-              {serviceRequests && serviceRequests.length > 0 && serviceRequests[0].services?.map((service: any, index: number) => (
+              {(serviceRequests as any[]) && (serviceRequests as any[]).length > 0 && (serviceRequests as any[])[0].services?.map((service: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{service.name}</p>
@@ -656,10 +656,10 @@ export default function YourDoodhwala() {
                   <p className="font-medium text-gray-900">₹{service.price}</p>
                 </div>
               ))}
-              {serviceRequests && serviceRequests.length > 0 && serviceRequests[0].customerNotes && (
+              {(serviceRequests as any[]) && (serviceRequests as any[]).length > 0 && (serviceRequests as any[])[0].customerNotes && (
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Your Notes</p>
-                  <p className="text-sm text-gray-700">{serviceRequests[0].customerNotes}</p>
+                  <p className="text-sm text-gray-700">{(serviceRequests as any[])[0].customerNotes}</p>
                 </div>
               )}
             </div>

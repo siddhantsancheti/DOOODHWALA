@@ -11,9 +11,12 @@ import locationRoutes from "./locationRoutes";
 import gatewayRoutes from "./gatewayRoutes";
 import productRoutes from "./productRoutes";
 import { setupWebSocket } from "./websocket";
+import deliveryRoutes from "./deliveryRoutes";
+import subscriptionRoutes from "./subscriptionRoutes";
 
-import { authenticateToken } from "./middleware/auth";
+import { authenticateToken, authorizeRole } from "./middleware/auth";
 import userRoutes from "./userRoutes";
+import adminRoutes from "./adminRoutes";
 
 export function registerRoutes(app: Express): Server {
     // Register API routes
@@ -28,8 +31,13 @@ export function registerRoutes(app: Express): Server {
     app.use("/api/service-requests", authenticateToken, serviceRequestRoutes);
     app.use("/api/bills", authenticateToken, paymentRoutes); // Mapping bills to payment routes for now
     app.use("/api/payments", authenticateToken, paymentRoutes);
+    app.use("/api/delivery", authenticateToken, deliveryRoutes);
     app.use("/api/chat", authenticateToken, chatRoutes);
+    app.use("/api/subscriptions", authenticateToken, subscriptionRoutes);
     app.use("/api/locations", authenticateToken, locationRoutes);
+
+    // Admin Routes
+    app.use("/api/admin", authenticateToken, authorizeRole(['admin']), adminRoutes);
 
     // Public Routes (or handle auth internally if mixed)
     app.use("/api/products", productRoutes);

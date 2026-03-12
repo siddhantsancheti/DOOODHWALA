@@ -83,13 +83,13 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
   const { sendMessage, isConnected } = useWebSocket();
 
   // Get all customers assigned to this milkman for group chat
-  const { data: groupMembers = [] } = useQuery({
+  const { data: groupMembers = [] } = useQuery<any[]>({
     queryKey: [`/api/customers/group/${milkmanProfile.id}`],
     enabled: !!milkmanProfile?.id,
   });
 
   // Get chat messages for the group
-  const { data: chatMessages = [] } = useQuery({
+  const { data: chatMessages = [] } = useQuery<any[]>({
     queryKey: [`/api/chat/group/${milkmanProfile.id}`],
     enabled: !!milkmanProfile?.id,
   });
@@ -113,7 +113,7 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
   }) as { data: any };
 
   // Get service requests for the customer to filter products
-  const { data: serviceRequests = [] } = useQuery({
+  const { data: serviceRequests = [] } = useQuery<any[]>({
     queryKey: ["/api/service-requests/customer"],
     enabled: !!customerProfile?.id,
   });
@@ -178,6 +178,8 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
       const date = new Date(msg.createdAt);
       if (date.getMonth() === month - 1 && date.getFullYear() === year) {
         const dateKey = date.toISOString().split('T')[0];
+        const nonMembers = (allCustomers as any[]).filter(c =>
+          !(groupMembers as any[]).some(m => m.customerId === c.id));
 
         // Get customer name from group members
         const customer = groupMembers.find((member: any) => member.id === msg.customerId);
@@ -227,7 +229,7 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
   const sendMessageMutation = useMutation({
     mutationFn: async (messageData: any) => {
       const response = await apiRequest("/api/chat/send", "POST", messageData);
-      return response;
+      return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanProfile.id}`] });
@@ -237,11 +239,12 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
         queryClient.invalidateQueries({ queryKey: [`/api/bills/consolidated/${milkmanProfile.id}`] });
       }
       if (sendMessage) {
-        sendMessage({
-          type: "chat_message",
-          message: data,
-          milkmanId: milkmanProfile.id,
-        });
+        sendMessage(
+          milkmanProfile.id,
+          milkmanProfile.id, // Using milkmanId as both for simplicity if needed, or check usage
+          data.message,
+          (user as any)?.userType || 'customer'
+        );
       }
     },
     onError: (error: any) => {
@@ -303,11 +306,12 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanProfile.id}`] });
       if (sendMessage) {
-        sendMessage({
-          type: "chat_message",
-          message: data,
-          milkmanId: milkmanProfile.id,
-        });
+        sendMessage(
+          milkmanProfile.id,
+          milkmanProfile.id,
+          "Voice Message",
+          (user as any)?.userType || 'customer'
+        );
       }
       toast({
         title: "Voice message sent",
@@ -624,12 +628,12 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
             <div className="cursor-pointer flex-1 min-w-0" onClick={() => setShowGroupInfo(true)}>
               <h3 className="font-semibold text-sm sm:text-base truncate">{milkmanProfile.businessName}</h3>
               <p className="text-xs sm:text-sm text-green-100 dark:text-green-200 truncate">
-                {groupMembers.slice(0, 2).map((member: any, index: number) => (
+                {(groupMembers as any[]).slice(0, 2).map((member: any, index: number) => (
                   <span key={member.id}>
                     {member.name}{index < Math.min(groupMembers.length - 1, 1) ? ", " : ""}
                   </span>
                 ))}
-                {groupMembers.length > 2 && <span>+{groupMembers.length - 2}</span>}
+                {(groupMembers as any[]).length > 2 && <span>+{(groupMembers as any[]).length - 2}</span>}
               </p>
             </div>
           </div>
@@ -700,13 +704,13 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
 
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white dark:bg-gray-900">
-        {chatMessages.map((message: any, index: number) => {
+        {(chatMessages as any[]).map((message: any, index: number) => {
           const customerInfo = getCustomerInfo(message.customerId);
           const isOwnMessage = message.senderType === 'customer' && message.customerId === customerProfile?.id;
 
           // Date Separator Logic
           const messageDate = new Date(message.createdAt);
-          const prevMessageDate = index > 0 ? new Date(chatMessages[index - 1].createdAt) : null;
+          const prevMessageDate = index > 0 ? new Date((chatMessages as any[])[index - 1].createdAt) : null;
 
           const isNewDay = !prevMessageDate ||
             messageDate.getDate() !== prevMessageDate.getDate() ||
@@ -926,10 +930,10 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
             <div>
               <h3 className="font-semibold mb-3 flex items-center gap-2 text-gray-900 dark:text-white">
                 <Users className="h-4 w-4" />
-                Current Members ({groupMembers.length})
+                Current Members ({(groupMembers as any[]).length})
               </h3>
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {groupMembers.map((member: any) => (
+                {(groupMembers as any[]).map((member: any) => (
                   <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
@@ -961,8 +965,8 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
                 Add Customers
               </h3>
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {allCustomers
-                  .filter((customer: any) => !groupMembers.find((member: any) => member.id === customer.id))
+                {(allCustomers as any[])
+                  .filter((customer: any) => !(groupMembers as any[]).find((member: any) => member.id === customer.id))
                   .map((customer: any) => (
                     <div key={customer.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <div className="flex items-center gap-3">
@@ -986,7 +990,7 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
                     </div>
                   ))}
               </div>
-              {allCustomers.filter((customer: any) => !groupMembers.find((member: any) => member.id === customer.id)).length === 0 && (
+              {(allCustomers as any[]).filter((customer: any) => !(groupMembers as any[]).find((member: any) => member.id === customer.id)).length === 0 && (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-4">
                   All your customers are already in the group chat
                 </p>
@@ -1230,17 +1234,17 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
                   <Users className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
                 </div>
                 <h2 className="text-base sm:text-lg font-semibold">{milkmanProfile.businessName}</h2>
-                <p className="text-sm text-gray-600">{groupMembers.length} members</p>
+                <p className="text-sm text-gray-600">{(groupMembers as any[]).length} members</p>
               </div>
 
               {/* Group Members */}
               <div>
                 <h3 className="font-medium mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
                   <Users className="h-4 w-4" />
-                  Members ({groupMembers.length})
+                  Members ({(groupMembers as any[]).length})
                 </h3>
                 <div className="space-y-1 sm:space-y-2 max-h-32 sm:max-h-48 overflow-y-auto scrollbar-hide">
-                  {groupMembers.map((member: any) => (
+                  {(groupMembers as any[]).map((member: any) => (
                     <div key={member.id} className="flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded">
                       <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                         <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
@@ -1298,7 +1302,7 @@ export function WhatsAppGroupChat({ customerProfile, milkmanProfile, onClose }: 
                       <div className="min-w-0">
                         <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">Orders</p>
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                          {chatMessages.filter((msg: any) => msg.messageType === 'order').length} orders placed
+                          {(chatMessages as any[]).filter((msg: any) => msg.messageType === 'order').length} orders placed
                         </p>
                       </div>
                     </div>

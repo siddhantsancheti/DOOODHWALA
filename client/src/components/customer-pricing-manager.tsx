@@ -26,7 +26,7 @@ export function CustomerPricingManager({ milkmanId }: CustomerPricingManagerProp
     enabled: !!milkmanId,
   });
 
-  const { data: customers } = useQuery({
+  const { data: customers } = useQuery<any[]>({
     queryKey: ["/api/customers"],
   });
 
@@ -95,7 +95,7 @@ export function CustomerPricingManager({ milkmanId }: CustomerPricingManagerProp
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
     if (editingPricing) {
       updatePricingMutation.mutate({
         id: editingPricing.id,
@@ -139,9 +139,9 @@ export function CustomerPricingManager({ milkmanId }: CustomerPricingManagerProp
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="customerId">Customer</Label>
-                <select 
-                  name="customerId" 
-                  required 
+                <select
+                  name="customerId"
+                  required
                   className="w-full p-2 border rounded-md"
                 >
                   <option value="">Select a customer</option>
@@ -213,8 +213,8 @@ export function CustomerPricingManager({ milkmanId }: CustomerPricingManagerProp
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Dialog 
-                    open={editingPricing?.id === pricing.id} 
+                  <Dialog
+                    open={editingPricing?.id === pricing.id}
                     onOpenChange={(open) => setEditingPricing(open ? pricing : null)}
                   >
                     <DialogTrigger asChild>
@@ -229,9 +229,9 @@ export function CustomerPricingManager({ milkmanId }: CustomerPricingManagerProp
                       <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                           <Label>Customer</Label>
-                          <Input 
-                            value={`Customer #${pricing.customerId}`} 
-                            disabled 
+                          <Input
+                            value={`Customer #${pricing.customerId}`}
+                            disabled
                           />
                         </div>
                         <div>
@@ -257,9 +257,9 @@ export function CustomerPricingManager({ milkmanId }: CustomerPricingManagerProp
                           <Button type="submit" disabled={updatePricingMutation.isPending}>
                             {updatePricingMutation.isPending ? "Updating..." : "Update Pricing"}
                           </Button>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
+                          <Button
+                            type="button"
+                            variant="outline"
                             onClick={() => setEditingPricing(null)}
                           >
                             Cancel

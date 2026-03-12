@@ -36,17 +36,18 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-tabs'],
-          firebase: ['firebase', 'firebase/auth'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/analytics'],
           maps: ['leaflet', 'react-leaflet'],
         }
       }
     },
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: process.env.NODE_ENV === 'production',
-      },
-    },
+    minify: 'esbuild',
+  },
+  esbuild: {
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
+  optimizeDeps: {
+    include: ['firebase/app', 'firebase/auth', 'firebase/analytics', 'firebase/messaging'],
   },
   server: {
     fs: {
