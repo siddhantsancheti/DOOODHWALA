@@ -47,7 +47,8 @@
         {
           "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "RNMAPBOX_DOWNLOAD_TOKEN_FROM_ENV"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

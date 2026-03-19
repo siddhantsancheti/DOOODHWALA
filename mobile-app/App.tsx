@@ -3,10 +3,16 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './src/lib/queryClient';
 import AppNavigator from './src/navigation/AppNavigator';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
-import Mapbox from '@rnmapbox/maps';
+import Constants from 'expo-constants';
 
-// Initialize Mapbox with public token from environment
-Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Only import and initialize Mapbox outside Expo Go
+let Mapbox: any = null;
+if (!isExpoGo) {
+    Mapbox = require('@rnmapbox/maps').default;
+    Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
+}
 
 // Component to handle top-level auth-dependent hooks securely
 function AppWrapper() {

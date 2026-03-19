@@ -6,7 +6,10 @@ import Constants from 'expo-constants';
 import { apiRequest } from '../lib/queryClient';
 import { useAuth } from './useAuth';
 
-try {
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Only set notification handler outside Expo Go
+if (!isExpoGo) {
     Notifications.setNotificationHandler({
         handleNotification: async () => ({
             shouldShowAlert: true,
@@ -16,11 +19,13 @@ try {
             shouldShowList: true
         }),
     });
-} catch (e: any) {
-    console.warn("Notifications handler could not be set (Likely running in Expo Go)", e.message);
 }
 
 export function usePushNotifications() {
+    if (isExpoGo) {
+        return { expoPushToken: null };
+    }
+
     const { user } = useAuth();
     const [expoPushToken, setExpoPushToken] = useState('');
     const [notification, setNotification] = useState<Notifications.Notification | false>(false);
@@ -30,41 +35,27 @@ export function usePushNotifications() {
     useEffect(() => {
         if (!user) return;
 
-        try {
-            registerForPushNotificationsAsync().then(token => {
-                if (token) {
-                    setExpoPushToken(token);
-                    // Send token to backend
-                    apiRequest({
-                        url: '/api/auth/profile',
-                        method: 'PATCH',
-                        body: { fcmToken: token }
-                    }).catch(err => console.log('Failed to save push token to backend:', err));
-                }
-            }).catch(e => console.warn('Could not register for push notifications:', e.message));
-        } catch (e: any) {
-            console.warn("Push notifications are not fully supported in Expo Go without proper compilation:", e.message);
-        }
+        registerForPushNotificationsAsync().then(token => {
+            if (token) {
+                setExpoPushToken(token);
+                apiRequest({
+                    url: '/api/auth/profile',
+                    method: 'PATCH',
+                    body: { fcmToken: token }
+                }).catch(err => console.log('Failed to save push token:', err));
+            }
+        }).catch(e => console.warn('Could not register:', e.message));
 
-        try {
-            notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-                setNotification(notification);
-            });
-
-            responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-                console.log('Notification clicked:', response);
-            });
-        } catch (e: any) {
-            console.warn("Notification listeners could not be attached:", e.message);
-        }
+        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+            setNotification(notification);
+        });
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+            console.log('Notification clicked:', response);
+        });
 
         return () => {
-            if (notificationListener.current) {
-                notificationListener.current.remove();
-            }
-            if (responseListener.current) {
-                responseListener.current.remove();
-            }
+            notificationListener.current?.remove();
+            responseListener.current?.remove();
         };
     }, [user]);
 
@@ -95,7 +86,6 @@ async function registerForPushNotificationsAsync() {
             return;
         }
 
-        // Use Expo push token or native FCM token
         try {
             const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
             token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;

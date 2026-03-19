@@ -3,11 +3,19 @@ import { View, Text, StyleSheet, ActivityIndicator, Dimensions } from 'react-nat
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../lib/queryClient';
 import { Truck, Package, Clock, CheckCircle, MapPin } from 'lucide-react-native';
-import Mapbox from '@rnmapbox/maps';
-import mbxDirections from '@mapbox/mapbox-sdk/services/directions';
+import Constants from 'expo-constants';
 
-const MapboxToken: string = (Mapbox.getAccessToken() as unknown as string) || (process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
-const directionsClient = mbxDirections({ accessToken: MapboxToken });
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Conditionally load native Mapbox modules (crash in Expo Go)
+let Mapbox: any = null;
+let directionsClient: any = null;
+if (!isExpoGo) {
+    Mapbox = require('@rnmapbox/maps').default;
+    const mbxDirections = require('@mapbox/mapbox-sdk/services/directions').default;
+    const MapboxToken: string = (Mapbox.getAccessToken() as unknown as string) || (process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
+    directionsClient = mbxDirections({ accessToken: MapboxToken });
+}
 
 export default function TrackingScreen() {
     const { data: customerProfile, isLoading: profileLoading } = useQuery<any>({ queryKey: ["/api/customers/profile"] });
@@ -21,7 +29,7 @@ export default function TrackingScreen() {
     const [routeGeoJSON, setRouteGeoJSON] = useState<GeoJSON.LineString | null>(null);
     const [breadcrumbSteps, setBreadcrumbSteps] = useState<number[][]>([]);
     const [routeDuration, setRouteDuration] = useState<string>('Calculating...');
-    const cameraRef = useRef<Mapbox.Camera>(null);
+    const cameraRef = useRef<any>(null);
 
     const activeOrder = Array.isArray(orders) ? orders.find(o => ['pending', 'confirmed', 'out_for_delivery'].includes(o.status)) : null;
 
@@ -110,6 +118,38 @@ export default function TrackingScreen() {
                 <Package size={64} color="#cbd5e1" />
                 <Text style={styles.emptyTitle}>No Active Deliveries</Text>
                 <Text style={styles.emptyDesc}>You have no orders currently out for delivery.</Text>
+            </View>
+        );
+    }
+
+    // Show placeholder map in Expo Go
+    if (isExpoGo) {
+        return (
+            <View style={styles.container}>
+                <View style={[styles.mapContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 48 }}>🗺️</Text>
+                    <Text style={{ fontSize: 16, color: '#64748b', marginTop: 12, fontWeight: '600' }}>Map available in production build</Text>
+                    <Text style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Tracking data still works — map rendering requires EAS build</Text>
+                </View>
+
+                {/* Bottom Status Panel (still functional) */}
+                <View style={styles.bottomPanel}>
+                    <View style={styles.statusHeader}>
+                        <View style={styles.statusIconBox}>
+                            <Truck size={28} color="#10b981" />
+                        </View>
+                        <View style={{ marginLeft: 16 }}>
+                            <Text style={styles.statusText}>
+                                {activeOrder.status === 'out_for_delivery' ? 'On The Way' : 'Order Confirmed'}
+                            </Text>
+                            <Text style={styles.statusSub}>Tracking Order #{activeOrder.id}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.orderSummary}>
+                        <Text style={styles.summaryTitle}>Order Details</Text>
+                        <Text style={styles.summaryText}>{activeOrder.quantity}x {activeOrder.itemName || 'Milk'} • ₹{activeOrder.totalAmount}</Text>
+                    </View>
+                </View>
             </View>
         );
     }

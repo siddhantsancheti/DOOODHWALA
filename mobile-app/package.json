@@ -22,9 +22,10 @@
     "expo": "~55.0.5",
     "expo-constants": "~55.0.7",
     "expo-device": "~55.0.9",
-    "expo-image-picker": "~55.0.11",
+    "expo-font": "~55.0.4",
+    "expo-image-picker": "~55.0.12",
     "expo-location": "~55.1.2",
-    "expo-notifications": "^55.0.11",
+    "expo-notifications": "~55.0.12",
     "expo-secure-store": "^55.0.8",
     "expo-status-bar": "~55.0.4",
     "lucide-react-native": "^0.577.0",
@@ -34,13 +35,22 @@
     "react-native-safe-area-context": "5.6.2",
     "react-native-screens": "4.23.0",
     "react-native-svg": "^15.15.3",
-    "react-native-vector-icons": "^10.3.0",
-    "react-native-web": "^0.21.0"
+    "react-native-vector-icons": "^10.3.0"
   },
   "devDependencies": {
     "@types/mapbox__mapbox-sdk": "^0.16.4",
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-razorpay",
+          "react-native-vector-icons"
+        ]
+      }
+    }
   },
   "private": true
 }
