@@ -48,6 +48,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['firebase/app', 'firebase/auth', 'firebase/analytics', 'firebase/messaging'],
+    exclude: ['firebase'],
   },
   server: {
     fs: {
