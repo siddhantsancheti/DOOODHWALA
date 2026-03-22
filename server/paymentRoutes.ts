@@ -145,6 +145,60 @@ router.get("/bills/customer/:customerId", async (req, res) => {
     }
 });
 
+// GET /api/bills/current (Current month bill for the logged in customer)
+router.get("/current", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+
+        const token = authHeader.split(" ")[1];
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        const userId = payload.id;
+
+        const [customer] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.userId, userId))
+            .limit(1);
+
+        if (!customer) {
+            return res.status(404).json({ message: "Customer profile not found" });
+        }
+
+        // We fetch the latest pending bill or formulate one.
+        const [currentBill] = await db
+            .select()
+            .from(bills)
+            .where(
+                and(
+                    eq(bills.customerId, customer.id),
+                    eq(bills.status, "pending")
+                )
+            )
+            .orderBy(desc(bills.createdAt))
+            .limit(1);
+
+        if (!currentBill) {
+            return res.json({ totalOrders: 0, totalQuantity: "0L", totalAmount: "0", discount: "0" });
+        }
+
+        // Calculate discount assuming 5% loyalty discount logic
+        const discountAmount = (parseFloat(currentBill.totalAmount) * 0.05).toFixed(2);
+        
+        res.json({
+            ...currentBill,
+            totalQuantity: currentBill.items ? `${(currentBill.items as any[]).reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0)}L` : "0L",
+            discount: discountAmount
+        });
+
+    } catch (error) {
+        console.error("Get current bills error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // GET /api/payments/customer/:customerId
 router.get("/customer/:customerId", async (req, res) => {
     try {

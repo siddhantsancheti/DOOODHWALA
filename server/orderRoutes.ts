@@ -150,4 +150,78 @@ router.post("/", async (req, res) => {
     }
 });
 
+// PATCH /api/orders/:id/status
+router.patch("/:id/status", async (req, res) => {
+    try {
+        const orderId = parseInt(req.params.id);
+        const { status } = req.body;
+
+        if (isNaN(orderId) || !status) {
+            return res.status(400).json({ message: "Invalid request parameters" });
+        }
+
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+
+        const token = authHeader.split(" ")[1];
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        const userId = payload.id;
+
+        // Verify the milkman owns this order
+        const [milkman] = await db
+            .select()
+            .from(milkmen)
+            .where(eq(milkmen.userId, userId))
+            .limit(1);
+
+        if (!milkman) {
+            return res.status(403).json({ message: "Only milkmen can update order status" });
+        }
+
+        const [existingOrder] = await db
+            .select()
+            .from(orders)
+            .where(eq(orders.id, orderId))
+            .limit(1);
+
+        if (!existingOrder || existingOrder.milkmanId !== milkman.id) {
+            return res.status(404).json({ message: "Order not found or unauthorized" });
+        }
+
+        const [updatedOrder] = await db
+            .update(orders)
+            .set({
+                status,
+                deliveredAt: status === "delivered" ? new Date() : existingOrder.deliveredAt,
+                updatedAt: new Date()
+            })
+            .where(eq(orders.id, orderId))
+            .returning();
+
+        // Notify customer
+        try {
+            const [customer] = await db.select().from(customers).where(eq(customers.id, updatedOrder.customerId ?? -1)).limit(1);
+            if (customer) {
+                await db.insert(notifications).values({
+                    userId: customer.userId,
+                    title: "Order Status Updated",
+                    message: `Your order status is now: ${status}`,
+                    type: "order",
+                    relatedId: updatedOrder.id,
+                    isRead: false
+                });
+            }
+        } catch (e) {
+            console.error("Failed to notify customer:", e);
+        }
+
+        res.json(updatedOrder);
+    } catch (error) {
+        console.error("Update order status error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 export default router;

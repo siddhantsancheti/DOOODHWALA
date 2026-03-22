@@ -43,7 +43,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
 
   const updateInventoryMutation = useMutation({
     mutationFn: async (dairyItems: any[]) => {
-      await apiRequest({ url: '/api/milkmen/inventory', method: 'POST', body: { dairyItems } });
+      await apiRequest({ url: '/api/milkmen/products', method: 'PATCH', body: { dairyItems } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/milkmen/profile'] });
