@@ -9,6 +9,7 @@ import cron from "node-cron";
 import { BillingService } from "./services/billingService";
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Security Middleware
 app.use(helmet({
