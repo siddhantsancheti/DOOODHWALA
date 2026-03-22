@@ -22,7 +22,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": [],
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "package": "com.siddhant_20.mobileapp"
     },
     "platforms": [
@@ -31,11 +34,18 @@
     ],
     "plugins": [
       "expo-secure-store",
+      "expo-location",
       [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
           "color": "#ffffff"
+        }
+      ],
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "RNMAPBOX_DOWNLOAD_TOKEN_FROM_ENV"
         }
       ],
       "expo-font"
