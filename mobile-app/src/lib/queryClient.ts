@@ -2,7 +2,7 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 
 // Use the production backend URL for the mobile app
-export const API_BASE_URL = "https://dooodhwala.com/api";
+export const API_BASE_URL = "https://dooodhwala-production-0667.up.railway.app/api";
 
 async function throwIfResNotOk(res: Response) {
     if (!res.ok) {
