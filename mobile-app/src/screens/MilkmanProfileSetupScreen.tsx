@@ -1,147 +1,301 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View, Text, TextInput, ScrollView, TouchableOpacity,
+  ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, Truck, Clock, CreditCard } from 'lucide-react-native';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
 
 export default function MilkmanProfileSetupScreen({ navigation }: any) {
-    const queryClient = useQueryClient();
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isLocating, setIsLocating] = useState(false);
+  const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [focusedField, setFocusedField] = useState('');
 
-    const [formData, setFormData] = useState({
-        contactName: '',
-        businessName: '',
-        address: '',
-        pricePerLiter: '50',
-        deliveryTimeStart: '06:00',
-        deliveryTimeEnd: '09:00',
-        bankAccountHolderName: '',
-        bankAccountType: '',
-        bankAccountNumber: '',
-        bankIfscCode: '',
-        bankName: '',
-        upiId: ''
-    });
+  const [formData, setFormData] = useState({
+    contactName: '',
+    businessName: '',
+    address: '',
+    pricePerLiter: '50',
+    deliveryTimeStart: '06:00',
+    deliveryTimeEnd: '09:00',
+    bankAccountHolderName: '',
+    bankAccountNumber: '',
+    bankIfscCode: '',
+    upiId: '',
+  });
 
-    const getCurrentLocation = async () => {
-        setIsLocating(true);
-        try {
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission to access location was denied');
-                setIsLocating(false);
-                return;
-            }
+  const getCurrentLocation = async () => {
+    setIsLocating(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required.');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      Alert.alert('Location Captured', 'Coordinates saved successfully.');
+    } catch (error) {
+      Alert.alert('Error', 'Unable to retrieve location.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
-            let location = await Location.getCurrentPositionAsync({});
+  const handleSubmit = async () => {
+    if (!formData.contactName || !formData.businessName || !formData.address) {
+      Alert.alert('Required Fields', 'Please fill in all required fields.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const profileData = {
+        ...formData,
+        dairyItems: [{ name: 'Fresh Milk', unit: 'per litre', price: formData.pricePerLiter }],
+        deliverySlots: [{ name: 'Morning', startTime: formData.deliveryTimeStart, endTime: formData.deliveryTimeEnd }],
+      };
+      const res = await apiRequest({ url: '/api/milkmen', method: 'POST', body: profileData });
+      await res.json();
+      Alert.alert('Profile Created!', 'Your milkman profile is complete.');
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      navigation.replace('MilkmanHome');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create profile.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-            Alert.alert('Location Captured', 'Coordinates saved. Reverse geocoding can be done later.');
-            // Optionally do reverse geocoding here to update formData.address
-        } catch (error) {
-            Alert.alert('Error', 'Unable to retrieve location.');
-        } finally {
-            setIsLocating(false);
-        }
-    };
+  const update = (key: string, val: string) => setFormData({ ...formData, [key]: val });
+  const isValid = formData.contactName && formData.businessName && formData.address;
 
-    const handleSubmit = async () => {
-        if (!formData.contactName || !formData.businessName || !formData.address) {
-            Alert.alert('Required Fields Missing', 'Please fill in all required fields.');
-            return;
-        }
+  const renderInput = (key: string, placeholder: string, opts?: any) => (
+    <View style={[styles.inputRow, focusedField === key && styles.inputFocused, opts?.style]}>
+      <TextInput
+        style={[styles.input, opts?.inputStyle]}
+        placeholder={placeholder}
+        placeholderTextColor={colors.mutedForeground}
+        value={(formData as any)[key]}
+        onChangeText={(val) => update(key, val)}
+        onFocus={() => setFocusedField(key)}
+        onBlur={() => setFocusedField('')}
+        keyboardType={opts?.keyboardType}
+        autoCapitalize={opts?.autoCapitalize}
+        multiline={opts?.multiline}
+        numberOfLines={opts?.numberOfLines}
+      />
+    </View>
+  );
 
-        setIsSubmitting(true);
-        try {
-            const profileData = {
-                ...formData,
-                dairyItems: [{ name: 'Fresh Milk', unit: 'per litre', price: formData.pricePerLiter }],
-                deliverySlots: [{ name: 'Morning', startTime: formData.deliveryTimeStart, endTime: formData.deliveryTimeEnd }]
-            };
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerIcon}>
+              <Truck size={32} color={colors.white} />
+            </View>
+            <Text style={styles.title}>Complete Your Profile</Text>
+            <Text style={styles.subtitle}>
+              Set up your dairy business to start serving customers
+            </Text>
+          </View>
 
-            const res = await apiRequest({
-                url: '/api/milkmen',
-                method: 'POST',
-                body: profileData
-            });
-            await res.json();
+          {/* Contact Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Truck size={20} color={colors.brandAccent} />
+              <Text style={styles.sectionTitle}>Contact Information</Text>
+            </View>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Full Name <Text style={styles.required}>*</Text></Text>
+              {renderInput('contactName', 'Enter your full name')}
+            </View>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Business Name <Text style={styles.required}>*</Text></Text>
+              {renderInput('businessName', 'Enter your business name')}
+            </View>
+          </View>
 
-            Alert.alert('Profile Created!', 'Your milkman profile is complete.');
-            await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+          {/* Service Area Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <MapPin size={20} color={colors.brandAccent} />
+              <Text style={styles.sectionTitle}>Service Area</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.locationBtn}
+              onPress={getCurrentLocation}
+              disabled={isLocating}
+              activeOpacity={0.7}
+            >
+              {isLocating ? (
+                <ActivityIndicator color={colors.brandAccent} style={{ marginRight: 8 }} />
+              ) : (
+                <MapPin size={20} color={colors.brandAccent} style={{ marginRight: 8 }} />
+              )}
+              <Text style={styles.locationBtnText}>Use Current Location</Text>
+            </TouchableOpacity>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Address <Text style={styles.required}>*</Text></Text>
+              {renderInput('address', 'Complete Address', {
+                multiline: true,
+                numberOfLines: 3,
+                style: { height: 80 },
+                inputStyle: { height: 80, textAlignVertical: 'top', paddingVertical: spacing.md },
+              })}
+            </View>
+          </View>
 
-            navigation.replace('MilkmanHome');
-        } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to create profile.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+          {/* Products Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Clock size={20} color={colors.brandAccent} />
+              <Text style={styles.sectionTitle}>Products & Delivery</Text>
+            </View>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Price Per Liter (₹) <Text style={styles.required}>*</Text></Text>
+              {renderInput('pricePerLiter', '50', { keyboardType: 'numeric' })}
+            </View>
+            <View style={styles.timeRow}>
+              <View style={styles.timeField}>
+                <Text style={styles.label}>Start Time</Text>
+                {renderInput('deliveryTimeStart', '06:00')}
+              </View>
+              <View style={styles.timeField}>
+                <Text style={styles.label}>End Time</Text>
+                {renderInput('deliveryTimeEnd', '09:00')}
+              </View>
+            </View>
+          </View>
 
-    return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <ScrollView contentContainerStyle={styles.container}>
-                <Text style={styles.title}>Complete Your Milkman Profile!</Text>
-                <Text style={styles.subtitle}>Set up your dairy business to start serving customers</Text>
+          {/* Bank Details Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <CreditCard size={20} color={colors.brandAccent} />
+              <Text style={styles.sectionTitle}>Bank Details (Optional)</Text>
+            </View>
+            <View style={styles.fieldGroup}>
+              {renderInput('bankAccountHolderName', 'Account Holder Name')}
+            </View>
+            <View style={styles.fieldGroup}>
+              {renderInput('bankAccountNumber', 'Account Number', { keyboardType: 'numeric' })}
+            </View>
+            <View style={styles.fieldGroup}>
+              {renderInput('bankIfscCode', 'IFSC Code', { autoCapitalize: 'characters' })}
+            </View>
+            <View style={styles.fieldGroup}>
+              {renderInput('upiId', 'UPI ID', { autoCapitalize: 'none' })}
+            </View>
+          </View>
 
-                <Text style={styles.sectionHeader}>Contact Information</Text>
-                <TextInput
-                    style={styles.input} placeholder="Full Name *"
-                    value={formData.contactName} onChangeText={t => setFormData({ ...formData, contactName: t })}
-                />
-                <TextInput
-                    style={styles.input} placeholder="Business Name *"
-                    value={formData.businessName} onChangeText={t => setFormData({ ...formData, businessName: t })}
-                />
-
-                <Text style={styles.sectionHeader}>Service Area</Text>
-                <TouchableOpacity style={styles.locationBtn} onPress={getCurrentLocation} disabled={isLocating}>
-                    {isLocating ? <ActivityIndicator color="#f97316" /> : <MapPin color="#f97316" />}
-                    <Text style={styles.locationBtnText}>Use Current Location</Text>
-                </TouchableOpacity>
-
-                <TextInput
-                    style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                    placeholder="Complete Address *" multiline
-                    value={formData.address} onChangeText={t => setFormData({ ...formData, address: t })}
-                />
-
-                <Text style={styles.sectionHeader}>Products & Delivery</Text>
-                <TextInput
-                    style={styles.input} placeholder="Price Per Liter (₹) *" keyboardType="numeric"
-                    value={formData.pricePerLiter} onChangeText={t => setFormData({ ...formData, pricePerLiter: t })}
-                />
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <TextInput style={[styles.input, { flex: 1 }]} placeholder="Start Time (e.g. 06:00)" value={formData.deliveryTimeStart} onChangeText={t => setFormData({ ...formData, deliveryTimeStart: t })} />
-                    <TextInput style={[styles.input, { flex: 1 }]} placeholder="End Time (e.g. 09:00)" value={formData.deliveryTimeEnd} onChangeText={t => setFormData({ ...formData, deliveryTimeEnd: t })} />
-                </View>
-
-                <Text style={styles.sectionHeader}>Bank Details (Optional)</Text>
-                <TextInput style={styles.input} placeholder="Account Holder Name" value={formData.bankAccountHolderName} onChangeText={t => setFormData({ ...formData, bankAccountHolderName: t })} />
-                <TextInput style={styles.input} placeholder="Account Number" keyboardType="numeric" value={formData.bankAccountNumber} onChangeText={t => setFormData({ ...formData, bankAccountNumber: t })} />
-                <TextInput style={styles.input} placeholder="IFSC Code" autoCapitalize="characters" value={formData.bankIfscCode} onChangeText={t => setFormData({ ...formData, bankIfscCode: t })} />
-                <TextInput style={styles.input} placeholder="UPI ID" autoCapitalize="none" value={formData.upiId} onChangeText={t => setFormData({ ...formData, upiId: t })} />
-
-                <TouchableOpacity
-                    style={[styles.submitBtn, (!formData.contactName || !formData.businessName || !formData.address) && { backgroundColor: '#9ca3af' }]}
-                    onPress={handleSubmit}
-                    disabled={isSubmitting || !formData.contactName || !formData.businessName || !formData.address}
-                >
-                    {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Complete Setup</Text>}
-                </TouchableOpacity>
-            </ScrollView>
-        </KeyboardAvoidingView>
-    );
+          {/* Submit */}
+          <TouchableOpacity
+            style={[styles.submitBtn, !isValid && styles.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={isSubmitting || !isValid}
+            activeOpacity={0.8}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.submitBtnText}>Complete Setup</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 24, paddingBottom: 40, backgroundColor: '#fff' },
-    title: { fontSize: 26, fontWeight: 'bold', color: '#0f172a', textAlign: 'center', marginBottom: 8 },
-    subtitle: { fontSize: 16, color: '#64748b', textAlign: 'center', marginBottom: 30 },
-    sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginTop: 10, marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingBottom: 5 },
-    input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, backgroundColor: '#f8fafc', marginBottom: 15 },
-    locationBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#f97316', borderStyle: 'dashed', borderRadius: 8, paddingVertical: 12, backgroundColor: '#fff7ed', marginBottom: 15, gap: 10 },
-    locationBtnText: { color: '#f97316', fontSize: 16, fontWeight: '500' },
-    submitBtn: { backgroundColor: '#f97316', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 20 },
-    submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  scrollContent: {
+    padding: spacing['2xl'],
+    paddingBottom: spacing['4xl'],
+  },
+
+  // Header
+  header: { alignItems: 'center', marginBottom: spacing['2xl'] },
+  headerIcon: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: colors.brandAccent,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  title: {
+    fontSize: fontSize['2xl'], fontWeight: fontWeight.bold,
+    color: colors.foreground, textAlign: 'center', marginBottom: spacing.sm,
+  },
+  subtitle: {
+    fontSize: fontSize.base, color: colors.mutedForeground,
+    textAlign: 'center', lineHeight: fontSize.base * 1.5,
+  },
+
+  // Sections
+  sectionCard: {
+    backgroundColor: colors.card, borderRadius: borderRadius.xl,
+    padding: spacing['2xl'], marginBottom: spacing.lg, ...shadows.md,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginBottom: spacing.lg, paddingBottom: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  sectionTitle: {
+    fontSize: fontSize.lg, fontWeight: fontWeight.bold,
+    color: colors.foreground, marginLeft: spacing.md,
+  },
+
+  // Fields
+  fieldGroup: { marginBottom: spacing.lg },
+  label: {
+    fontSize: fontSize.sm, fontWeight: fontWeight.semibold,
+    color: colors.foreground, marginBottom: spacing.sm,
+  },
+  required: { color: colors.destructive },
+  inputRow: {
+    borderWidth: 1, borderColor: colors.input, borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceSecondary, height: 48,
+    paddingHorizontal: spacing.lg, justifyContent: 'center',
+  },
+  inputFocused: { borderColor: colors.brandAccent, borderWidth: 2 },
+  input: {
+    fontSize: fontSize.base, color: colors.foreground, height: '100%',
+  },
+
+  // Time row
+  timeRow: { flexDirection: 'row', gap: spacing.md },
+  timeField: { flex: 1 },
+
+  // Location
+  locationBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.brandAccent, borderStyle: 'dashed',
+    borderRadius: borderRadius.md, paddingVertical: 14,
+    backgroundColor: '#FFF7ED', marginBottom: spacing.lg,
+  },
+  locationBtnText: {
+    color: colors.brandAccent, fontSize: fontSize.base, fontWeight: fontWeight.medium,
+  },
+
+  // Submit
+  submitBtn: {
+    backgroundColor: colors.brandAccent, height: 52, borderRadius: borderRadius.lg,
+    justifyContent: 'center', alignItems: 'center', ...shadows.md,
+  },
+  submitBtnDisabled: { backgroundColor: colors.gray400 },
+  submitBtnText: {
+    color: colors.white, fontSize: fontSize.lg, fontWeight: fontWeight.bold,
+  },
 });

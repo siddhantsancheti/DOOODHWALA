@@ -1,176 +1,322 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import {
+  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
+  ActivityIndicator, Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, queryClient } from '../../lib/queryClient';
-import { ShoppingCart, MapPin, Clock, Star, Phone } from 'lucide-react-native';
+import {
+  ShoppingCart, MapPin, Clock, Phone, Minus, Plus, FileText,
+} from 'lucide-react-native';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
 
 export default function OrderScreen({ route, navigation }: any) {
-    const { user } = useAuth();
-    const milkmanId = route.params?.milkmanId || 1; // Default to 1 for demo if none passed
+  const { user } = useAuth();
+  const milkmanId = route.params?.milkmanId || 1;
 
-    const { data: milkman, isLoading: milkmanLoading } = useQuery<any>({
-        queryKey: [`/api/milkmen/${milkmanId}`],
-        enabled: !!milkmanId
+  const { data: milkman, isLoading } = useQuery<any>({
+    queryKey: [`/api/milkmen/${milkmanId}`], enabled: !!milkmanId,
+  });
+  const { data: customerProfile } = useQuery<any>({
+    queryKey: ['/api/customers/profile'], enabled: !!user,
+  });
+
+  const [formData, setFormData] = useState({
+    deliveryDate: '',
+    deliveryTime: '07:00-08:00',
+    deliveryAddress: customerProfile?.address || '',
+    specialInstructions: '',
+  });
+  const [selectedItems, setSelectedItems] = useState<{ [key: string]: number }>({});
+  const [focusedField, setFocusedField] = useState('');
+
+  const handleQtyChange = (name: string, diff: number, max: number = 99) => {
+    setSelectedItems((prev) => {
+      const current = prev[name] || 0;
+      const next = Math.max(0, Math.min(max, current + diff));
+      return { ...prev, [name]: next };
     });
+  };
 
-    const { data: customerProfile } = useQuery<any>({
-        queryKey: ['/api/customers/profile'],
-        enabled: !!user
-    });
+  const calculateTotal = () => {
+    if (!milkman?.dairyItems) return 0;
+    return milkman.dairyItems.reduce((acc: number, item: any) => {
+      return acc + (selectedItems[item.name] || 0) * parseFloat(item.price);
+    }, 0);
+  };
 
-    const [formData, setFormData] = useState({
-        customerName: customerProfile?.name || '',
-        deliveryAddress: customerProfile?.address || '',
-        deliveryDate: '',
-        deliveryTime: '07:00-08:00',
-        specialInstructions: ''
-    });
-
-    const [selectedItems, setSelectedItems] = useState<{ [key: string]: number }>({});
-
-    const handleQtyChange = (name: string, diff: number, max: number = 99) => {
-        setSelectedItems(prev => {
-            const current = prev[name] || 0;
-            const next = Math.max(0, Math.min(max, current + diff));
-            return { ...prev, [name]: next };
+  const placeOrder = async () => {
+    if (!formData.deliveryDate) {
+      Alert.alert('Missing Fields', 'Please enter a delivery date.');
+      return;
+    }
+    const total = calculateTotal();
+    if (total === 0) {
+      Alert.alert('Empty Cart', 'Please add at least one item.');
+      return;
+    }
+    try {
+      const itemNames = Object.keys(selectedItems).filter((k) => selectedItems[k] > 0);
+      for (const itemName of itemNames) {
+        const qty = selectedItems[itemName];
+        const item = milkman.dairyItems.find((i: any) => i.name === itemName);
+        await apiRequest({
+          url: '/api/orders', method: 'POST',
+          body: {
+            milkmanId, quantity: qty.toString(),
+            pricePerLiter: item.price,
+            totalAmount: (qty * parseFloat(item.price)).toString(),
+            deliveryDate: formData.deliveryDate,
+            deliveryTime: formData.deliveryTime,
+            status: 'pending',
+            specialInstructions: formData.specialInstructions,
+            itemName,
+          },
         });
-    };
+      }
+      Alert.alert('Order Placed!', 'Your order has been successfully placed.');
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/customer'] });
+      navigation.goBack();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to place order.');
+    }
+  };
 
-    const calculateTotal = () => {
-        if (!milkman?.dairyItems) return 0;
-        return milkman.dairyItems.reduce((acc: number, item: any) => {
-            return acc + ((selectedItems[item.name] || 0) * parseFloat(item.price));
-        }, 0);
-    };
-
-    const placeOrder = async () => {
-        if (!formData.customerName || !formData.deliveryAddress || !formData.deliveryDate) {
-            Alert.alert('Missing Fields', 'Please fill out all required details.');
-            return;
-        }
-
-        const total = calculateTotal();
-        if (total === 0) {
-            Alert.alert('Empty Cart', 'Please add at least one item to cart.');
-            return;
-        }
-
-        try {
-            // For simplicity, submit one total order or the first item
-            const itemNames = Object.keys(selectedItems).filter(k => selectedItems[k] > 0);
-
-            for (const itemName of itemNames) {
-                const qty = selectedItems[itemName];
-                const item = milkman.dairyItems.find((i: any) => i.name === itemName);
-
-                await apiRequest({
-                    url: '/api/orders',
-                    method: 'POST',
-                    body: {
-                        milkmanId,
-                        quantity: qty.toString(),
-                        pricePerLiter: item.price,
-                        totalAmount: (qty * parseFloat(item.price)).toString(),
-                        deliveryDate: formData.deliveryDate,
-                        deliveryTime: formData.deliveryTime,
-                        status: "pending",
-                        specialInstructions: formData.specialInstructions,
-                        itemName
-                    }
-                });
-            }
-
-            Alert.alert('Order Placed!', 'Your order has been successfully placed.');
-            queryClient.invalidateQueries({ queryKey: ['/api/orders/customer'] });
-            navigation.goBack();
-
-        } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to place order.');
-        }
-    };
-
-    if (milkmanLoading) return <ActivityIndicator style={{ marginTop: 50 }} size="large" color="#3b82f6" />;
-
+  if (isLoading) {
     return (
-        <ScrollView style={styles.container}>
-            <Text style={styles.pageTitle}>Place Your Order</Text>
-
-            {milkman ? (
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>{milkman.businessName}</Text>
-                    <Text style={styles.cardSub}>{milkman.contactName}</Text>
-                    <View style={styles.infoRow}><Phone size={14} color="#64748b" /><Text style={styles.infoText}>{milkman.phone}</Text></View>
-                    <View style={styles.infoRow}><MapPin size={14} color="#64748b" /><Text style={styles.infoText}>{milkman.address}</Text></View>
-                    <View style={styles.infoRow}><Clock size={14} color="#64748b" /><Text style={styles.infoText}>{milkman.deliveryTimeStart} - {milkman.deliveryTimeEnd}</Text></View>
-                </View>
-            ) : null}
-
-            <View style={styles.card}>
-                <Text style={styles.cardHeader}>Products</Text>
-                {milkman?.dairyItems?.map((item: any) => (
-                    <View key={item.name} style={styles.productRow}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.productName}>{item.name}</Text>
-                            <Text style={styles.productPrice}>₹{item.price} {item.unit}</Text>
-                        </View>
-                        <View style={styles.qtyControls}>
-                            <TouchableOpacity onPress={() => handleQtyChange(item.name, -1)} style={styles.qtyBtn}><Text style={styles.qtyBtnText}>-</Text></TouchableOpacity>
-                            <Text style={styles.qtyText}>{selectedItems[item.name] || 0}</Text>
-                            <TouchableOpacity onPress={() => handleQtyChange(item.name, 1, item.quantity)} style={styles.qtyBtn}><Text style={styles.qtyBtnText}>+</Text></TouchableOpacity>
-                        </View>
-                    </View>
-                ))}
-            </View>
-
-            <View style={styles.card}>
-                <Text style={styles.cardHeader}>Delivery Details</Text>
-
-                <Text style={styles.label}>Delivery Date (YYYY-MM-DD)*</Text>
-                <TextInput style={styles.input} placeholder="e.g. 2024-05-15" value={formData.deliveryDate} onChangeText={t => setFormData({ ...formData, deliveryDate: t })} />
-
-                <Text style={styles.label}>Delivery Time*</Text>
-                <TextInput style={styles.input} placeholder="e.g. 07:00-08:00" value={formData.deliveryTime} onChangeText={t => setFormData({ ...formData, deliveryTime: t })} />
-
-                <Text style={styles.label}>Delivery Address*</Text>
-                <TextInput style={[styles.input, { height: 60 }]} multiline value={formData.deliveryAddress} onChangeText={t => setFormData({ ...formData, deliveryAddress: t })} />
-
-                <Text style={styles.label}>Special Instructions</Text>
-                <TextInput style={[styles.input, { height: 60 }]} multiline value={formData.specialInstructions} onChangeText={t => setFormData({ ...formData, specialInstructions: t })} />
-            </View>
-
-            <View style={styles.summaryCard}>
-                <Text style={styles.summaryTotal}>Total Amount: ₹{calculateTotal().toFixed(2)}</Text>
-                <TouchableOpacity style={styles.placeOrderBtn} onPress={placeOrder}>
-                    <Text style={styles.placeOrderBtnText}>Confirm Order</Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={{ height: 40 }} />
-        </ScrollView>
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     );
+  }
+
+  const total = calculateTotal();
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.pageTitle}>Place Your Order</Text>
+
+        {/* Milkman Info */}
+        {milkman && (
+          <View style={styles.card}>
+            <View style={styles.milkmanHeader}>
+              <View style={styles.milkmanAvatar}>
+                <ShoppingCart size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.milkmanName}>{milkman.businessName}</Text>
+                <Text style={styles.milkmanSub}>{milkman.contactName}</Text>
+              </View>
+            </View>
+            <View style={styles.milkmanInfoRow}>
+              <Phone size={14} color={colors.mutedForeground} />
+              <Text style={styles.milkmanInfoText}>{milkman.phone}</Text>
+            </View>
+            <View style={styles.milkmanInfoRow}>
+              <MapPin size={14} color={colors.mutedForeground} />
+              <Text style={styles.milkmanInfoText}>{milkman.address}</Text>
+            </View>
+            <View style={styles.milkmanInfoRow}>
+              <Clock size={14} color={colors.mutedForeground} />
+              <Text style={styles.milkmanInfoText}>
+                {milkman.deliveryTimeStart} - {milkman.deliveryTimeEnd}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Products */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Products</Text>
+          {milkman?.dairyItems?.map((item: any) => (
+            <View key={item.name} style={styles.productRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.productName}>{item.name}</Text>
+                <Text style={styles.productPrice}>₹{item.price} {item.unit}</Text>
+              </View>
+              <View style={styles.qtyControls}>
+                <TouchableOpacity
+                  onPress={() => handleQtyChange(item.name, -1)}
+                  style={[styles.qtyBtn, selectedItems[item.name] === 0 && styles.qtyBtnDisabled]}
+                  activeOpacity={0.7}
+                >
+                  <Minus size={16} color={selectedItems[item.name] ? colors.primary : colors.gray400} />
+                </TouchableOpacity>
+                <Text style={styles.qtyText}>{selectedItems[item.name] || 0}</Text>
+                <TouchableOpacity
+                  onPress={() => handleQtyChange(item.name, 1, item.quantity)}
+                  style={styles.qtyBtn}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Delivery Details */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Delivery Details</Text>
+
+          <Text style={styles.label}>Delivery Date <Text style={{ color: colors.destructive }}>*</Text></Text>
+          <TextInput
+            style={[styles.input, focusedField === 'date' && styles.inputFocused]}
+            placeholder="e.g. 2024-05-15"
+            placeholderTextColor={colors.mutedForeground}
+            value={formData.deliveryDate}
+            onChangeText={(t) => setFormData({ ...formData, deliveryDate: t })}
+            onFocus={() => setFocusedField('date')}
+            onBlur={() => setFocusedField('')}
+          />
+
+          <Text style={styles.label}>Delivery Time</Text>
+          <TextInput
+            style={[styles.input, focusedField === 'time' && styles.inputFocused]}
+            placeholder="e.g. 07:00-08:00"
+            placeholderTextColor={colors.mutedForeground}
+            value={formData.deliveryTime}
+            onChangeText={(t) => setFormData({ ...formData, deliveryTime: t })}
+            onFocus={() => setFocusedField('time')}
+            onBlur={() => setFocusedField('')}
+          />
+
+          <Text style={styles.label}>Address</Text>
+          <TextInput
+            style={[styles.input, styles.textArea, focusedField === 'address' && styles.inputFocused]}
+            placeholder="Delivery address"
+            placeholderTextColor={colors.mutedForeground}
+            multiline
+            value={formData.deliveryAddress}
+            onChangeText={(t) => setFormData({ ...formData, deliveryAddress: t })}
+            onFocus={() => setFocusedField('address')}
+            onBlur={() => setFocusedField('')}
+          />
+
+          <Text style={styles.label}>Special Instructions</Text>
+          <TextInput
+            style={[styles.input, styles.textArea, focusedField === 'inst' && styles.inputFocused]}
+            placeholder="Any special instructions..."
+            placeholderTextColor={colors.mutedForeground}
+            multiline
+            value={formData.specialInstructions}
+            onChangeText={(t) => setFormData({ ...formData, specialInstructions: t })}
+            onFocus={() => setFocusedField('inst')}
+            onBlur={() => setFocusedField('')}
+          />
+        </View>
+
+        {/* Summary */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total Amount</Text>
+            <Text style={styles.summaryTotal}>₹{total.toFixed(2)}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.placeOrderBtn, total === 0 && styles.placeOrderBtnDisabled]}
+            onPress={placeOrder}
+            disabled={total === 0}
+            activeOpacity={0.8}
+          >
+            <FileText size={20} color={colors.white} />
+            <Text style={styles.placeOrderText}>Confirm Order</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f1f5f9', padding: 16 },
-    pageTitle: { fontSize: 24, fontWeight: 'bold', color: '#0f172a', marginBottom: 16 },
-    card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 16, elevation: 1 },
-    cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a' },
-    cardSub: { fontSize: 14, color: '#64748b', marginBottom: 8 },
-    infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 6 },
-    infoText: { fontSize: 13, color: '#475569' },
-    cardHeader: { fontSize: 16, fontWeight: 'bold', color: '#0f172a', marginBottom: 12 },
-    productRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-    productName: { fontSize: 15, fontWeight: '500', color: '#0f172a' },
-    productPrice: { fontSize: 13, color: '#64748b' },
-    qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    qtyBtn: { backgroundColor: '#f1f5f9', width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-    qtyBtnText: { fontSize: 18, fontWeight: 'bold', color: '#3b82f6' },
-    qtyText: { fontSize: 16, fontWeight: 'bold', width: 20, textAlign: 'center' },
-    label: { fontSize: 13, fontWeight: '500', color: '#334155', marginBottom: 4, marginTop: 10 },
-    input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#f8fafc', fontSize: 15 },
-    summaryCard: { backgroundColor: '#fff', padding: 16, borderRadius: 12, elevation: 2, marginTop: 10 },
-    summaryTotal: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 12, textAlign: 'center' },
-    placeOrderBtn: { backgroundColor: '#3b82f6', paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-    placeOrderBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, padding: spacing.xl },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  pageTitle: {
+    fontSize: fontSize['2xl'], fontWeight: fontWeight.bold,
+    color: colors.foreground, marginBottom: spacing.lg,
+  },
+
+  // Cards
+  card: {
+    backgroundColor: colors.card, padding: spacing.lg,
+    borderRadius: borderRadius.lg, marginBottom: spacing.lg, ...shadows.sm,
+  },
+
+  // Milkman
+  milkmanHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  milkmanAvatar: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.primaryLight, justifyContent: 'center',
+    alignItems: 'center', marginRight: spacing.md,
+  },
+  milkmanName: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
+  milkmanSub: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  milkmanInfoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 },
+  milkmanInfoText: { fontSize: fontSize.sm, color: colors.gray600 },
+
+  // Section
+  sectionTitle: {
+    fontSize: fontSize.base, fontWeight: fontWeight.bold,
+    color: colors.foreground, marginBottom: spacing.md,
+  },
+
+  // Products
+  productRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  productName: { fontSize: fontSize.base, fontWeight: fontWeight.medium, color: colors.foreground },
+  productPrice: { fontSize: fontSize.sm, color: colors.mutedForeground, marginTop: 2 },
+  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  qtyBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center',
+  },
+  qtyBtnDisabled: { backgroundColor: colors.gray100 },
+  qtyText: {
+    fontSize: fontSize.lg, fontWeight: fontWeight.bold,
+    width: 24, textAlign: 'center', color: colors.foreground,
+  },
+
+  // Form
+  label: {
+    fontSize: fontSize.sm, fontWeight: fontWeight.medium,
+    color: colors.foreground, marginBottom: spacing.xs, marginTop: spacing.md,
+  },
+  input: {
+    borderWidth: 1, borderColor: colors.input, borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.md,
+    fontSize: fontSize.base, backgroundColor: colors.surfaceSecondary, color: colors.foreground,
+  },
+  inputFocused: { borderColor: colors.primary, borderWidth: 2 },
+  textArea: { height: 70, textAlignVertical: 'top' },
+
+  // Summary
+  summaryCard: {
+    backgroundColor: colors.card, padding: spacing.xl,
+    borderRadius: borderRadius.xl, ...shadows.lg,
+  },
+  summaryRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: spacing.lg,
+  },
+  summaryLabel: { fontSize: fontSize.base, color: colors.mutedForeground },
+  summaryTotal: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: colors.foreground },
+  placeOrderBtn: {
+    backgroundColor: colors.primary, height: 52,
+    borderRadius: borderRadius.lg, justifyContent: 'center',
+    alignItems: 'center', flexDirection: 'row', gap: spacing.sm, ...shadows.md,
+  },
+  placeOrderBtnDisabled: { backgroundColor: colors.gray400 },
+  placeOrderText: { color: colors.white, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
 });

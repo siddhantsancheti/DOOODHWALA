@@ -1,555 +1,505 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    ActivityIndicator, Alert, Modal, TextInput, SafeAreaView, Dimensions
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  ActivityIndicator, Alert, Modal, Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import {
-    Truck, Users, Package, DollarSign, Settings,
-    CheckCircle, X, ChevronRight, Phone, MessageCircle, MapPin
+  Truck, Users, Package, DollarSign, Settings,
+  CheckCircle, X, Phone, MessageCircle, MapPin,
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
 
 const { width } = Dimensions.get('window');
 
 export default function MilkmanDashboardScreen({ navigation }: any) {
-    const { user } = useAuth();
+  const { user } = useAuth();
+  const [showDeliveriesModal, setShowDeliveriesModal] = useState(false);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showCustomersModal, setShowCustomersModal] = useState(false);
+  const [showEarningsModal, setShowEarningsModal] = useState(false);
 
-    // UI State for Modals
-    const [showDeliveriesModal, setShowDeliveriesModal] = useState(false);
-    const [showInventoryModal, setShowInventoryModal] = useState(false);
-    const [showCustomersModal, setShowCustomersModal] = useState(false);
-    const [showEarningsModal, setShowEarningsModal] = useState(false);
+  const { data: milkmanProfile, isLoading: isProfileLoading } = useQuery<any>({
+    queryKey: ['/api/milkmen/profile'], enabled: !!user,
+  });
+  const { data: orders, isLoading: isOrdersLoading } = useQuery<any>({
+    queryKey: ['/api/orders/milkman'], enabled: !!milkmanProfile,
+  });
+  const { data: customers, isLoading: isCustomersLoading } = useQuery<any>({
+    queryKey: ['/api/milkmen/customers'], enabled: !!milkmanProfile,
+  });
 
-    // Data Fetching
-    const { data: milkmanProfile, isLoading: isProfileLoading } = useQuery<any>({
-        queryKey: ["/api/milkmen/profile"],
-        enabled: !!user
-    });
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: number; status: string }) => {
+      await apiRequest({ url: `/api/orders/${orderId}/status`, method: 'PATCH', body: { status } });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/orders/milkman'] }),
+    onError: (e: any) => Alert.alert('Error', e.message),
+  });
 
-    const { data: orders, isLoading: isOrdersLoading } = useQuery<any>({
-        queryKey: ["/api/orders/milkman"],
-        enabled: !!milkmanProfile
-    });
+  const updateInventoryMutation = useMutation({
+    mutationFn: async (dairyItems: any[]) => {
+      await apiRequest({ url: '/api/milkmen/inventory', method: 'POST', body: { dairyItems } });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/milkmen/profile'] });
+      Alert.alert('Success', 'Inventory updated');
+    },
+    onError: (e: any) => Alert.alert('Error', e.message),
+  });
 
-    const { data: customers, isLoading: isCustomersLoading } = useQuery<any>({
-        queryKey: ["/api/milkmen/customers"],
-        enabled: !!milkmanProfile
-    });
+  const todaysDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todaysOrders = useMemo(() => {
+    if (!Array.isArray(orders)) return [];
+    return orders.filter((o) => o.deliveryDate === todaysDateStr || o.status === 'out_for_delivery' || o.status === 'pending');
+  }, [orders, todaysDateStr]);
+  const pendingOrders = useMemo(() => todaysOrders.filter((o) => ['pending', 'accepted', 'out_for_delivery'].includes(o.status)), [todaysOrders]);
+  const completedOrders = useMemo(() => todaysOrders.filter((o) => o.status === 'delivered'), [todaysOrders]);
+  const todaysEarnings = useMemo(() => completedOrders.reduce((s, o) => s + Number(o.totalAmount || 0), 0), [completedOrders]);
+  const totalCustomersCount = Array.isArray(customers) ? customers.length : 0;
+  const progressPerc = todaysOrders.length > 0 ? (completedOrders.length / todaysOrders.length) * 100 : 0;
 
-    // Mutations
-    const updateOrderStatusMutation = useMutation({
-        mutationFn: async ({ orderId, status }: { orderId: number; status: string }) => {
-            await apiRequest({ url: `/api/orders/${orderId}/status`, method: "PATCH", body: { status } });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/orders/milkman"] });
-        },
-        onError: (e: any) => Alert.alert("Error", e.message)
-    });
+  // Location broadcasting
+  const locationSub = useRef<Location.LocationSubscription | null>(null);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
-    const updateInventoryMutation = useMutation({
-        mutationFn: async (dairyItems: any[]) => {
-            await apiRequest({ url: "/api/milkmen/inventory", method: "POST", body: { dairyItems } });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/milkmen/profile"] });
-            Alert.alert("Success", "Inventory updated successfully");
-        },
-        onError: (e: any) => Alert.alert("Error", "Failed to update inventory: " + e.message)
-    });
-
-    // Computed Data
-    const todaysDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-
-    const todaysOrders = useMemo(() => {
-        if (!Array.isArray(orders)) return [];
-        return orders.filter(o => o.deliveryDate === todaysDateStr || o.status === 'out_for_delivery' || o.status === 'pending');
-    }, [orders, todaysDateStr]);
-
-    const pendingOrders = useMemo(() => todaysOrders.filter(o => ['pending', 'accepted', 'out_for_delivery'].includes(o.status)), [todaysOrders]);
-    const completedOrders = useMemo(() => todaysOrders.filter(o => o.status === 'delivered'), [todaysOrders]);
-
-    const todaysEarnings = useMemo(() => {
-        return completedOrders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
-    }, [completedOrders]);
-
-    const totalCustomersCount = Array.isArray(customers) ? customers.length : 0;
-    const progressPerc = todaysOrders.length > 0 ? (completedOrders.length / todaysOrders.length) * 100 : 0;
-
-    // --- Location Broadcasting Logic ---
-    const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-    const [isBroadcasting, setIsBroadcasting] = useState(false);
-
-    const startLocationBroadcasting = async () => {
-        try {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission to access location was denied');
-                return;
-            }
-
-            // Watch position every 15 seconds (15000ms) or 10 meters
-            locationSubscription.current = await Location.watchPositionAsync(
-                {
-                    accuracy: Location.Accuracy.High,
-                    timeInterval: 15000,
-                    distanceInterval: 10,
-                },
-                (location) => {
-                    // Send to backend
-                    apiRequest({
-                        url: "/api/delivery/location",
-                        method: "POST",
-                        body: {
-                            latitude: location.coords.latitude,
-                            longitude: location.coords.longitude
-                        }
-                    }).catch(err => console.log('Failed to broadcast location:', err));
-                }
-            );
-            setIsBroadcasting(true);
-            console.log('Started broadcasting milkman location');
-        } catch (error) {
-            console.error('Error starting location broadcast:', error);
+  const startBroadcast = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('Permission denied'); return; }
+      locationSub.current = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, timeInterval: 15000, distanceInterval: 10 },
+        (loc) => {
+          apiRequest({
+            url: '/api/delivery/location', method: 'POST',
+            body: { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
+          }).catch(() => {});
         }
-    };
+      );
+      setIsBroadcasting(true);
+    } catch (e) { console.error(e); }
+  };
+  const stopBroadcast = () => {
+    locationSub.current?.remove();
+    locationSub.current = null;
+    setIsBroadcasting(false);
+  };
+  useEffect(() => () => stopBroadcast(), []);
 
-    const stopLocationBroadcasting = () => {
-        if (locationSubscription.current) {
-            locationSubscription.current.remove();
-            locationSubscription.current = null;
-        }
-        setIsBroadcasting(false);
-        console.log('Stopped broadcasting milkman location');
-    };
+  const isLoading = isProfileLoading || isOrdersLoading || isCustomersLoading;
 
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            stopLocationBroadcasting();
-        };
-    }, []);
-
-    const isLoading = isProfileLoading || isOrdersLoading || isCustomersLoading;
-
-    if (isLoading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#3b82f6" />
-                <Text style={styles.loadingText}>Loading Dashboard...</Text>
-            </View>
-        );
-    }
-
-    if (!milkmanProfile) {
-        return (
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>Profile Required</Text>
-                <Text style={styles.emptySub}>You have not set up your milkman business profile yet.</Text>
-                <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('MilkmanProfileSetup')}>
-                    <Text style={styles.btnPrimaryText}>Set Up Profile Now</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
-
-    // Components
-    const QuickActionButton = ({ icon: Icon, title, subtitle, color, bgColor, onPress }: any) => (
-        <TouchableOpacity style={styles.actionCard} onPress={onPress}>
-            <View style={[styles.actionIconContainer, { backgroundColor: bgColor }]}>
-                <Icon size={24} color={color} />
-            </View>
-            <Text style={styles.actionTitle}>{title}</Text>
-            <Text style={styles.actionSubtitle}>{subtitle}</Text>
-        </TouchableOpacity>
-    );
-
-    // Render Main Dashboard
+  if (isLoading) {
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerTopRow}>
-                        <View>
-                            <Text style={styles.greeting}>Hello,</Text>
-                            <Text style={styles.businessName}>{milkmanProfile.businessName}</Text>
-                        </View>
-                        <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Profile')}>
-                            <Settings size={22} color="#1e293b" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Route Tracking Toggle */}
-                    <TouchableOpacity
-                        style={[
-                            styles.broadcastBtn,
-                            { backgroundColor: isBroadcasting ? '#fee2e2' : '#dcfce7' }
-                        ]}
-                        onPress={isBroadcasting ? stopLocationBroadcasting : startLocationBroadcasting}
-                    >
-                        <MapPin size={20} color={isBroadcasting ? '#ef4444' : '#22c55e'} />
-                        <Text style={[
-                            styles.broadcastBtnText,
-                            { color: isBroadcasting ? '#b91c1c' : '#15803d' }
-                        ]}>
-                            {isBroadcasting ? 'Stop Sharing Location' : 'Start My Route (Share Location)'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Quick Actions Grid */}
-                <View style={styles.gridContainer}>
-                    <QuickActionButton
-                        icon={Truck} title="Deliveries" subtitle={`${pendingOrders.length} Pending`}
-                        color="#2563eb" bgColor="#dbeafe"
-                        onPress={() => setShowDeliveriesModal(true)}
-                    />
-                    <QuickActionButton
-                        icon={Package} title="Inventory" subtitle="Update Stock"
-                        color="#d97706" bgColor="#fef3c7"
-                        onPress={() => setShowInventoryModal(true)}
-                    />
-                    <QuickActionButton
-                        icon={Users} title="Customers" subtitle={`${totalCustomersCount} Total`}
-                        color="#059669" bgColor="#d1fae5"
-                        onPress={() => setShowCustomersModal(true)}
-                    />
-                    <QuickActionButton
-                        icon={DollarSign} title="Earnings" subtitle={`₹${todaysEarnings} Today`}
-                        color="#7c3aed" bgColor="#ede9fe"
-                        onPress={() => setShowEarningsModal(true)}
-                    />
-                </View>
-
-                {/* Daily Summary */}
-                <View style={styles.summaryCard}>
-                    <Text style={styles.sectionTitle}>Daily Summary</Text>
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Orders Completed</Text>
-                        <Text style={styles.summaryValue}>{completedOrders.length} / {todaysOrders.length}</Text>
-                    </View>
-                    <View style={styles.progressContainer}>
-                        <View style={[styles.progressBar, { width: `${progressPerc}%` }]} />
-                    </View>
-                    <Text style={styles.progressText}>{Math.round(progressPerc)}% of daily target completed</Text>
-
-                    <View style={styles.divider} />
-
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Earnings Today</Text>
-                        <Text style={[styles.summaryValue, { color: '#059669', fontSize: 18 }]}>₹{todaysEarnings.toFixed(2)}</Text>
-                    </View>
-                </View>
-
-                {/* Next Deliveries Snapshot */}
-                <View style={styles.deliveriesSnapshot}>
-                    <View style={styles.snapshotHeader}>
-                        <Text style={styles.sectionTitle}>Next Deliveries</Text>
-                        <TouchableOpacity onPress={() => setShowDeliveriesModal(true)}>
-                            <Text style={styles.seeAllText}>See All</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {pendingOrders.slice(0, 3).map((order) => {
-                        const customer = customers?.find((c: any) => c.id === order.customerId);
-                        return (
-                            <TouchableOpacity key={order.id} style={styles.snapshotCard} onPress={() => setShowDeliveriesModal(true)}>
-                                <View style={styles.snapshotTop}>
-                                    <Text style={styles.snapshotName}>{customer?.name || 'Customer'}</Text>
-                                    <View style={styles.badgeSmall}>
-                                        <Text style={styles.badgeSmallText}>{order.status}</Text>
-                                    </View>
-                                </View>
-                                <Text style={styles.snapshotAddress} numberOfLines={1}>
-                                    <MapPin size={12} color="#64748b" style={{ marginRight: 4 }} />
-                                    {order.deliveryAddress || customer?.address || 'No address'}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                    {pendingOrders.length === 0 && (
-                        <View style={styles.emptySnapshot}>
-                            <CheckCircle size={32} color="#cbd5e1" />
-                            <Text style={styles.emptySnapshotText}>All caught up for now!</Text>
-                        </View>
-                    )}
-                </View>
-
-            </ScrollView>
-
-            {/* ---> MODALS <--- */}
-
-            {/* Deliveries Modal */}
-            <Modal visible={showDeliveriesModal} animationType="slide" presentationStyle="pageSheet">
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Today's Deliveries</Text>
-                        <TouchableOpacity onPress={() => setShowDeliveriesModal(false)} style={styles.closeBtn}>
-                            <X size={24} color="#0f172a" />
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={styles.modalContent}>
-                        {todaysOrders.map(order => {
-                            const customer = customers?.find((c: any) => c.id === order.customerId);
-                            return (
-                                <View key={order.id} style={styles.orderCard}>
-                                    <View style={styles.orderHeader}>
-                                        <View>
-                                            <Text style={styles.orderCustomer}>{customer?.name || `Order #${order.id}`}</Text>
-                                            <Text style={styles.orderItem}>{order.itemName || 'Milk'} • {order.quantity}L</Text>
-                                        </View>
-                                        <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={styles.orderAmount}>₹{order.totalAmount}</Text>
-                                            <Text style={styles.orderStatusBadge}>{order.status.toUpperCase()}</Text>
-                                        </View>
-                                    </View>
-                                    <Text style={styles.orderAddress}>{order.deliveryAddress || customer?.address}</Text>
-
-                                    <View style={styles.orderActionsRow}>
-                                        {['pending', 'accepted'].includes(order.status) && (
-                                            <TouchableOpacity
-                                                style={[styles.actionBtn, { backgroundColor: '#f59e0b' }]}
-                                                onPress={() => updateOrderStatusMutation.mutate({ orderId: order.id, status: 'out_for_delivery' })}
-                                            >
-                                                <Text style={styles.actionBtnText}>Start Delivery</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                        {order.status === 'out_for_delivery' && (
-                                            <TouchableOpacity
-                                                style={[styles.actionBtn, { backgroundColor: '#10b981' }]}
-                                                onPress={() => updateOrderStatusMutation.mutate({ orderId: order.id, status: 'delivered' })}
-                                            >
-                                                <CheckCircle size={18} color="#fff" style={{ marginRight: 6 }} />
-                                                <Text style={styles.actionBtnText}>Mark Delivered</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                </View>
-                            )
-                        })}
-                        {todaysOrders.length === 0 && (
-                            <Text style={styles.emptyStateText}>No orders for today.</Text>
-                        )}
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
-
-            {/* Customers Modal */}
-            <Modal visible={showCustomersModal} animationType="slide" presentationStyle="pageSheet">
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>My Customers</Text>
-                        <TouchableOpacity onPress={() => setShowCustomersModal(false)} style={styles.closeBtn}>
-                            <X size={24} color="#0f172a" />
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={styles.modalContent}>
-                        {Array.isArray(customers) && customers.map(cust => (
-                            <View key={cust.id} style={styles.customerCard}>
-                                <View style={styles.customerAvatar}>
-                                    <Users size={20} color="#3b82f6" />
-                                </View>
-                                <View style={styles.customerInfo}>
-                                    <Text style={styles.customerName}>{cust.name}</Text>
-                                    <Text style={styles.customerPhone}>{cust.phone}</Text>
-                                    <Text style={styles.customerAddress} numberOfLines={1}>{cust.address}</Text>
-                                </View>
-                                <View style={styles.customerActions}>
-                                    <TouchableOpacity style={styles.iconButton}>
-                                        <MessageCircle size={20} color="#3b82f6" />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.iconButton}>
-                                        <Phone size={20} color="#10b981" />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        ))}
-                        {(!customers || customers.length === 0) && (
-                            <Text style={styles.emptyStateText}>No customers assigned yet.</Text>
-                        )}
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
-
-            {/* Earnings Modal (Placeholder Details) */}
-            <Modal visible={showEarningsModal} animationType="slide" presentationStyle="pageSheet">
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Earnings Overview</Text>
-                        <TouchableOpacity onPress={() => setShowEarningsModal(false)} style={styles.closeBtn}>
-                            <X size={24} color="#0f172a" />
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={styles.modalContent}>
-                        <View style={[styles.summaryCard, { backgroundColor: '#10b981' }]}>
-                            <Text style={{ color: '#fff', fontSize: 16 }}>Earnings Today</Text>
-                            <Text style={{ color: '#fff', fontSize: 32, fontWeight: 'bold' }}>₹{todaysEarnings.toFixed(2)}</Text>
-                        </View>
-                        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-                        {completedOrders.map((order) => {
-                            const customer = customers?.find((c: any) => c.id === order.customerId);
-                            return (
-                                <View key={`tx-${order.id}`} style={styles.txCard}>
-                                    <View>
-                                        <Text style={styles.txName}>{customer?.name || 'Customer'}</Text>
-                                        <Text style={styles.txDate}>{new Date(order.updatedAt || order.createdAt).toLocaleString()}</Text>
-                                    </View>
-                                    <Text style={styles.txAmount}>+ ₹{order.totalAmount}</Text>
-                                </View>
-                            );
-                        })}
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
-
-            {/* Inventory Modal */}
-            <Modal visible={showInventoryModal} animationType="slide" presentationStyle="pageSheet">
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Manage Inventory</Text>
-                        <TouchableOpacity onPress={() => setShowInventoryModal(false)} style={styles.closeBtn}>
-                            <X size={24} color="#0f172a" />
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={styles.modalContent}>
-                        <View style={styles.inventoryHeader}>
-                            <Text style={styles.inventorySubtitle}>Update items you carry today</Text>
-                        </View>
-                        {milkmanProfile.dairyItems?.map((item: any, index: number) => (
-                            <View key={index} style={styles.inventoryCard}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.inventoryItemName}>{item.name}</Text>
-                                    <Text style={styles.inventoryItemPrice}>₹{item.price} per unit</Text>
-                                    <View style={[styles.statusBadge, { backgroundColor: item.isAvailable ? '#d1fae5' : '#fee2e2' }]}>
-                                        <Text style={[styles.statusBadgeText, { color: item.isAvailable ? '#059669' : '#dc2626' }]}>
-                                            {item.isAvailable ? 'Available' : 'Unavailable'}
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                <View style={styles.inventoryControls}>
-                                    <TouchableOpacity
-                                        style={styles.toggleBtn}
-                                        onPress={() => {
-                                            const updated = [...milkmanProfile.dairyItems];
-                                            updated[index] = { ...item, isAvailable: !item.isAvailable };
-                                            updateInventoryMutation.mutate(updated);
-                                        }}
-                                    >
-                                        <Text style={styles.toggleBtnText}>{item.isAvailable ? 'Disable' : 'Enable'}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        ))}
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
-
-        </SafeAreaView>
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading Dashboard...</Text>
+      </View>
     );
+  }
+
+  if (!milkmanProfile) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Truck size={48} color={colors.gray300} />
+        <Text style={styles.emptyTitle}>Profile Required</Text>
+        <Text style={styles.emptySub}>Set up your milkman business profile first.</Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('MilkmanProfileSetup')}>
+          <Text style={styles.primaryBtnText}>Set Up Profile</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hello,</Text>
+            <Text style={styles.businessName}>{milkmanProfile.businessName}</Text>
+          </View>
+          <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Profile')}>
+            <Settings size={22} color={colors.foreground} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Location Toggle */}
+        <TouchableOpacity
+          style={[styles.broadcastBtn, { backgroundColor: isBroadcasting ? colors.errorLight : colors.successLight }]}
+          onPress={isBroadcasting ? stopBroadcast : startBroadcast}
+          activeOpacity={0.8}
+        >
+          <MapPin size={20} color={isBroadcasting ? colors.destructive : colors.success} />
+          <Text style={[styles.broadcastText, { color: isBroadcasting ? colors.destructive : colors.success }]}>
+            {isBroadcasting ? 'Stop Sharing Location' : 'Start My Route (Share Location)'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Quick Actions Grid */}
+        <View style={styles.gridContainer}>
+          {[
+            { icon: Truck, title: 'Deliveries', sub: `${pendingOrders.length} Pending`, color: colors.primary, bg: colors.primaryLight, onPress: () => setShowDeliveriesModal(true) },
+            { icon: Package, title: 'Inventory', sub: 'Update Stock', color: colors.warning, bg: colors.warningLight, onPress: () => setShowInventoryModal(true) },
+            { icon: Users, title: 'Customers', sub: `${totalCustomersCount} Total`, color: colors.success, bg: colors.successLight, onPress: () => setShowCustomersModal(true) },
+            { icon: DollarSign, title: 'Earnings', sub: `₹${todaysEarnings} Today`, color: '#7C3AED', bg: '#EDE9FE', onPress: () => setShowEarningsModal(true) },
+          ].map((a, i) => (
+            <TouchableOpacity key={i} style={styles.actionCard} onPress={a.onPress} activeOpacity={0.9}>
+              <View style={[styles.actionIconBox, { backgroundColor: a.bg }]}>
+                <a.icon size={24} color={a.color} />
+              </View>
+              <Text style={styles.actionTitle}>{a.title}</Text>
+              <Text style={styles.actionSub}>{a.sub}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Daily Summary */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.sectionTitle}>Daily Summary</Text>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Orders Completed</Text>
+            <Text style={styles.summaryValue}>{completedOrders.length} / {todaysOrders.length}</Text>
+          </View>
+          <View style={styles.progressContainer}>
+            <View style={[styles.progressBar, { width: `${progressPerc}%` as any }]} />
+          </View>
+          <Text style={styles.progressText}>{Math.round(progressPerc)}% of daily target</Text>
+          <View style={styles.divider} />
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Earnings Today</Text>
+            <Text style={[styles.summaryValue, { color: colors.success, fontSize: fontSize.xl }]}>₹{todaysEarnings.toFixed(2)}</Text>
+          </View>
+        </View>
+
+        {/* Next Deliveries */}
+        <View style={styles.deliveriesCard}>
+          <View style={styles.deliveriesHeader}>
+            <Text style={styles.sectionTitle}>Next Deliveries</Text>
+            <TouchableOpacity onPress={() => setShowDeliveriesModal(true)}>
+              <Text style={styles.seeAll}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          {pendingOrders.slice(0, 3).map((order) => {
+            const cust = customers?.find((c: any) => c.id === order.customerId);
+            return (
+              <TouchableOpacity key={order.id} style={styles.snapshotRow} onPress={() => setShowDeliveriesModal(true)} activeOpacity={0.8}>
+                <View style={styles.snapshotTop}>
+                  <Text style={styles.snapshotName}>{cust?.name || 'Customer'}</Text>
+                  <View style={styles.snapshotBadge}>
+                    <Text style={styles.snapshotBadgeText}>{order.status}</Text>
+                  </View>
+                </View>
+                <Text style={styles.snapshotAddr} numberOfLines={1}>{order.deliveryAddress || cust?.address || 'No address'}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          {pendingOrders.length === 0 && (
+            <View style={styles.emptySnapshot}>
+              <CheckCircle size={32} color={colors.gray300} />
+              <Text style={styles.emptySnapshotText}>All caught up!</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Deliveries Modal */}
+      <Modal visible={showDeliveriesModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Today's Deliveries</Text>
+            <TouchableOpacity onPress={() => setShowDeliveriesModal(false)} style={styles.closeBtn}><X size={24} color={colors.foreground} /></TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {todaysOrders.map((order) => {
+              const cust = customers?.find((c: any) => c.id === order.customerId);
+              return (
+                <View key={order.id} style={styles.mOrderCard}>
+                  <View style={styles.mOrderTop}>
+                    <View>
+                      <Text style={styles.mOrderName}>{cust?.name || `Order #${order.id}`}</Text>
+                      <Text style={styles.mOrderItem}>{order.itemName || 'Milk'} • {order.quantity}L</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.mOrderAmount}>₹{order.totalAmount}</Text>
+                      <View style={styles.mOrderBadge}>
+                        <Text style={styles.mOrderBadgeText}>{order.status.toUpperCase()}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.mOrderAddr}>{order.deliveryAddress || cust?.address}</Text>
+                  <View style={styles.mOrderActions}>
+                    {['pending', 'accepted'].includes(order.status) && (
+                      <TouchableOpacity style={[styles.mActionBtn, { backgroundColor: colors.warning }]}
+                        onPress={() => updateOrderStatusMutation.mutate({ orderId: order.id, status: 'out_for_delivery' })}>
+                        <Text style={styles.mActionText}>Start Delivery</Text>
+                      </TouchableOpacity>
+                    )}
+                    {order.status === 'out_for_delivery' && (
+                      <TouchableOpacity style={[styles.mActionBtn, { backgroundColor: colors.success }]}
+                        onPress={() => updateOrderStatusMutation.mutate({ orderId: order.id, status: 'delivered' })}>
+                        <CheckCircle size={16} color={colors.white} />
+                        <Text style={styles.mActionText}>Mark Delivered</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+            {todaysOrders.length === 0 && <Text style={styles.modalEmpty}>No orders today.</Text>}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Customers Modal */}
+      <Modal visible={showCustomersModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>My Customers</Text>
+            <TouchableOpacity onPress={() => setShowCustomersModal(false)} style={styles.closeBtn}><X size={24} color={colors.foreground} /></TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {Array.isArray(customers) && customers.map((c: any) => (
+              <View key={c.id} style={styles.mCustCard}>
+                <View style={styles.mCustAvatar}><Users size={20} color={colors.primary} /></View>
+                <View style={{ flex: 1, marginLeft: spacing.md }}>
+                  <Text style={styles.mCustName}>{c.name}</Text>
+                  <Text style={styles.mCustPhone}>{c.phone}</Text>
+                  <Text style={styles.mCustAddr} numberOfLines={1}>{c.address}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <TouchableOpacity style={styles.mIconBtn}><MessageCircle size={20} color={colors.primary} /></TouchableOpacity>
+                  <TouchableOpacity style={styles.mIconBtn}><Phone size={20} color={colors.success} /></TouchableOpacity>
+                </View>
+              </View>
+            ))}
+            {(!customers || customers.length === 0) && <Text style={styles.modalEmpty}>No customers yet.</Text>}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Earnings Modal */}
+      <Modal visible={showEarningsModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Earnings Overview</Text>
+            <TouchableOpacity onPress={() => setShowEarningsModal(false)} style={styles.closeBtn}><X size={24} color={colors.foreground} /></TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.earningsHero}>
+              <Text style={styles.earningsLabel}>Earnings Today</Text>
+              <Text style={styles.earningsAmount}>₹{todaysEarnings.toFixed(2)}</Text>
+            </View>
+            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            {completedOrders.map((order) => {
+              const cust = customers?.find((c: any) => c.id === order.customerId);
+              return (
+                <View key={`tx-${order.id}`} style={styles.txCard}>
+                  <View>
+                    <Text style={styles.txName}>{cust?.name || 'Customer'}</Text>
+                    <Text style={styles.txDate}>{new Date(order.updatedAt || order.createdAt).toLocaleString()}</Text>
+                  </View>
+                  <Text style={styles.txAmount}>+ ₹{order.totalAmount}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Inventory Modal */}
+      <Modal visible={showInventoryModal} animationType="slide" presentationStyle="pageSheet">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Manage Inventory</Text>
+            <TouchableOpacity onPress={() => setShowInventoryModal(false)} style={styles.closeBtn}><X size={24} color={colors.foreground} /></TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.invSubtitle}>Update items you carry today</Text>
+            {milkmanProfile.dairyItems?.map((item: any, index: number) => (
+              <View key={index} style={styles.invCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.invName}>{item.name}</Text>
+                  <Text style={styles.invPrice}>₹{item.price} per unit</Text>
+                  <View style={[styles.invBadge, { backgroundColor: item.isAvailable ? colors.successLight : colors.errorLight }]}>
+                    <Text style={[styles.invBadgeText, { color: item.isAvailable ? colors.success : colors.destructive }]}>
+                      {item.isAvailable ? 'Available' : 'Unavailable'}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.invToggle}
+                  onPress={() => {
+                    const updated = [...milkmanProfile.dairyItems];
+                    updated[index] = { ...item, isAvailable: !item.isAvailable };
+                    updateInventoryMutation.mutate(updated);
+                  }}
+                >
+                  <Text style={styles.invToggleText}>{item.isAvailable ? 'Disable' : 'Enable'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f8fafc' },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText: { marginTop: 12, fontSize: 16, color: '#64748b' },
-    emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-    emptyTitle: { fontSize: 24, fontWeight: 'bold', color: '#0f172a', marginBottom: 8 },
-    emptySub: { fontSize: 16, color: '#64748b', textAlign: 'center', marginBottom: 24 },
-    btnPrimary: { backgroundColor: '#3b82f6', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
-    btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  loadingText: { marginTop: spacing.md, fontSize: fontSize.base, color: colors.mutedForeground },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing['2xl'], backgroundColor: colors.background },
+  emptyTitle: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: colors.foreground, marginTop: spacing.lg },
+  emptySub: { fontSize: fontSize.base, color: colors.mutedForeground, textAlign: 'center', marginVertical: spacing.md },
+  primaryBtn: { backgroundColor: colors.brandAccent, paddingHorizontal: spacing['2xl'], paddingVertical: spacing.lg, borderRadius: borderRadius.lg },
+  primaryBtnText: { color: colors.white, fontSize: fontSize.base, fontWeight: fontWeight.bold },
 
-    scrollContent: { padding: 16, paddingBottom: 40 },
+  scrollContent: { padding: spacing.xl, paddingBottom: spacing['4xl'] },
 
-    header: { marginBottom: 24, marginTop: 10 },
-    headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    greeting: { fontSize: 16, color: '#64748b' },
-    businessName: { fontSize: 28, fontWeight: 'bold', color: '#0f172a' },
-    settingsBtn: { width: 44, height: 44, backgroundColor: '#f1f5f9', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  greeting: { fontSize: fontSize.base, color: colors.mutedForeground },
+  businessName: { fontSize: fontSize['3xl'], fontWeight: fontWeight.bold, color: colors.foreground },
+  settingsBtn: {
+    width: 44, height: 44, backgroundColor: colors.surfaceSecondary,
+    borderRadius: 22, justifyContent: 'center', alignItems: 'center',
+  },
 
-    broadcastBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, marginTop: 16, gap: 8 },
-    broadcastBtnText: { fontSize: 15, fontWeight: 'bold' },
+  // Broadcast
+  broadcastBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing.md, borderRadius: borderRadius.lg, marginBottom: spacing.xl, gap: spacing.sm,
+  },
+  broadcastText: { fontSize: fontSize.base, fontWeight: fontWeight.bold },
 
-    gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 24 },
-    actionCard: { width: (width - 44) / 2, backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-    actionIconContainer: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-    actionTitle: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-    actionSubtitle: { fontSize: 13, color: '#64748b', marginTop: 4 },
+  // Grid
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: spacing.xl },
+  actionCard: {
+    width: (width - 52) / 2, backgroundColor: colors.card, padding: spacing.lg,
+    borderRadius: borderRadius.xl, marginBottom: spacing.md, ...shadows.md,
+  },
+  actionIconBox: {
+    width: 48, height: 48, borderRadius: borderRadius.lg,
+    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md,
+  },
+  actionTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
+  actionSub: { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 4 },
 
-    sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 16 },
+  // Summary
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground, marginBottom: spacing.lg },
+  summaryCard: {
+    backgroundColor: colors.card, padding: spacing.xl,
+    borderRadius: borderRadius.xl, marginBottom: spacing.xl, ...shadows.md,
+  },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  summaryLabel: { fontSize: fontSize.base, color: colors.gray600 },
+  summaryValue: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
+  progressContainer: {
+    height: 8, backgroundColor: colors.surfaceSecondary, borderRadius: 4,
+    marginVertical: spacing.sm, overflow: 'hidden',
+  },
+  progressBar: { height: '100%', backgroundColor: colors.primary, borderRadius: 4 },
+  progressText: { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 4 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.lg },
 
-    summaryCard: { backgroundColor: '#fff', padding: 20, borderRadius: 16, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-    summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    summaryLabel: { fontSize: 15, color: '#475569' },
-    summaryValue: { fontSize: 15, fontWeight: 'bold', color: '#0f172a' },
-    progressContainer: { height: 8, backgroundColor: '#f1f5f9', borderRadius: 4, marginVertical: 8, overflow: 'hidden' },
-    progressBar: { height: '100%', backgroundColor: '#3b82f6', borderRadius: 4 },
-    progressText: { fontSize: 13, color: '#64748b', marginTop: 4 },
-    divider: { height: 1, backgroundColor: '#f1f5f9', marginVertical: 16 },
+  // Deliveries
+  deliveriesCard: {
+    backgroundColor: colors.card, padding: spacing.xl,
+    borderRadius: borderRadius.xl, ...shadows.md,
+  },
+  deliveriesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+  seeAll: { fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.semibold },
+  snapshotRow: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  snapshotTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  snapshotName: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+  snapshotBadge: { backgroundColor: '#FDF2F8', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 4 },
+  snapshotBadgeText: { fontSize: 10, color: '#DB2777', fontWeight: fontWeight.bold, textTransform: 'uppercase' },
+  snapshotAddr: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  emptySnapshot: { alignItems: 'center', paddingVertical: spacing.xl },
+  emptySnapshotText: { fontSize: fontSize.sm, color: colors.gray400, marginTop: spacing.sm },
 
-    deliveriesSnapshot: { backgroundColor: '#fff', padding: 20, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-    snapshotHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    seeAllText: { fontSize: 14, color: '#3b82f6', fontWeight: '600' },
-    snapshotCard: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-    snapshotTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    snapshotName: { fontSize: 16, fontWeight: '600', color: '#0f172a' },
-    badgeSmall: { backgroundColor: '#fdf2f8', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-    badgeSmallText: { fontSize: 10, color: '#db2777', fontWeight: 'bold', textTransform: 'uppercase' },
-    snapshotAddress: { fontSize: 13, color: '#64748b' },
-    emptySnapshot: { alignItems: 'center', paddingVertical: 20 },
-    emptySnapshotText: { fontSize: 14, color: '#94a3b8', marginTop: 8 },
+  // Modals
+  modalContainer: { flex: 1, backgroundColor: colors.background },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: spacing.xl, backgroundColor: colors.card,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
+  closeBtn: { padding: 4 },
+  modalContent: { padding: spacing.xl },
+  modalEmpty: { textAlign: 'center', color: colors.mutedForeground, marginTop: spacing['4xl'], fontSize: fontSize.base },
 
-    // Modal Styles
-    modalContainer: { flex: 1, backgroundColor: '#f8fafc' },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a' },
-    closeBtn: { padding: 4 },
-    modalContent: { padding: 16 },
-    emptyStateText: { textAlign: 'center', color: '#64748b', marginTop: 40, fontSize: 16 },
+  // Modal Order Card
+  mOrderCard: {
+    backgroundColor: colors.card, padding: spacing.lg,
+    borderRadius: borderRadius.lg, marginBottom: spacing.md, ...shadows.sm,
+  },
+  mOrderTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
+  mOrderName: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
+  mOrderItem: { fontSize: fontSize.sm, color: colors.mutedForeground, marginTop: 2 },
+  mOrderAmount: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.success },
+  mOrderBadge: { backgroundColor: colors.warningLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
+  mOrderBadgeText: { fontSize: 10, fontWeight: fontWeight.bold, color: colors.warning },
+  mOrderAddr: { fontSize: fontSize.sm, color: colors.gray600, marginVertical: spacing.sm },
+  mOrderActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.sm },
+  mActionBtn: {
+    flexDirection: 'row', paddingHorizontal: spacing.lg, height: 40,
+    borderRadius: borderRadius.md, alignItems: 'center', gap: spacing.xs,
+  },
+  mActionText: { color: colors.white, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
 
-    // Order Card
-    orderCard: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, elevation: 1 },
-    orderHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-    orderCustomer: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-    orderItem: { fontSize: 14, color: '#64748b', marginTop: 2 },
-    orderAmount: { fontSize: 16, fontWeight: 'bold', color: '#10b981' },
-    orderStatusBadge: { fontSize: 11, fontWeight: 'bold', color: '#f59e0b', marginTop: 4, backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
-    orderAddress: { fontSize: 14, color: '#475569', marginVertical: 8 },
-    orderActionsRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 },
-    actionBtn: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-    actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  // Customer Card
+  mCustCard: {
+    flexDirection: 'row', backgroundColor: colors.card, padding: spacing.lg,
+    borderRadius: borderRadius.lg, marginBottom: spacing.md, alignItems: 'center', ...shadows.sm,
+  },
+  mCustAvatar: {
+    width: 44, height: 44, backgroundColor: colors.primaryLight,
+    borderRadius: 22, justifyContent: 'center', alignItems: 'center',
+  },
+  mCustName: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
+  mCustPhone: { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 2 },
+  mCustAddr: { fontSize: fontSize.xs, color: colors.gray400, marginTop: 2 },
+  mIconBtn: {
+    width: 36, height: 36, backgroundColor: colors.surfaceSecondary,
+    borderRadius: 18, justifyContent: 'center', alignItems: 'center',
+  },
 
-    // Customer Card
-    customerCard: { flexDirection: 'row', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, alignItems: 'center', elevation: 1 },
-    customerAvatar: { width: 44, height: 44, backgroundColor: '#eff6ff', borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-    customerInfo: { flex: 1, marginLeft: 12 },
-    customerName: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-    customerPhone: { fontSize: 13, color: '#64748b', marginTop: 2 },
-    customerAddress: { fontSize: 13, color: '#94a3b8', marginTop: 2 },
-    customerActions: { flexDirection: 'row', gap: 8 },
-    iconButton: { width: 36, height: 36, backgroundColor: '#f8fafc', borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  // Earnings
+  earningsHero: {
+    backgroundColor: colors.success, borderRadius: borderRadius.xl,
+    padding: spacing['2xl'], alignItems: 'center', marginBottom: spacing.xl,
+  },
+  earningsLabel: { color: colors.white, fontSize: fontSize.base },
+  earningsAmount: { color: colors.white, fontSize: 36, fontWeight: fontWeight.bold, marginTop: spacing.sm },
 
-    // Tx Card
-    txCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 10 },
-    txName: { fontSize: 15, fontWeight: '600', color: '#0f172a' },
-    txDate: { fontSize: 12, color: '#64748b', marginTop: 4 },
-    txAmount: { fontSize: 16, fontWeight: 'bold', color: '#10b981' },
+  // Transactions
+  txCard: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: colors.card, padding: spacing.lg,
+    borderRadius: borderRadius.lg, marginBottom: spacing.sm, ...shadows.sm,
+  },
+  txName: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+  txDate: { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 4 },
+  txAmount: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.success },
 
-    // Inventory Card
-    inventoryHeader: { marginBottom: 16 },
-    inventorySubtitle: { fontSize: 14, color: '#64748b' },
-    inventoryCard: { flexDirection: 'row', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, alignItems: 'center', elevation: 1 },
-    inventoryItemName: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-    inventoryItemPrice: { fontSize: 14, color: '#64748b', marginTop: 4 },
-    statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 8 },
-    statusBadgeText: { fontSize: 12, fontWeight: 'bold' },
-    inventoryControls: { flexDirection: 'row', alignItems: 'center' },
-    toggleBtn: { backgroundColor: '#f1f5f9', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-    toggleBtnText: { color: '#334155', fontWeight: '600', fontSize: 14 }
+  // Inventory
+  invSubtitle: { fontSize: fontSize.sm, color: colors.mutedForeground, marginBottom: spacing.lg },
+  invCard: {
+    flexDirection: 'row', backgroundColor: colors.card, padding: spacing.lg,
+    borderRadius: borderRadius.lg, marginBottom: spacing.md, alignItems: 'center', ...shadows.sm,
+  },
+  invName: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
+  invPrice: { fontSize: fontSize.sm, color: colors.mutedForeground, marginTop: 4 },
+  invBadge: { alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.sm, marginTop: spacing.sm },
+  invBadgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  invToggle: { backgroundColor: colors.surfaceSecondary, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: borderRadius.md },
+  invToggleText: { color: colors.foreground, fontWeight: fontWeight.semibold, fontSize: fontSize.sm },
 });
