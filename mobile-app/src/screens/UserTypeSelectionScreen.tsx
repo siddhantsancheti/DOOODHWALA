@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { Users, Truck } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
 
 const logo = require('../../assets/logo.png');
@@ -71,7 +72,11 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
 
         {/* Title */}
         <Text style={styles.title}>
-          Welcome to <Text style={styles.titleBrand}>DOOODHWALA</Text>
+          Welcome to{' '}
+          <Text style={styles.titleBrandGradient}>
+            DOOODHWALA
+          </Text>
+          , there!
         </Text>
         <Text style={styles.subtitle}>
           Choose how you'd like to use DOOODHWALA today
@@ -84,9 +89,16 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
           disabled={isSelecting}
           activeOpacity={0.9}
         >
-          <View style={styles.customerIconBox}>
-            <Users size={40} color={colors.white} />
-          </View>
+          {/* Blue to Pink Gradient matches web: from-blue-500 via-purple-500 to-pink-500 */}
+          <LinearGradient
+            colors={['#3B82F6', '#A855F7', '#EC4899']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.iconBox}
+          >
+            <Users size={48} color={colors.white} />
+          </LinearGradient>
+
           <Text style={styles.cardTitle}>I'm a Customer</Text>
           <Text style={styles.cardDescription}>
             Order fresh milk from local milkmen
@@ -120,9 +132,16 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
           disabled={isSelecting}
           activeOpacity={0.9}
         >
-          <View style={styles.milkmanIconBox}>
-            <Truck size={40} color={colors.white} />
-          </View>
+          {/* Orange to Yellow Gradient matches web: from-orange-500 via-red-500 to-yellow-500 */}
+          <LinearGradient
+            colors={['#F97316', '#EF4444', '#EAB308']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.iconBox}
+          >
+            <Truck size={48} color={colors.white} />
+          </LinearGradient>
+
           <Text style={styles.cardTitle}>I'm a Milkman</Text>
           <Text style={styles.cardDescription}>
             Sell fresh milk to customers
@@ -166,13 +185,13 @@ const styles = StyleSheet.create({
   // Logo
   logoContainer: {
     alignItems: 'center',
-    marginBottom: spacing['3xl'],
+    marginBottom: spacing['2xl'],
   },
   logoBadge: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: '#DBEAFE', // web uses bg-blue-100
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -189,8 +208,8 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     marginBottom: spacing.sm,
   },
-  titleBrand: {
-    color: colors.brandPrimary,
+  titleBrandGradient: {
+    color: '#0891B2', // Simulated gradient stop color for text since RN text gradient is complex
   },
   subtitle: {
     fontSize: fontSize.lg,
@@ -211,23 +230,14 @@ const styles = StyleSheet.create({
   },
 
   // Icon Boxes
-  customerIconBox: {
-    width: 80,
-    height: 80,
+  iconBox: {
+    width: 96,
+    height: 96,
     borderRadius: borderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    backgroundColor: '#7C3AED', // purple-ish gradient simulated
-  },
-  milkmanIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    backgroundColor: colors.brandAccent,
+    marginBottom: spacing.xl,
+    ...shadows.md,
   },
 
   // Card content
@@ -267,18 +277,18 @@ const styles = StyleSheet.create({
   // Buttons
   button: {
     width: '100%',
-    height: 48,
+    height: 52,
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: spacing.xl,
-    ...shadows.sm,
+    ...shadows.md,
   },
   customerButton: {
-    backgroundColor: colors.brandPrimary,
+    backgroundColor: colors.foreground, // Web app uses black/dark mode modern-button
   },
   milkmanButton: {
-    backgroundColor: colors.brandAccent,
+    backgroundColor: colors.foreground, // Web app uses black/dark mode modern-button
   },
   buttonText: {
     color: colors.white,
