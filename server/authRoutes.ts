@@ -6,7 +6,8 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 import { OTPService } from "./services/otpService";
 

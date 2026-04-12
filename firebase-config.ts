@@ -4,13 +4,13 @@ import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: (typeof process !== 'undefined' && process.env.REACT_APP_FIREBASE_API_KEY) || "AIzaSyCoAEyvW_yHnU8Mt3rtV37rb4q5vYbUNNw",
-  authDomain: (typeof process !== 'undefined' && process.env.REACT_APP_FIREBASE_AUTH_DOMAIN) || "dooodhwala-backend.firebaseapp.com",
-  projectId: (typeof process !== 'undefined' && process.env.REACT_APP_FIREBASE_PROJECT_ID) || "dooodhwala-backend",
-  storageBucket: (typeof process !== 'undefined' && process.env.REACT_APP_FIREBASE_STORAGE_BUCKET) || "dooodhwala-backend.firebasestorage.app",
-  messagingSenderId: (typeof process !== 'undefined' && process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID) || "705765260426",
-  appId: (typeof process !== 'undefined' && process.env.REACT_APP_FIREBASE_APP_ID) || "1:705765260426:web:0921238468cee23b30c173",
-  measurementId: (typeof process !== 'undefined' && process.env.REACT_APP_FIREBASE_MEASUREMENT_ID) || "G-T0YVZLZ3ZQ"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase

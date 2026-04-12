@@ -4,7 +4,8 @@ import { milkmen, users, products, customers } from "@shared/schema";
 import { eq, asc, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 const router = Router();
 
@@ -400,7 +401,8 @@ router.patch("/routes", async (req, res) => {
         if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
 
         const token = authHeader.split(" ")[1];
-        const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) throw new Error("JWT_SECRET is required");
         let decoded: any;
         try {
             decoded = jwt.verify(token, jwtSecret);

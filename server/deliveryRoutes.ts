@@ -8,7 +8,8 @@ import { sendPushNotification } from "./services/fcmService";
 import { broadcastLocationUpdate } from "./websocket";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 // Use server token if available, fall back to public token
 const MAPBOX_TOKEN = process.env.MAPBOX_SECRET_TOKEN
     || process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;

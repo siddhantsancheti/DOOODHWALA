@@ -5,7 +5,8 @@ import { eq, desc, ne, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 // GET /api/service-requests/test
 router.get("/test", (req, res) => res.json({ message: "Service requests route working" }));
