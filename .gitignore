@@ -4,16 +4,12 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
-build_errors_2.log
-build_errors_3.log
-build_errors_4.log
-build_errors_5.log
-build_errors_6.log
-build_errors_7.log
-build_errors_8.log
-build_errors.log
-
-# Environment variables
+*.log
+*.txt
+.idea/
+ios/App/App/public/
+android/app/build/
 .env
 .env.local
 .env.*.local
+firebase-service-account.json
