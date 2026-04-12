@@ -46,7 +46,7 @@ export function ServiceRequestForm({ milkman, onClose }: ServiceRequestFormProps
 
   const createServiceRequestMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/service-requests", data);
+      const response = await apiRequest("/api/service-requests", "POST", data);
       return response.json();
     },
     onSuccess: () => {

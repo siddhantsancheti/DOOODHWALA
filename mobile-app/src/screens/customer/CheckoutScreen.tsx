@@ -14,8 +14,15 @@ export default function CheckoutScreen({ route, navigation }: any) {
   const amount = route.params?.amount || 100;
   const description = route.params?.description || 'Milk Delivery Payment';
   const orderId = route.params?.orderId || `ORDER_${Date.now()}`;
+  const paymentType = route.params?.paymentType || 'single';
+  const groupId = route.params?.groupId || null;
   const [isProcessing, setIsProcessing] = useState(false);
   const [tab, setTab] = useState<'cod' | 'razorpay' | 'stripe'>('cod');
+
+  const { data: groupBill, isLoading: groupLoading } = useQuery<any>({
+    queryKey: [`/api/groups/${groupId}/bill`],
+    enabled: paymentType === 'consolidated' && !!groupId,
+  });
 
   const { data: customerProfile, isLoading: profileLoading } = useQuery<any>({
     queryKey: ['/api/customers/profile'], enabled: !!user,
@@ -26,7 +33,13 @@ export default function CheckoutScreen({ route, navigation }: any) {
     try {
       const resp: any = await apiRequest({
         url: '/api/payments/razorpay/create-order', method: 'POST',
-        body: { amount, orderId, description },
+        body: { 
+          amount, 
+          orderId, 
+          description,
+          paymentType,
+          groupId
+        },
       });
       const { razorpayOrderId, key } = resp;
 
@@ -52,6 +65,8 @@ export default function CheckoutScreen({ route, navigation }: any) {
                   razorpay_order_id: razorpayOrderId,
                   razorpay_payment_id: `mock_pay_${Date.now()}`,
                   razorpay_signature: 'mock_signature_for_expo_go',
+                  orderId: orderId, // Pass internal orderId (e.g. BILL_XX) for bill status update
+                  amount: amount, // Pass amount for record keeping
                 },
               });
               // @ts-ignore
@@ -84,6 +99,8 @@ export default function CheckoutScreen({ route, navigation }: any) {
           customerPhone: user?.phone?.replace('+91', '') || user?.phone,
           deliveryAddress: customerProfile?.address || 'Delivery location',
           userId: user?.id,
+          paymentType,
+          groupId,
         },
       });
       // @ts-ignore
@@ -101,7 +118,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
     }
   };
 
-  if (profileLoading) {
+  if (profileLoading || (paymentType === 'consolidated' && groupLoading)) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -136,7 +153,14 @@ export default function CheckoutScreen({ route, navigation }: any) {
           <View style={styles.divider} />
 
           <View style={styles.amountRow}>
-            <Text style={styles.amountLabel}>Total Amount:</Text>
+            <View>
+              <Text style={styles.amountLabel}>Total Amount:</Text>
+              {paymentType === 'consolidated' && (
+                <View style={styles.groupBadge}>
+                  <Text style={styles.groupBadgeText}>Group Bill</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.amountValue}>₹{amount}</Text>
           </View>
         </View>
@@ -348,6 +372,8 @@ const styles = StyleSheet.create({
   amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   amountLabel: { fontSize: fontSize.lg, fontWeight: '600', color: colors.foreground },
   amountValue: { fontSize: 22, fontWeight: '700', color: colors.primary },
+  groupBadge: { backgroundColor: '#DBEAFE', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
+  groupBadgeText: { fontSize: 10, fontWeight: '700', color: '#1E40AF', textTransform: 'uppercase' },
 
   // Tabs
   tabsContainer: { flexDirection: 'row', backgroundColor: colors.gray100, borderRadius: borderRadius.md, padding: 4 },

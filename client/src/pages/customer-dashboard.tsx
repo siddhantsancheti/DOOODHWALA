@@ -1295,18 +1295,6 @@ export default function CustomerDashboard() {
                   </CardContent>
                 </Card>
 
-                <Card className="feature-card-mobile hover:border-orange-500 h-24" onClick={handleViewOrdersClick}>
-                  <CardContent className="flex items-center h-full p-4 gap-4">
-                    <div className="bg-orange-100 p-3 rounded-full w-16 h-16 flex items-center justify-center flex-shrink-0">
-                      <Receipt className="h-6 w-6 text-orange-600" />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <h3 className="text-lg font-semibold text-mobile-primary mb-1 truncate">{getTranslatedText('Orders', language)}</h3>
-                      <p className="text-sm text-mobile-secondary truncate">{getTranslatedText('Order history', language)}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
 
               </div>
 

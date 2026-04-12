@@ -149,4 +149,81 @@ router.post("/generate-monthly-bills", async (req, res) => {
     }
 });
 
+// GET /api/admin/earnings
+router.get("/earnings", async (req, res) => {
+    try {
+        const earningsData = await db
+            .select({
+                milkmanId: milkmen.id,
+                businessName: milkmen.businessName,
+                contactName: milkmen.contactName,
+                commissionPercentage: milkmen.commissionPercentage,
+                totalRevenue: sql<string>`COALESCE(SUM(CASE WHEN ${payments.status} = 'completed' THEN ${payments.amount} ELSE 0 END), 0)`,
+            })
+            .from(milkmen)
+            .leftJoin(payments, eq(milkmen.id, payments.milkmanId))
+            .where(sql`${milkmen.commissionPercentage} IS NOT NULL`)
+            .groupBy(milkmen.id, milkmen.businessName, milkmen.contactName, milkmen.commissionPercentage);
+
+        const formattedEarnings = earningsData.map(item => {
+            const revenue = parseFloat(item.totalRevenue || "0");
+            const sharePercentage = parseFloat(item.commissionPercentage || "0");
+            const adminEarnings = (revenue * sharePercentage) / 100;
+            
+            return {
+                ...item,
+                totalRevenue: revenue,
+                sharePercentage,
+                adminEarnings
+            };
+        });
+
+        res.json(formattedEarnings);
+    } catch (error: any) {
+        console.error("Admin earnings error:", error);
+        res.status(500).json({ success: false, message: "Error fetching admin earnings", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
+// GET /api/admin/milkmen/pending-commission
+router.get("/milkmen/pending-commission", async (req, res) => {
+    try {
+        const pendingMilkmen = await db
+            .select()
+            .from(milkmen)
+            .where(sql`${milkmen.commissionPercentage} IS NULL`)
+            .orderBy(desc(milkmen.createdAt));
+        res.json(pendingMilkmen);
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
+// PATCH /api/admin/milkmen/:id/commission
+router.patch("/milkmen/:id/commission", async (req, res) => {
+    try {
+        const milkmanId = parseInt(req.params.id);
+        const { percentage } = req.body;
+
+        if (percentage === undefined || isNaN(parseFloat(percentage))) {
+            return res.status(400).json({ success: false, message: "Valid percentage is required" });
+        }
+
+        const [updatedMilkman] = await db
+            .update(milkmen)
+            .set({ 
+                commissionPercentage: percentage.toString(), 
+                updatedAt: new Date() 
+            })
+            .where(eq(milkmen.id, milkmanId))
+            .returning();
+
+        if (!updatedMilkman) return res.status(404).json({ success: false, message: "Milkman not found" });
+
+        res.json({ success: true, milkman: updatedMilkman });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
 export default router;

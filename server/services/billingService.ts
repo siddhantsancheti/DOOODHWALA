@@ -71,7 +71,7 @@ export class BillingService {
                     .where(eq(bills.id, existingBills[0].id));
             } else {
                 // Create new bill
-                await db.insert(bills).values({
+                const [newBill] = await db.insert(bills).values({
                     milkmanId,
                     customerId,
                     billMonth: currentMonth,
@@ -80,6 +80,20 @@ export class BillingService {
                     items: data.items,
                     status: "pending",
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Due in 7 days
+                }).returning();
+
+                // 4. Send chat message informing about the new bill
+                const [milkmanData] = await db.select().from(milkmen).where(eq(milkmen.id, milkmanId)).limit(1);
+                
+                await db.insert(chatMessages).values({
+                    milkmanId,
+                    customerId,
+                    senderId: milkmanData?.userId || "system", // Use milkman's user ID if available
+                    senderType: "milkman",
+                    message: `📄 Bill Generated for ${currentMonth}\nTotal Amount: ₹${data.total.toFixed(2)}\nDue Date: ${new Date(new Date().setDate(new Date().getDate() + 7)).toLocaleDateString()}`,
+                    messageType: "bill",
+                    orderTotal: data.total.toString(),
+                    billId: newBill.id,
                 });
             }
         }

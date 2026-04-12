@@ -63,7 +63,7 @@ router.patch("/profile", async (req, res) => {
         const userId = payload.id;
         const phone = payload.phone; // Extract phone from token
 
-        const { name, email, address, latitude, longitude } = req.body;
+        const { name, email, address, latitude, longitude, settings } = req.body;
 
         // Check if customer profile exists
         const [existingCustomer] = await db
@@ -82,6 +82,7 @@ router.patch("/profile", async (req, res) => {
                     name,
                     phone, // Update phone number
                     address,
+                    settings, // Persist JSON settings
                     latitude: latitude?.toString(),
                     longitude: longitude?.toString(),
                     updatedAt: new Date(),
@@ -97,6 +98,7 @@ router.patch("/profile", async (req, res) => {
                     name,
                     phone, // Save phone number
                     address,
+                    settings, // Persist JSON settings
                     latitude: latitude?.toString(),
                     longitude: longitude?.toString(),
                 })

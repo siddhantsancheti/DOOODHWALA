@@ -32,15 +32,26 @@ export default function ProfileScreen({ navigation }: any) {
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
       const endpoint = customerProfile ? '/api/customers/profile' : '/api/milkmen/profile';
-      await apiRequest({ url: endpoint, method: 'PATCH', body: data });
+      await apiRequest({ 
+        url: endpoint, 
+        method: 'PATCH', 
+        body: {
+          name: data.name,
+          address: data.address,
+          email: data.email, // This will be handled by the backend to update the user record
+          businessName: data.businessName,
+          pricePerLiter: data.pricePerLiter,
+        }
+      });
     },
     onSuccess: () => {
       Alert.alert('Success', 'Profile updated successfully!');
-      if (customerProfile) queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
-      if (milkmanProfile) queryClient.invalidateQueries({ queryKey: ['/api/milkmen/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/milkmen/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] }); // Corrected key
       setIsEditing(false);
     },
-    onError: (e: any) => Alert.alert('Error', e.message),
+    onError: (e: any) => Alert.alert('Error', e.message || 'Failed to update profile'),
   });
 
   const handleEdit = () => {
@@ -66,7 +77,15 @@ export default function ProfileScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top Navbar Header */}
       <View style={styles.topNav}>
+        <TouchableOpacity 
+          style={styles.backBtn} 
+          onPress={() => navigation.goBack()}
+        >
+          <Map size={20} color={colors.primary} />
+          <Text style={styles.backBtnText}>Dashboard</Text>
+        </TouchableOpacity>
         <Text style={styles.logoText}>DOOODHWALA</Text>
+        <View style={{ width: 80 }} /> 
       </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -284,10 +303,24 @@ const styles = StyleSheet.create({
 
   // Top Nav
   topNav: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
     backgroundColor: colors.white,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  backBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   logoText: { fontSize: fontSize.lg, fontWeight: '900', color: colors.primary, letterSpacing: -0.5 },
 

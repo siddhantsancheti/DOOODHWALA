@@ -44,7 +44,7 @@ export function AdInline({ targetAudience, targetLocation, className = '' }: AdI
     if (!ad) return;
     
     try {
-      await apiRequest('POST', `/api/ads/${ad.id}/track`, {
+      await apiRequest(`/api/ads/${ad.id}/track`, 'POST', {
         event,
       });
     } catch (error) {

@@ -5,7 +5,7 @@
  */
 
 // ─── Colors ────────────────────────────────────────────────────
-export const colors = {
+export const lightColors = {
   // Core
   background: '#FAFAFA',       // hsl(0, 0%, 98%)
   foreground: '#1E2330',       // hsl(222, 16%, 13%)
@@ -77,6 +77,57 @@ export const colors = {
   white: '#FFFFFF',
   black: '#000000',
 };
+
+export const darkColors = {
+  ...lightColors, // fallback for brand colors and utilities
+  
+  // Core
+  background: '#020817',       // hsl(222, 84%, 4.9%)
+  foreground: '#FFFFFF',       // hsl(0, 0%, 100%)
+
+  // Card
+  card: '#020817',             // hsl(222, 84%, 4.9%)
+  cardForeground: '#FFFFFF',   // hsl(0, 0%, 100%)
+
+  // Muted
+  muted: '#1E293B',           // hsl(217, 32%, 17.5%)
+  mutedForeground: '#94A3B8', // hsl(215, 20%, 75%)
+
+  // Primary (Blue)
+  primary: '#3B82F6',          // hsl(217, 91%, 60%)
+  primaryForeground: '#020817',// hsl(222, 84%, 4.9%)
+  primaryLight: '#1E3A8A',     
+  primaryDark: '#60A5FA',      
+
+  // Secondary
+  secondary: '#1E293B',        // hsl(217, 32%, 17.5%)
+  secondaryForeground: '#D1D5DB', // hsl(215, 20%, 85%)
+
+  // Accent
+  accent: '#3B82F6',           // hsl(217, 91%, 60%)
+  accentForeground: '#020817', // hsl(222, 84%, 4.9%)
+
+  // Destructive
+  destructive: '#7F1D1D',      // hsl(0, 62%, 30%)
+  destructiveForeground: '#FFFFFF',
+
+  // Brand 
+  brandPrimary: '#60A5FA',     // hsl(217, 91%, 65%)
+  brandSecondary: '#16A34A',   // hsl(142, 76%, 45%)
+  brandAccent: '#F97316',      // hsl(25, 95%, 58%)
+
+  // Surface
+  surface: '#0B1120',
+  surfaceSecondary: '#1E293B',
+
+  // Border / Input
+  border: '#1E293B',           // hsl(217, 32%, 17.5%)
+  input: '#1E293B',            // hsl(217, 32%, 17.5%)
+  ring: '#3B82F6',             // hsl(217, 91%, 60%)
+};
+
+// Default export for backward compatibility
+export const colors = lightColors;
 
 // ─── Typography ────────────────────────────────────────────────
 export const fontSize = {

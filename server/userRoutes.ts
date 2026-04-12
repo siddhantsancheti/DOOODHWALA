@@ -31,6 +31,38 @@ router.post("/profile-image", authenticateToken, upload.single("image"), async (
     }
 });
 
+// PATCH /api/users/profile
+router.patch("/profile", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user.id;
+        const { firstName, lastName, email, name } = req.body;
+
+        const updateData: any = {};
+        if (email !== undefined) updateData.email = email;
+        
+        // If 'name' is provided instead of split names, try to split it
+        if (name && (!firstName || !lastName)) {
+            const parts = name.trim().split(/\s+/);
+            updateData.firstName = parts[0] || "";
+            updateData.lastName = parts.slice(1).join(" ") || "";
+        } else {
+            if (firstName !== undefined) updateData.firstName = firstName;
+            if (lastName !== undefined) updateData.lastName = lastName;
+        }
+
+        updateData.updatedAt = new Date();
+
+        await db.update(users)
+            .set(updateData)
+            .where(eq(users.id, userId));
+
+        res.json({ success: true, message: "Basic profile updated successfully" });
+    } catch (error) {
+        console.error("Basic profile update error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // PATCH /api/users/fcm-token
 router.patch("/fcm-token", authenticateToken, async (req: AuthRequest, res) => {
     try {

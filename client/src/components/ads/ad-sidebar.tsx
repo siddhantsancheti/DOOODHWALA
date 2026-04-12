@@ -55,7 +55,7 @@ export function AdSidebar({ targetAudience, targetLocation, className = '' }: Ad
     if (!currentAd) return;
     
     try {
-      await apiRequest('POST', `/api/ads/${currentAd.id}/track`, {
+      await apiRequest(`/api/ads/${currentAd.id}/track`, 'POST', {
         event,
       });
     } catch (error) {

@@ -2,12 +2,16 @@
 import { Router } from "express";
 import { db } from "./db";
 import { customers, orders, users, milkmen, locations } from "@shared/schema";
-import { eq, and, asc, gt, desc } from "drizzle-orm";
+import { eq, and, asc, gt, desc, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { sendPushNotification } from "./services/fcmService";
+import { broadcastLocationUpdate } from "./websocket";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+// Use server token if available, fall back to public token
+const MAPBOX_TOKEN = process.env.MAPBOX_SECRET_TOKEN
+    || process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 // POST /api/delivery/complete
 // Marks current delivery as complete and notifies the next customer
@@ -54,7 +58,6 @@ router.post("/complete", async (req, res) => {
         }
 
         // 3. Mark today's order as delivered (if any pending/confirmed order exists)
-        // Find today's order for this customer
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -65,8 +68,7 @@ router.post("/complete", async (req, res) => {
                 and(
                     eq(orders.customerId, customerId),
                     eq(orders.milkmanId, milkman.id),
-                    eq(orders.status, "confirmed") // Assuming confirmed orders are being delivered
-                    // In a real app, checking date might be needed, but 'confirmed' status implies active
+                    eq(orders.status, "confirmed")
                 )
             )
             .limit(1);
@@ -100,7 +102,6 @@ router.post("/complete", async (req, res) => {
         }
 
         // 4. Find the NEXT customer in the route
-        // We look for a customer with the same milkman and a higher routeOrder
         const [nextCustomer] = await db
             .select()
             .from(customers)
@@ -118,14 +119,8 @@ router.post("/complete", async (req, res) => {
 
         if (nextCustomer) {
             nextCustomerName = nextCustomer.name;
-            // 5. Send Notification / Message to the next customer
-            // In a real implementation, you'd call your notification service here.
-            // For now, we'll simulate it by returning the info, and assuming the frontend 
-            // might also trigger a WebSocket event if connected.
-
             console.log(`[Notification] Sending 'Get Ready' to ${nextCustomer.name} (${nextCustomer.phone})`);
 
-            // Send push notification for 'out for delivery'
             const nextCustomerUser = await db.query.users.findFirst({
                 where: eq(users.id, nextCustomer.userId)
             });
@@ -161,6 +156,40 @@ router.post("/complete", async (req, res) => {
     }
 });
 
+// GET /api/delivery/geocode?address=<text>
+// Geocodes an address text to lat/lng via Mapbox — keeps token server-side
+router.get("/geocode", async (req, res) => {
+    try {
+        const { address } = req.query;
+        if (!address || typeof address !== 'string') {
+            return res.status(400).json({ message: "Address is required" });
+        }
+
+        if (!MAPBOX_TOKEN) {
+            return res.status(500).json({ message: "Mapbox token not configured" });
+        }
+
+        const encoded = encodeURIComponent(address);
+        // Bias results towards India
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json?country=IN&limit=1&access_token=${MAPBOX_TOKEN}`;
+
+        const response = await fetch(url);
+        const data: any = await response.json();
+
+        if (!data.features || data.features.length === 0) {
+            return res.status(404).json({ message: "Address not found" });
+        }
+
+        const [longitude, latitude] = data.features[0].center;
+        const placeName = data.features[0].place_name;
+
+        res.json({ latitude, longitude, placeName });
+    } catch (error) {
+        console.error("Geocode error:", error);
+        res.status(500).json({ message: "Geocoding failed" });
+    }
+});
+
 // GET /api/delivery/location/:orderId
 // Fetches the live location of the milkman assigned to the given order
 router.get("/location/:orderId", async (req, res) => {
@@ -168,7 +197,6 @@ router.get("/location/:orderId", async (req, res) => {
         const authHeader = req.headers.authorization;
         if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
 
-        // Basic auth validation
         const token = authHeader.split(" ")[1];
         jwt.verify(token, JWT_SECRET);
 
@@ -201,6 +229,7 @@ router.get("/location/:orderId", async (req, res) => {
         }
 
         res.json({
+            milkmanId: order.milkmanId,
             latitude: parseFloat(latestLocation.latitude),
             longitude: parseFloat(latestLocation.longitude),
             timestamp: latestLocation.timestamp
@@ -212,8 +241,54 @@ router.get("/location/:orderId", async (req, res) => {
     }
 });
 
+// GET /api/delivery/location/:orderId/history
+// Returns last 25 location points for the milkman — used to draw the breadcrumb trail
+router.get("/location/:orderId/history", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+
+        const token = authHeader.split(" ")[1];
+        jwt.verify(token, JWT_SECRET);
+
+        const orderId = parseInt(req.params.orderId);
+        if (isNaN(orderId)) {
+            return res.status(400).json({ message: "Invalid order ID" });
+        }
+
+        const [order] = await db
+            .select()
+            .from(orders)
+            .where(eq(orders.id, orderId))
+            .limit(1);
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const history = await db
+            .select()
+            .from(locations)
+            .where(eq(locations.milkmanId, order.milkmanId))
+            .orderBy(desc(locations.timestamp))
+            .limit(25);
+
+        // Return in chronological order (oldest first) for drawing the trail
+        const coords = history.reverse().map(loc => ({
+            longitude: parseFloat(loc.longitude),
+            latitude: parseFloat(loc.latitude),
+            timestamp: loc.timestamp,
+        }));
+
+        res.json({ milkmanId: order.milkmanId, history: coords });
+    } catch (error) {
+        console.error("Location history error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // POST /api/delivery/location
-// Allows milkmen to post their live GPS coordinates
+// Allows milkmen to post their live GPS coordinates — broadcasts instantly via WebSocket
 router.post("/location", async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
@@ -253,6 +328,17 @@ router.post("/location", async (req, res) => {
                 longitude: longitude.toString(),
             })
             .returning();
+
+        // 🔴 Instantly push to all connected customers via WebSocket
+        broadcastLocationUpdate(milkman.id, parseFloat(latitude), parseFloat(longitude));
+
+        // Cleanup old entries — keep only latest 200 per milkman to prevent DB bloat
+        await db.execute(
+            sql`DELETE FROM locations WHERE milkman_id = ${milkman.id} AND id NOT IN (
+                SELECT id FROM locations WHERE milkman_id = ${milkman.id}
+                ORDER BY timestamp DESC LIMIT 200
+            )`
+        );
 
         res.json({ success: true, location: newLocation });
 

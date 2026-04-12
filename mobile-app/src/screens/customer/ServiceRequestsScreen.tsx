@@ -1,18 +1,21 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import {
-  Clock, CheckCircle, XCircle, DollarSign, ShoppingCart, ArrowLeft,
+  Clock, CheckCircle, XCircle, DollarSign, ShoppingCart, ArrowLeft, Edit, Save, X, Plus, Minus,
 } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
 
 export default function ServiceRequestsScreen({ navigation }: any) {
   const { user } = useAuth();
+  const [editingRequest, setEditingRequest] = React.useState<number | null>(null);
+  const [editData, setEditData] = React.useState<any>({});
+
   const { data: requests, isLoading } = useQuery({
     queryKey: ['/api/service-requests/customer'], enabled: !!user,
   });
@@ -38,6 +41,49 @@ export default function ServiceRequestsScreen({ navigation }: any) {
     },
     onError: (e: any) => Alert.alert('Error', e.message),
   });
+  
+  const updateRequestMutation = useMutation({
+    mutationFn: async ({ requestId, data }: { requestId: number, data: any }) => {
+      await apiRequest({ url: `/api/service-requests/${requestId}`, method: 'PATCH', body: data });
+    },
+    onSuccess: () => {
+      Alert.alert('Request Updated!', 'Your service request has been updated successfully.');
+      setEditingRequest(null);
+      setEditData({});
+      queryClient.invalidateQueries({ queryKey: ['/api/service-requests/customer'] });
+    },
+    onError: (e: any) => Alert.alert('Error', e.message),
+  });
+
+  const handleEditRequest = (req: any) => {
+    setEditingRequest(req.id);
+    setEditData({
+      services: req.services,
+      customerNotes: req.customerNotes || '',
+    });
+  };
+
+  const updateServiceQuantity = (idx: number, qty: number) => {
+    const services = [...editData.services];
+    services[idx] = { ...services[idx], quantity: Math.max(1, qty) };
+    setEditData({ ...editData, services });
+  };
+
+  const removeService = (idx: number) => {
+    const services = editData.services.filter((_: any, i: number) => i !== idx);
+    setEditData({ ...editData, services });
+  };
+
+  const addService = () => {
+    const services = [...editData.services, { name: '', unit: '', quantity: 1 }];
+    setEditData({ ...editData, services });
+  };
+
+  const updateServiceDetails = (idx: number, field: string, val: string) => {
+    const services = [...editData.services];
+    services[idx] = { ...services[idx], [field]: val };
+    setEditData({ ...editData, services });
+  };
 
   const getStatus = (status: string) => {
     switch (status) {
@@ -84,45 +130,115 @@ export default function ServiceRequestsScreen({ navigation }: any) {
               const StatusIcon = status.Icon;
               return (
                 <View key={req.id} style={styles.card}>
-                  <View style={styles.cardHeader}>
-                    <View>
-                      <Text style={styles.reqId}>Service Request #{req.id}</Text>
-                      <Text style={styles.reqDate}>
-                        Requested on {new Date(req.createdAt).toLocaleDateString()}
-                      </Text>
+                    <View style={styles.headerTitleRow}>
+                      <View>
+                        <Text style={styles.reqId}>Service Request #{req.id}</Text>
+                        <Text style={styles.reqDate}>
+                          Requested on {new Date(req.createdAt).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={styles.headerActions}>
+                        <View style={[styles.badge, { backgroundColor: status.bg }]}>
+                          <StatusIcon size={12} color={status.color} />
+                          <Text style={[styles.badgeText, { color: status.color }]}>
+                            {status.text}
+                          </Text>
+                        </View>
+                        {req.status === 'pending' && editingRequest !== req.id && (
+                          <TouchableOpacity style={styles.editBtn} onPress={() => handleEditRequest(req)}>
+                            <Edit size={14} color={colors.primary} />
+                          </TouchableOpacity>
+                        )}
+                        {editingRequest === req.id && (
+                          <View style={styles.editActions}>
+                             <TouchableOpacity 
+                               style={styles.saveBtn} 
+                               onPress={() => updateRequestMutation.mutate({ requestId: req.id, data: editData })}
+                               disabled={updateRequestMutation.isPending}
+                             >
+                               <Save size={14} color={colors.white} />
+                             </TouchableOpacity>
+                             <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditingRequest(null)}>
+                               <X size={14} color={colors.gray700} />
+                             </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
                     </View>
-                    <View style={[styles.badge, { backgroundColor: status.bg }]}>
-                      <StatusIcon size={12} color={status.color} />
-                      <Text style={[styles.badgeText, { color: status.color }]}>
-                        {status.text}
-                      </Text>
-                    </View>
-                  </View>
 
                   <View style={styles.cardContent}>
                     <Text style={styles.sectionLabel}>Requested Services:</Text>
-                    {req.services?.map((svc: any, idx: number) => (
-                      <View key={idx} style={styles.serviceRow}>
-                         <View style={{ flex: 1 }}>
-                           <Text style={styles.svcName}>{svc.name}</Text>
-                           <View style={styles.svcQtyContainer}>
-                             <Text style={styles.svcQtyLabel}>Quantity:</Text>
-                             <Text style={styles.svcQtyValue}>× {svc.quantity || svc.requestedQuantity || 1}</Text>
+                    {(editingRequest === req.id ? editData.services : req.services).map((svc: any, idx: number) => {
+                      if (editingRequest === req.id) {
+                        return (
+                          <View key={idx} style={styles.editSvcRow}>
+                             <View style={styles.editSvcInputs}>
+                               <TextInput 
+                                 style={styles.editInput} 
+                                 value={svc.name} 
+                                 placeholder="Service name"
+                                 onChangeText={(v) => updateServiceDetails(idx, 'name', v)}
+                               />
+                               <TextInput 
+                                 style={styles.editInput} 
+                                 value={svc.unit} 
+                                 placeholder="Unit (e.g. Ltr)"
+                                 onChangeText={(v) => updateServiceDetails(idx, 'unit', v)}
+                               />
+                             </View>
+                             <View style={styles.editQtyRow}>
+                                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateServiceQuantity(idx, (svc.quantity || 1) - 1)}>
+                                  <Minus size={12} color={colors.primary} />
+                                </TouchableOpacity>
+                                <Text style={styles.qtyVal}>{svc.quantity || 1}</Text>
+                                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateServiceQuantity(idx, (svc.quantity || 1) + 1)}>
+                                  <Plus size={12} color={colors.primary} />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.removeSvcBtn} onPress={() => removeService(idx)}>
+                                  <X size={14} color={colors.error} />
+                                </TouchableOpacity>
+                             </View>
+                          </View>
+                        );
+                      }
+                      return (
+                        <View key={idx} style={styles.serviceRow}>
+                           <View style={{ flex: 1 }}>
+                             <Text style={styles.svcName}>{svc.name}</Text>
+                             <View style={styles.svcQtyContainer}>
+                               <Text style={styles.svcQtyLabel}>Quantity:</Text>
+                               <Text style={styles.svcQtyValue}>× {svc.quantity || svc.requestedQuantity || 1}</Text>
+                             </View>
                            </View>
-                         </View>
-                         {svc.quotedPrice && (
-                           <View style={styles.svcPriceContainer}>
-                              <Text style={styles.svcPrice}>₹{svc.quotedPrice} {svc.unit}</Text>
-                              <Text style={styles.svcSubtotal}>
-                                Total: ₹{(parseFloat(svc.quotedPrice) * (svc.quantity || svc.requestedQuantity || 1)).toFixed(2)}
-                              </Text>
-                           </View>
-                         )}
-                      </View>
-                    ))}
+                           {svc.quotedPrice && (
+                             <View style={styles.svcPriceContainer}>
+                                <Text style={styles.svcPrice}>₹{svc.quotedPrice} {svc.unit}</Text>
+                                <Text style={styles.svcSubtotal}>
+                                  Total: ₹{(parseFloat(svc.quotedPrice) * (svc.quantity || svc.requestedQuantity || 1)).toFixed(2)}
+                                </Text>
+                             </View>
+                           )}
+                        </View>
+                      );
+                    })}
+
+                    {editingRequest === req.id && (
+                      <TouchableOpacity style={styles.addSvcBtn} onPress={addService}>
+                        <Plus size={16} color={colors.primary} />
+                        <Text style={styles.addSvcText}>Add Service</Text>
+                      </TouchableOpacity>
+                    )}
 
                     <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Your Notes:</Text>
-                    {req.customerNotes ? (
+                    {editingRequest === req.id ? (
+                      <TextInput 
+                        style={[styles.notesBox, { textAlignVertical: 'top', minHeight: 80 }]} 
+                        multiline 
+                        value={editData.customerNotes} 
+                        onChangeText={(v) => setEditData({ ...editData, customerNotes: v })}
+                        placeholder="Add special requirements..."
+                      />
+                    ) : req.customerNotes ? (
                       <View style={styles.notesBox}>
                         <Text style={styles.notesText}>{req.customerNotes}</Text>
                       </View>
@@ -338,4 +454,23 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: colors.border,
   },
   timelineText: { fontSize: 13, color: colors.gray600 },
+
+  // Edit Mode Styles
+  headerTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.lg },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  editBtn: { width: 32, height: 32, backgroundColor: '#EFF6FF', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  editActions: { flexDirection: 'row', gap: spacing.sm },
+  saveBtn: { width: 32, height: 32, backgroundColor: colors.primary, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  cancelBtn: { width: 32, height: 32, backgroundColor: colors.white, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  
+  editSvcRow: { backgroundColor: colors.white, padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.border },
+  editSvcInputs: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  editInput: { flex: 1, height: 40, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm, fontSize: 13, backgroundColor: colors.gray50 },
+  editQtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  qtyBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.gray100, justifyContent: 'center', alignItems: 'center' },
+  qtyVal: { fontSize: 14, fontWeight: '700', width: 24, textAlign: 'center' },
+  removeSvcBtn: { marginLeft: 'auto', padding: 8 },
+  
+  addSvcBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: spacing.md, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.primary, borderRadius: borderRadius.md, marginTop: spacing.sm },
+  addSvcText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
 });

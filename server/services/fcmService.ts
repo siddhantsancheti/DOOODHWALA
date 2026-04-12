@@ -6,18 +6,35 @@ import fs from 'fs';
 let isFcmInitialized = false;
 
 try {
-    // Use absolute path for safety, assuming firebase-service-account.json is in root level
-    const serviceAccountPath = path.resolve(process.cwd(), 'firebase-service-account.json');
+    let serviceAccount: any = null;
 
-    if (fs.existsSync(serviceAccountPath)) {
-        const serviceAccount = require(serviceAccountPath);
+    // 1. Try env variable first (production/Railway — the JSON file is git-ignored)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            console.log('[FCM] Loading credentials from FIREBASE_SERVICE_ACCOUNT env var.');
+        } catch (parseErr) {
+            console.error('[FCM] Failed to parse FIREBASE_SERVICE_ACCOUNT env var as JSON:', parseErr);
+        }
+    }
+
+    // 2. Fall back to local file (local development)
+    if (!serviceAccount) {
+        const serviceAccountPath = path.resolve(process.cwd(), 'firebase-service-account.json');
+        if (fs.existsSync(serviceAccountPath)) {
+            serviceAccount = require(serviceAccountPath);
+            console.log('[FCM] Loading credentials from firebase-service-account.json file.');
+        }
+    }
+
+    if (serviceAccount) {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
         isFcmInitialized = true;
         console.log('[FCM] Firebase Admin initialized successfully.');
     } else {
-        console.warn(`[FCM] Service account file not found at ${serviceAccountPath}. Push notifications will be disabled.`);
+        console.warn('[FCM] No Firebase credentials found. Set FIREBASE_SERVICE_ACCOUNT env var on Railway. Push notifications will be disabled.');
     }
 } catch (error) {
     console.error('[FCM] Failed to initialize Firebase Admin:', error);

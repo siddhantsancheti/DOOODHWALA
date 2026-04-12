@@ -8,6 +8,9 @@ const devOtpStore = new Map<string, { code: string; expiresAt: Date; isUsed: boo
 export class OTPService {
     // Generate a 6-digit OTP
     private static generateCode(): string {
+        if (process.env.NODE_ENV === 'development') {
+            return "123456"; // Fixed OTP for testing
+        }
         return Math.floor(100000 + Math.random() * 900000).toString();
     }
 
@@ -62,14 +65,35 @@ export class OTPService {
     }
 
     // Verify OTP
-    static async verifyOTP(phone: string, code: string): Promise<boolean> {
+    static async verifyOTP(phone: string, code: string | number): Promise<boolean> {
         try {
+            const codeStr = String(code).trim();
+            console.log(`[OTPService Debug] Verifying OTP for phone: ${phone}, provided code: '${codeStr}'`);
+            
+            // In development, unconditionally accept the test code "123456" 
+            // This prevents issues where the server restarts and the in-memory store is cleared.
+            if (process.env.NODE_ENV === 'development' && codeStr === '123456') {
+                console.log(`[OTPService Debug] Accepted magic development code 123456 for ${phone}`);
+                return true;
+            }
+
             // Always check in-memory store first
             const devOtp = devOtpStore.get(phone);
-            if (devOtp && devOtp.code === code && !devOtp.isUsed && devOtp.expiresAt > new Date()) {
-                devOtp.isUsed = true;
-                console.log(`[OTPService] Verified OTP for ${phone}`);
-                return true;
+            console.log(`[OTPService Debug] Found devOtp in store:`, devOtp);
+
+            if (devOtp) {
+                const codeMatch = String(devOtp.code) === codeStr;
+                const notUsed = !devOtp.isUsed;
+                const notExpired = devOtp.expiresAt > new Date();
+                console.log(`[OTPService Debug] Checks - CodeMatch: ${codeMatch}, NotUsed: ${notUsed}, NotExpired: ${notExpired}`);
+                
+                if (codeMatch && notUsed && notExpired) {
+                    devOtp.isUsed = true;
+                    console.log(`[OTPService] Verified OTP for ${phone}`);
+                    return true;
+                }
+            } else {
+                console.log(`[OTPService Debug] devOtpStore did not have code for phone: ${phone}`);
             }
 
             // In production, check database as fallback
@@ -81,7 +105,7 @@ export class OTPService {
                         .where(
                             and(
                                 eq(otpCodes.phone, phone),
-                                eq(otpCodes.code, code),
+                                eq(otpCodes.code, codeStr),
                                 eq(otpCodes.isUsed, false),
                                 gt(otpCodes.expiresAt, new Date())
                             )

@@ -2,7 +2,7 @@ import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { authAPI } from "../lib/api";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "../lib/storage";
 import type { User } from "../types/schema"; // We will create this
 
 type AuthUserResponse = {

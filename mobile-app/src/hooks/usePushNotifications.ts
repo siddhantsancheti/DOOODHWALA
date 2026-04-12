@@ -40,7 +40,7 @@ export function usePushNotifications() {
                 setExpoPushToken(token);
                 apiRequest({
                     url: '/api/auth/profile',
-                    method: 'PATCH',
+                    method: 'POST',
                     body: { fcmToken: token }
                 }).catch(err => console.log('Failed to save push token:', err));
             }

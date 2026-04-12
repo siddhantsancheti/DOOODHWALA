@@ -41,6 +41,27 @@ router.get("/customer", async (req, res) => {
     }
 });
 
+// GET /api/orders/customer/:customerId (for milkmen to view a customer's orders)
+router.get("/customer/:customerId", async (req, res) => {
+    try {
+        const customerId = parseInt(req.params.customerId);
+        if (isNaN(customerId)) {
+            return res.status(400).json({ message: "Invalid customer ID" });
+        }
+
+        const customerOrders = await db
+            .select()
+            .from(orders)
+            .where(eq(orders.customerId, customerId))
+            .orderBy(desc(orders.createdAt));
+
+        res.json(customerOrders);
+    } catch (error) {
+        console.error("Get specific customer orders error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // GET /api/orders/milkman
 router.get("/milkman", async (req, res) => {
     try {

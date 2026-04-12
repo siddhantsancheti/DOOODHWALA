@@ -71,6 +71,15 @@ export default function Profile() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
+      // 1. Always update basic user info (firstName, lastName, email)
+      await apiRequest("/api/users/profile", "PATCH", {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        name: data.name
+      });
+
+      // 2. Conditionally update specialized profile
       if (customerProfile) {
         await apiRequest("/api/customers/profile", "PATCH", data);
       } else if (milkmanProfile) {
@@ -92,10 +101,11 @@ export default function Profile() {
         description: "Your profile and contact information have been updated successfully!",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error("Profile update error:", error);
       toast({
         title: "Update Failed",
-        description: error.message,
+        description: error.message || "Failed to update profile",
         variant: "destructive",
       });
     },

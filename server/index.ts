@@ -16,10 +16,12 @@ app.use(helmet({
     contentSecurityPolicy: false, // typically disabled for Vite dev server / dynamic apps unless configured carefully
 }));
 const allowedOrigins = [
-    "https://dooodhwala-production.up.railway.app",
+    "https://dooodhwala-production-0667.up.railway.app",
     "https://dooodhwala.com",
     "http://localhost:5001",
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "http://localhost:19006",
+    "http://127.0.0.1:19006"
 ];
 
 app.use(cors({
@@ -38,7 +40,7 @@ app.use(cors({
 // Rate Limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 200, // Limit each IP to 200 requests per `window` (here, per 15 minutes)
+    max: (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) ? 100000 : 200, // Limit each IP to 200 requests per `window` (here, per 15 minutes)
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -87,18 +89,10 @@ app.use((req, res, next) => {
 
 (async () => {
     // Startup Environment Validation
-    const requiredEnvVars = process.env.NODE_ENV === 'production'
-        ? [
-            "RAZORPAY_KEY_ID",
-            "RAZORPAY_KEY_SECRET",
-            "STRIPE_SECRET_KEY",
-            "JWT_SECRET",
-            "CLOUDINARY_CLOUD_NAME",
-            "CLOUDINARY_API_KEY",
-            "CLOUDINARY_API_SECRET",
-            "GATEWAY_SECRET"
-        ]
-        : ["JWT_SECRET"]; // Only JWT_SECRET is required in dev
+    const requiredEnvVars = [
+        "JWT_SECRET",
+        "DATABASE_URL",
+    ];
 
     const missingEnvVars = requiredEnvVars.filter(key => !process.env[key]);
 

@@ -84,6 +84,7 @@ export const milkmen = pgTable("milkmen", {
   bankName: varchar("bank_name"),
   bankBranch: varchar("bank_branch"),
   upiId: varchar("upi_id"),
+  commissionPercentage: decimal("commission_percentage", { precision: 5, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -101,6 +102,7 @@ export const customers = pgTable("customers", {
   routeOrder: integer("route_order").default(0),
   presetOrder: jsonb("preset_order"), // { items: [{ productId: number, quantity: number }] }
   autoPayEnabled: boolean("auto_pay_enabled").default(false),
+  settings: jsonb("settings"), // Unified settings for preferences
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

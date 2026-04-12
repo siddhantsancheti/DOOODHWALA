@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert, Image, useColorScheme, Platform, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { Users, Truck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
+import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing } from '../theme';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const logo = require('../../assets/logo.png');
+const { width } = Dimensions.get('window');
 
 export default function UserTypeSelectionScreen({ navigation }: any) {
   const queryClient = useQueryClient();
   const [isSelecting, setIsSelecting] = useState(false);
+  const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
+  
+  const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
   const handleSelect = async (type: 'customer' | 'milkman') => {
     if (isSelecting) return;
@@ -28,271 +33,326 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
       const response = await res.json();
       if (response.success) {
         await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        // The web app navigates to different setup screens
         if (type === 'customer') {
           navigation.replace('CustomerProfileSetup');
         } else {
           navigation.replace('MilkmanProfileSetup');
         }
       } else {
-        Alert.alert('Error', response.message || 'Failed to update user type');
+        Alert.alert(t('error'), response.message || t('failedUserType'));
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to update user type.');
+      Alert.alert(t('error'), e.message || t('failedUserType'));
     } finally {
       setIsSelecting(false);
     }
   };
 
   const customerFeatures = [
-    'Browse available milkmen in your area',
-    'Place daily orders with ease',
-    'Track deliveries in real-time',
-    'Monthly billing and payment',
+    t('custFeature1'),
+    t('custFeature2'),
+    t('custFeature3'),
+    t('custFeature4'),
   ];
 
   const milkmanFeatures = [
-    'Manage daily delivery routes',
-    'Track orders and customer requests',
-    'Update availability status',
-    'Build customer relationships',
+    t('milkFeature1'),
+    t('milkFeature2'),
+    t('milkFeature3'),
+    t('milkFeature4'),
   ];
 
+  const maxContentWidth = Math.min(width - spacing.xl * 2, 800);
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoBadge}>
-            <Image source={logo} style={styles.logoImage} resizeMode="contain" />
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          <View style={{ width: maxContentWidth }}>
+            
+            {/* Logo Badge */}
+            <View style={styles.logoContainer}>
+              <View style={styles.logoBadge}>
+                <Image source={logo} style={styles.logoImage} resizeMode="contain" />
+              </View>
+            </View>
+
+            {/* Title Display */}
+            <View style={styles.titleContainer}>
+              <Text style={[styles.title, { color: colors.foreground }]}>
+                {t('welcome')}{' '}
+                <Text style={styles.titleBrandGradient}>
+                  DOOODHWALA
+                </Text>
+                {t('welcomeSuffix')}
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+                {t('chooseType')}
+              </Text>
+            </View>
+
+            {/* Cards Grid */}
+            <View style={styles.cardsGrid}>
+              {/* Customer Card */}
+              <TouchableOpacity
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.card, borderColor: colors.border }
+                ]}
+                onPress={() => handleSelect('customer')}
+                disabled={isSelecting}
+                activeOpacity={0.9}
+              >
+                <View style={styles.cardHeader}>
+                  <LinearGradient
+                    colors={['#3B82F6', '#A855F7', '#EC4899']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.iconBox}
+                  >
+                    <Users size={48} color="#FFFFFF" strokeWidth={1.5} />
+                  </LinearGradient>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t('imCustomer')}</Text>
+                </View>
+
+                <View style={styles.cardContent}>
+                  <Text style={[styles.cardDescription, { color: colors.mutedForeground }]}>
+                    {t('orderFresh')}
+                  </Text>
+
+                  <View style={styles.featuresList}>
+                    {customerFeatures.map((feature, i) => (
+                      <View key={i} style={styles.featureRow}>
+                        <View style={[styles.featureDot, { backgroundColor: '#3B82F6' }]} />
+                        <Text style={[styles.featureText, { color: colors.mutedForeground }]}>{feature}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.button, { backgroundColor: colors.foreground }]}
+                    onPress={() => handleSelect('customer')}
+                    disabled={isSelecting}
+                    activeOpacity={0.8}
+                  >
+                    {isSelecting ? (
+                      <ActivityIndicator color={colors.background} />
+                    ) : (
+                      <Text style={[styles.buttonText, { color: colors.background }]}>{t('continueCustomer')}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+
+              {/* Milkman Card */}
+              <TouchableOpacity
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.card, borderColor: colors.border }
+                ]}
+                onPress={() => handleSelect('milkman')}
+                disabled={isSelecting}
+                activeOpacity={0.9}
+              >
+                <View style={styles.cardHeader}>
+                  <LinearGradient
+                    colors={['#F97316', '#EF4444', '#EAB308']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.iconBox}
+                  >
+                    <Truck size={48} color="#FFFFFF" strokeWidth={1.5} />
+                  </LinearGradient>
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{t('imMilkman')}</Text>
+                </View>
+
+                <View style={styles.cardContent}>
+                  <Text style={[styles.cardDescription, { color: colors.mutedForeground }]}>
+                    {t('sellFresh')}
+                  </Text>
+
+                  <View style={styles.featuresList}>
+                    {milkmanFeatures.map((feature, i) => (
+                      <View key={i} style={styles.featureRow}>
+                        <View style={[styles.featureDot, { backgroundColor: '#16A34A' }]} />
+                        <Text style={[styles.featureText, { color: colors.mutedForeground }]}>{feature}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.button, { backgroundColor: colors.foreground }]}
+                    onPress={() => handleSelect('milkman')}
+                    disabled={isSelecting}
+                    activeOpacity={0.8}
+                  >
+                    {isSelecting ? (
+                      <ActivityIndicator color={colors.background} />
+                    ) : (
+                      <Text style={[styles.buttonText, { color: colors.background }]}>{t('continueMilkman')}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </View>
-
-        {/* Title */}
-        <Text style={styles.title}>
-          Welcome to{' '}
-          <Text style={styles.titleBrandGradient}>
-            DOOODHWALA
-          </Text>
-          , there!
-        </Text>
-        <Text style={styles.subtitle}>
-          Choose how you'd like to use DOOODHWALA today
-        </Text>
-
-        {/* Customer Card */}
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => handleSelect('customer')}
-          disabled={isSelecting}
-          activeOpacity={0.9}
-        >
-          {/* Blue to Pink Gradient matches web: from-blue-500 via-purple-500 to-pink-500 */}
-          <LinearGradient
-            colors={['#3B82F6', '#A855F7', '#EC4899']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.iconBox}
-          >
-            <Users size={48} color={colors.white} />
-          </LinearGradient>
-
-          <Text style={styles.cardTitle}>I'm a Customer</Text>
-          <Text style={styles.cardDescription}>
-            Order fresh milk from local milkmen
-          </Text>
-
-          {customerFeatures.map((feature, i) => (
-            <View key={i} style={styles.featureRow}>
-              <View style={[styles.featureDot, { backgroundColor: colors.brandPrimary }]} />
-              <Text style={styles.featureText}>{feature}</Text>
-            </View>
-          ))}
-
-          <TouchableOpacity
-            style={[styles.button, styles.customerButton]}
-            onPress={() => handleSelect('customer')}
-            disabled={isSelecting}
-            activeOpacity={0.8}
-          >
-            {isSelecting ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.buttonText}>Continue as Customer</Text>
-            )}
-          </TouchableOpacity>
-        </TouchableOpacity>
-
-        {/* Milkman Card */}
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => handleSelect('milkman')}
-          disabled={isSelecting}
-          activeOpacity={0.9}
-        >
-          {/* Orange to Yellow Gradient matches web: from-orange-500 via-red-500 to-yellow-500 */}
-          <LinearGradient
-            colors={['#F97316', '#EF4444', '#EAB308']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.iconBox}
-          >
-            <Truck size={48} color={colors.white} />
-          </LinearGradient>
-
-          <Text style={styles.cardTitle}>I'm a Milkman</Text>
-          <Text style={styles.cardDescription}>
-            Sell fresh milk to customers
-          </Text>
-
-          {milkmanFeatures.map((feature, i) => (
-            <View key={i} style={styles.featureRow}>
-              <View style={[styles.featureDot, { backgroundColor: colors.brandSecondary }]} />
-              <Text style={styles.featureText}>{feature}</Text>
-            </View>
-          ))}
-
-          <TouchableOpacity
-            style={[styles.button, styles.milkmanButton]}
-            onPress={() => handleSelect('milkman')}
-            disabled={isSelecting}
-            activeOpacity={0.8}
-          >
-            {isSelecting ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.buttonText}>Continue as Milkman</Text>
-            )}
-          </TouchableOpacity>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFamilyBold: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   scrollContent: {
-    padding: spacing['2xl'],
-    paddingBottom: spacing['4xl'],
+    paddingVertical: 64, // py-16
+    paddingHorizontal: spacing.lg,
   },
-
+  
   // Logo
   logoContainer: {
     alignItems: 'center',
-    marginBottom: spacing['2xl'],
+    marginBottom: 64, // mb-16
   },
   logoBadge: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#DBEAFE', // web uses bg-blue-100
+    width: 160,    // w-40
+    height: 160,   // h-40
+    borderRadius: 80,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 32, // mb-8
   },
   logoImage: {
-    width: 84,
-    height: 84,
+    width: 112,    // w-28
+    height: 112,   // h-28
   },
 
   // Title
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 64, // mb-16
+  },
   title: {
-    fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontSize: 42, // text-5xl approximate
+    fontWeight: '700', // font-bold
     textAlign: 'center',
-    color: colors.foreground,
-    marginBottom: spacing.sm,
+    marginBottom: 24, // mb-6
+    lineHeight: 48,
+    fontFamily: fontFamilyBold,
   },
   titleBrandGradient: {
-    color: '#0891B2', // Simulated gradient stop color for text since RN text gradient is complex
+    color: '#0EA5E9', // Fallback for gradient text since MaskedView isn't available
+    fontFamily: fontFamilyBold,
   },
   subtitle: {
-    fontSize: fontSize.lg,
-    color: colors.mutedForeground,
+    fontSize: 18, // text-lg
     textAlign: 'center',
-    marginBottom: spacing['3xl'],
-    lineHeight: fontSize.lg * 1.5,
+    lineHeight: 28, // leading-relaxed
+    maxWidth: '100%',
+    paddingHorizontal: 20,
+    fontFamily,
   },
 
-  // Cards
+  // Cards layout
+  cardsGrid: {
+    flexDirection: 'column',
+    gap: 40, // gap-10
+    width: '100%',
+  },
+
+  // Card
   card: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.xl,
-    padding: spacing['2xl'],
-    marginBottom: spacing.xl,
-    alignItems: 'center',
-    ...shadows.lg,
+    borderRadius: 16, // rounded-2xl roughly
+    borderWidth: 1,
+    paddingTop: 0,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
   },
-
-  // Icon Boxes
+  cardHeader: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingBottom: 24, // pb-6
+    paddingHorizontal: 24,
+  },
   iconBox: {
-    width: 96,
-    height: 96,
-    borderRadius: borderRadius.xl,
+    width: 112,  // w-28
+    height: 112, // h-28
+    borderRadius: 24, // rounded-2xl
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xl,
-    ...shadows.md,
+    marginBottom: 24, // mb-6
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 8,
   },
-
-  // Card content
   cardTitle: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.semibold,
-    color: colors.foreground,
-    marginBottom: spacing.sm,
+    fontSize: 30, // text-3xl
+    fontWeight: '600', // font-semibold
+    textAlign: 'center',
+    fontFamily: fontFamilyBold,
+  },
+  cardContent: {
+    padding: 24, // p-6
+    paddingTop: 0,
+    alignItems: 'center',
   },
   cardDescription: {
-    fontSize: fontSize.lg,
-    color: colors.mutedForeground,
+    fontSize: 18, // text-lg
     textAlign: 'center',
-    marginBottom: spacing.xl,
-    lineHeight: fontSize.lg * 1.5,
+    marginBottom: 32, // mb-8
+    lineHeight: 28, // leading-relaxed
+    fontFamily,
   },
 
-  // Features
+  // Features list
+  featuresList: {
+    width: '100%',
+    marginBottom: 32, // mb-8
+  },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: spacing.md,
+    justifyContent: 'flex-start',
+    marginBottom: 12, // space-y-3
+    paddingLeft: spacing.sm,
   },
   featureDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: spacing.md,
+    width: 8, // w-2
+    height: 8, // h-2
+    borderRadius: 4, // rounded-full
+    marginRight: 12, // mr-3
   },
   featureText: {
-    fontSize: fontSize.base,
-    color: colors.mutedForeground,
-    flex: 1,
+    fontSize: 17, // Web matches index.css responsive-text-base (17px)
+    flexShrink: 1,
+    fontFamily,
   },
 
-  // Buttons
+  // Button
   button: {
     width: '100%',
-    height: 52,
+    paddingVertical: 14, // py-3 approximate
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.xl,
-    ...shadows.md,
-  },
-  customerButton: {
-    backgroundColor: colors.foreground, // Web app uses black/dark mode modern-button
-  },
-  milkmanButton: {
-    backgroundColor: colors.foreground, // Web app uses black/dark mode modern-button
+    marginTop: spacing.sm,
   },
   buttonText: {
-    color: colors.white,
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontSize: 16,
+    fontWeight: '600', // font-semibold
+    fontFamily: fontFamilyBold,
   },
 });

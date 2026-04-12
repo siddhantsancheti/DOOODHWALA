@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./queryClient";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "./storage";
 
 export interface APIResponse<T = any> {
     success: boolean;

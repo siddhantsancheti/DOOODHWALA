@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ErrorBoundary from "@/components/error-boundary";
@@ -13,7 +13,7 @@ import Login from "@/pages/login";
 import Home from "@/pages/home";
 import CustomerDashboard from "@/pages/customer-dashboard";
 import MilkmanDashboard from "@/pages/milkman-dashboard";
-import YDPage from "@/pages/yd-page";
+// import YDPage from "@/pages/yd-page"; // Deprecated
 import Checkout from "@/pages/checkout";
 import Profile from "@/pages/profile";
 import Features from "@/pages/features";
@@ -56,12 +56,46 @@ const ProtectedRoute = ({
 };
 
 function AppRouter() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
+  const queryClient = useQueryClient();
 
-  console.log('AppRouter render:', { isAuthenticated, isLoading, user, shouldShowLogin: isLoading || !isAuthenticated });
+  // Robust profile existence checks (Parity with Mobile)
+  const { data: customerProfile, isLoading: isCustomerLoading } = useQuery({
+    queryKey: ["/api/customers/profile"],
+    enabled: isAuthenticated && user?.userType === 'customer',
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  // If user is authenticated, check if they need to complete onboarding
-  const needsOnboarding = isAuthenticated && user && (!user.userType || user.userType === null);
+  const { data: milkmanProfile, isLoading: isMilkmanLoading } = useQuery({
+    queryKey: ["/api/milkmen/profile"],
+    enabled: isAuthenticated && user?.userType === 'milkman',
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isLoading = isAuthLoading || (isAuthenticated && user?.userType === 'customer' && isCustomerLoading) || (isAuthenticated && user?.userType === 'milkman' && isMilkmanLoading);
+
+  console.log('AppRouter render:', { isAuthenticated, isLoading, user, shouldShowLogin: isAuthLoading || !isAuthenticated });
+
+  // Determine if onboarding is complete based on profile data
+  const isProfileComplete = () => {
+    if (!user?.userType) return false;
+    
+    if (user.userType === 'customer') {
+      return !!customerProfile && !!(customerProfile as any).name && !!(customerProfile as any).address;
+    }
+    
+    if (user.userType === 'milkman') {
+      return !!milkmanProfile && !!(milkmanProfile as any).contactName && !!(milkmanProfile as any).businessName;
+    }
+    
+    if (user.userType === 'admin') return true;
+    
+    return false;
+  };
+
+  const needsOnboarding = isAuthenticated && user && (!user.userType || !isProfileComplete());
 
   // Determine fallback path based on user role
   const getFallbackPath = (userType: string | null) => {
@@ -75,6 +109,13 @@ function AppRouter() {
 
   const userRole = user?.userType || null;
   const fallbackPath = getFallbackPath(userRole);
+
+  const renderOnboarding = () => {
+    if (!user?.userType) return <UserTypeSelection />;
+    if (user.userType === 'customer') return <ProfileSetup />;
+    if (user.userType === 'milkman') return <MilkmanProfileSetup />;
+    return <UserTypeSelection />;
+  };
 
   return (
     <Switch>
@@ -94,7 +135,7 @@ function AppRouter() {
         <Route path="*" component={Login} />
       ) : needsOnboarding ? (
         // Redirect to onboarding for any route if onboarding needed
-        <Route path="*" component={UserTypeSelection} />
+        <Route path="*">{() => renderOnboarding()}</Route>
       ) : (
         // All protected routes when authenticated
         <>
@@ -110,7 +151,7 @@ function AppRouter() {
             {() => <ProtectedRoute component={Checkout} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
           <Route path="/yd">
-            {() => <ProtectedRoute component={YDPage} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+            {() => <ProtectedRoute component={YourDoodhwala} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
           <Route path="/track-delivery">
             {() => <ProtectedRoute component={TrackDelivery} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
@@ -124,13 +165,13 @@ function AppRouter() {
           <Route path="/order">
             {() => <ProtectedRoute component={OrderPage} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
+          <Route path="/your-doodhwala">
+            {() => <ProtectedRoute component={YourDoodhwala} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
 
           {/* Milkman Routes */}
           <Route path="/milkman">
             {() => <ProtectedRoute component={MilkmanDashboard} allowedRoles={['milkman', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
-          </Route>
-          <Route path="/your-doodhwala">
-            {() => <ProtectedRoute component={YourDoodhwala} allowedRoles={['milkman', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
 
           {/* Admin Routes */}

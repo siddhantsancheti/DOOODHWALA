@@ -25,11 +25,25 @@ export default function OrderScreen({ route, navigation }: any) {
 
   const [formData, setFormData] = useState({
     customerName: customerProfile?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
-    deliveryDate: '',
+    deliveryDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Default tomorrow
     deliveryTime: '07:00-08:00',
     deliveryAddress: customerProfile?.address || '',
     specialInstructions: '',
   });
+
+  const nextSevenDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i + 1);
+    return {
+      label: d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }),
+      value: d.toISOString().split('T')[0]
+    };
+  });
+
+  const timeSlots = [
+    "06:00-07:00", "07:00-08:00", "08:00-09:00", "09:00-10:00",
+    "17:00-18:00", "18:00-19:00", "19:00-20:00", "20:00-21:00"
+  ];
   const [selectedItems, setSelectedItems] = useState<{ [key: string]: number }>({});
   const [focusedField, setFocusedField] = useState('');
 
@@ -226,26 +240,30 @@ export default function OrderScreen({ route, navigation }: any) {
             />
 
             <Text style={styles.label}>Delivery Date</Text>
-            <TextInput
-              style={[styles.input, focusedField === 'date' && styles.inputFocused]}
-              placeholder="e.g. 2024-05-15"
-              placeholderTextColor={colors.gray400}
-              value={formData.deliveryDate}
-              onChangeText={(t) => setFormData({ ...formData, deliveryDate: t })}
-              onFocus={() => setFocusedField('date')}
-              onBlur={() => setFocusedField('')}
-            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              {nextSevenDays.map((day) => (
+                <TouchableOpacity
+                  key={day.value}
+                  style={[styles.dateChip, formData.deliveryDate === day.value && styles.activeChip]}
+                  onPress={() => setFormData({ ...formData, deliveryDate: day.value })}
+                >
+                  <Text style={[styles.chipText, formData.deliveryDate === day.value && styles.activeChipText]}>{day.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             <Text style={styles.label}>Delivery Time</Text>
-            <TextInput
-              style={[styles.input, focusedField === 'time' && styles.inputFocused]}
-              placeholder="e.g. 07:00-08:00"
-              placeholderTextColor={colors.gray400}
-              value={formData.deliveryTime}
-              onChangeText={(t) => setFormData({ ...formData, deliveryTime: t })}
-              onFocus={() => setFocusedField('time')}
-              onBlur={() => setFocusedField('')}
-            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              {timeSlots.map((slot) => (
+                <TouchableOpacity
+                  key={slot}
+                  style={[styles.timeChip, formData.deliveryTime === slot && styles.activeChip]}
+                  onPress={() => setFormData({ ...formData, deliveryTime: slot })}
+                >
+                  <Text style={[styles.chipText, formData.deliveryTime === slot && styles.activeChipText]}>{slot}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             <Text style={styles.label}>Special Instructions (Optional)</Text>
             <TextInput
@@ -392,4 +410,43 @@ const styles = StyleSheet.create({
   },
   placeOrderBtnDisabled: { backgroundColor: colors.gray400 },
   placeOrderText: { color: colors.white, fontSize: fontSize.base, fontWeight: '600' },
+
+  // Chips & Selection
+  horizontalScroll: {
+    marginVertical: spacing.sm,
+  },
+  dateChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    marginRight: 8,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  timeChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  activeChip: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    ...shadows.sm,
+  },
+  chipText: {
+    fontSize: 14,
+    color: colors.foreground,
+    fontWeight: '600',
+  },
+  activeChipText: {
+    color: colors.white,
+  },
 });

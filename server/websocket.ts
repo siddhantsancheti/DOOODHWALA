@@ -88,3 +88,21 @@ export function sendToUser(userId: number, message: WebSocketMessage) {
         }
     })
 }
+
+export function broadcastLocationUpdate(milkmanId: number, latitude: number, longitude: number) {
+    if (!wss) return;
+
+    const message = JSON.stringify({
+        type: 'location_update',
+        milkmanId,
+        latitude,
+        longitude,
+        timestamp: new Date().toISOString(),
+    });
+
+    wss.clients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    });
+}
