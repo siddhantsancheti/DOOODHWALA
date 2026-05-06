@@ -1,8 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import * as SecureStore from "./storage";
 
-// Use the production backend URL for the mobile app
-export const API_BASE_URL = "https://dooodhwala-production-0667.up.railway.app/api";
+// Use the Supabase Edge Function URL for the backend API
+export const API_BASE_URL = "https://shwofnrufpfmgptrqexc.supabase.co/functions/v1/api";
 
 async function throwIfResNotOk(res: Response) {
     if (!res.ok) {

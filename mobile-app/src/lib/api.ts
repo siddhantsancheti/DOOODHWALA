@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "./queryClient";
 import * as SecureStore from "./storage";
+import { supabase } from "./supabase";
 
 export interface APIResponse<T = any> {
     success: boolean;
@@ -16,10 +17,8 @@ export class AuthAPI {
     }
 
     private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-        let token = await SecureStore.getItemAsync('accessToken');
-        if (!token) {
-            token = await SecureStore.getItemAsync('token');
-        }
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
 
         const headers = new Headers(options.headers || {});
         if (token) {
@@ -57,97 +56,58 @@ export class AuthAPI {
             throw new Error("Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9");
         }
 
-        const endpoint = "/api/auth/send-otp";
+        const fullPhone = `+91${cleanPhone}`;
 
         try {
-            const response = await this.request(endpoint, {
-                method: "POST",
-                body: JSON.stringify({ phone: cleanPhone }),
+            const { error } = await supabase.auth.signInWithOtp({
+                phone: fullPhone,
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                return { success: true, data, message: "OTP sent successfully" };
-            } else {
-                let errorData: any = {};
-                const contentType = response.headers.get('content-type');
+            if (error) throw error;
 
-                if (contentType && contentType.includes('application/json')) {
-                    try { errorData = await response.json(); } catch (e) { errorData = { message: response.statusText }; }
-                } else {
-                    try { const errorText = await response.text(); errorData = { message: errorText || response.statusText }; } catch (e) { errorData = { message: response.statusText }; }
-                }
-
-                if (response.status === 400 && errorData.errors) {
-                    const errorMsg = errorData.errors.map((err: any) => err.msg).join(', ');
-                    throw new Error(errorMsg);
-                }
-
-                if (response.status === 500 && errorData.message === "Server error while sending OTP") {
-                    throw new Error("Backend SMS service error.");
-                }
-
-                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-            }
+            return { success: true, message: "OTP sent successfully" };
         } catch (error: any) {
-            throw error;
+            throw new Error(error.message || "Failed to send OTP");
         }
     }
 
     async verifyOTP(phone: string, otp: string): Promise<APIResponse> {
         const cleanPhone = phone.replace(/[^0-9]/g, '').replace(/^\+?91/, '');
-        const endpoint = "/api/auth/verify-otp";
+        const fullPhone = `+91${cleanPhone}`;
 
         try {
-            const response = await this.request(endpoint, {
-                method: "POST",
-                body: JSON.stringify({ phone: cleanPhone, otp }),
+            const { data, error } = await supabase.auth.verifyOtp({
+                phone: fullPhone,
+                token: otp,
+                type: 'sms',
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                let tokens;
-                if (data.tokens) tokens = data.tokens;
-                else if (data.accessToken) tokens = { accessToken: data.accessToken, refreshToken: data.refreshToken };
+            if (error) throw error;
 
-                return {
-                    success: true,
-                    data: { tokens: tokens, user: data.user },
-                    message: data.message || "OTP verified successfully"
-                };
-            } else {
-                let errorData: any = {};
-                const contentType = response.headers.get('content-type');
-
-                if (contentType && contentType.includes('application/json')) {
-                    try { errorData = await response.json(); } catch (e) { errorData = { message: response.statusText }; }
-                } else {
-                    try { const errorText = await response.text(); errorData = { message: errorText || response.statusText }; } catch (e) { errorData = { message: response.statusText }; }
-                }
-
-                if (response.status === 400 && errorData.errors) {
-                    const errorMsg = errorData.errors.map((err: any) => err.msg).join(', ');
-                    throw new Error(errorMsg);
-                }
-                throw new Error(errorData.message || `HTTP ${response.status}`);
-            }
+            return {
+                success: true,
+                data: { 
+                    tokens: { 
+                        accessToken: data.session?.access_token, 
+                        refreshToken: data.session?.refresh_token 
+                    }, 
+                    user: data.user 
+                },
+                message: "OTP verified successfully"
+            };
         } catch (error: any) {
-            throw error;
+            throw new Error(error.message || "Failed to verify OTP");
         }
     }
 
     async logout(): Promise<APIResponse> {
-        const endpoints = ["/api/auth/logout", "/auth/logout", "/logout", "/api/logout"];
-        for (const endpoint of endpoints) {
-            try {
-                const response = await this.request(endpoint, { method: "POST" });
-                if (response.ok) {
-                    const data = await response.json();
-                    return { success: true, data, message: "Logged out successfully" };
-                }
-            } catch (error) { continue; }
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            return { success: true, message: "Logged out successfully" };
+        } catch (error: any) {
+            return { success: false, message: error.message || "Logout failed" };
         }
-        return { success: false, message: "Logout endpoint not found" };
     }
 }
 
