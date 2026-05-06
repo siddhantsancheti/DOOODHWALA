@@ -34,16 +34,17 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
   const handleSetRate = async (id: number) => {
     const rate = pendingRates[id];
-    if (!rate || isNaN(parseFloat(rate))) {
-      return Alert.alert('Error', 'Please enter a valid percentage');
+    const parsed = parseFloat(rate);
+    if (!rate || isNaN(parsed) || parsed < 0 || parsed > 100) {
+      return Alert.alert('Error', 'Please enter a percentage between 0 and 100');
     }
-    
+
     try {
       const { apiRequest } = await import('../../lib/queryClient');
       await apiRequest({
         url: `/api/admin/milkmen/${id}/commission`,
         method: 'PATCH',
-        body: { percentage: parseFloat(rate) }
+        body: { percentage: parsed }
       });
       refetchPending();
       refetchEarnings();

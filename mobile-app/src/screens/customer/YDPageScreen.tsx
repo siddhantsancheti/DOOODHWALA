@@ -39,6 +39,7 @@ export default function YDPageScreen({ navigation }: any) {
   const [isJoining, setIsJoining] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
+  const milkmanListYRef = useRef<number>(0);
 
   const { data: customerProfile, isLoading: profileLoading } = useQuery<any>({
     queryKey: ['/api/customers/profile'], enabled: !!user,
@@ -75,10 +76,7 @@ export default function YDPageScreen({ navigation }: any) {
       const milkman = milkmen?.find((m: any) => m.id === milkmanId);
       if (!milkman) throw new Error("Milkman not found");
 
-      const expectedPassword = `${milkman.businessName?.replace(/\s+/g, '').toLowerCase()}123`;
-      if (groupPassword !== expectedPassword) throw new Error("Invalid password");
-
-      await apiRequest({ url: "/api/customers/assign-yd", method: "PATCH", body: { milkmanId } });
+      await apiRequest({ url: "/api/customers/assign-yd", method: "PATCH", body: { milkmanId, groupPassword } });
       Alert.alert("Success", "Successfully joined group!");
       queryClient.invalidateQueries({ queryKey: ["/api/customers/profile"] });
       
@@ -130,7 +128,7 @@ export default function YDPageScreen({ navigation }: any) {
   const borderColor = colors.border;
 
   const renderOverview = () => (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView ref={scrollRef} style={styles.tabContent} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
       {/* Pending Request Alert matching web app */}
       {pendingRequest && (
         <View style={[styles.pendingCard, { backgroundColor: isDark ? '#422006' : '#FEFCE8', borderColor: isDark ? '#713F12' : '#FEF08A' }]}>
@@ -235,7 +233,15 @@ export default function YDPageScreen({ navigation }: any) {
               <Text style={[styles.sectionTitle, { color: textColor }]}>
                 {t('discoverMore')}
               </Text>
-              <TouchableOpacity onPress={() => Alert.alert("Search", "Browse more milkmen in your city.")}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (unassignedMilkmen.length > 0) {
+                    scrollRef.current?.scrollTo({ y: milkmanListYRef.current, animated: true });
+                  } else {
+                    Alert.alert(t('search') || 'Search', t('noMilkmenInCity') || 'No other milkmen found in your city.');
+                  }
+                }}
+              >
                 <Plus size={20} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -253,7 +259,7 @@ export default function YDPageScreen({ navigation }: any) {
       )}
 
       {unassignedMilkmen.length > 0 && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 8 }} onLayout={(e) => { milkmanListYRef.current = e.nativeEvent.layout.y; }}>
           {unassignedMilkmen.map((m: any) => (
             <View key={m.id} style={[styles.milkmanCard, { backgroundColor: surfaceColor, borderColor }]}>
               <View style={styles.milkmanTop}>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -82,11 +82,15 @@ export default function BillsScreen({ navigation }: any) {
                   </View>
                   <View style={styles.billRow}>
                     <Text style={[styles.billLabel, { color: textMuted }]}>Total Amount</Text>
-                    <Text style={[styles.billAmount, { color: '#2563EB' }]}>₹{bill.totalAmount}</Text>
+                    <Text style={[styles.billAmount, { color: '#2563EB' }]}>₹{parseFloat(bill.totalAmount || '0').toFixed(2)}</Text>
                   </View>
                   <View style={styles.billRow}>
                     <Text style={[styles.billLabel, { color: textMuted }]}>Due Date</Text>
-                    <Text style={[styles.billValue, { color: textColor }]}>{new Date(bill.dueDate).toLocaleDateString()}</Text>
+                    <Text style={[styles.billValue, { color: textColor }]}>
+                      {bill.dueDate && !isNaN(new Date(bill.dueDate).getTime())
+                        ? new Date(bill.dueDate).toLocaleDateString()
+                        : 'N/A'}
+                    </Text>
                   </View>
                 </View>
 
@@ -106,7 +110,24 @@ export default function BillsScreen({ navigation }: any) {
                       <Text style={styles.payBtnText}>Pay Now</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity style={[styles.downloadBtn, { borderColor }]} activeOpacity={0.8}>
+                  <TouchableOpacity
+                    style={[styles.downloadBtn, { borderColor }]}
+                    activeOpacity={0.8}
+                    onPress={async () => {
+                      const message =
+                        `Bill #${bill.id}\n` +
+                        `Period: ${bill.month} ${bill.year}\n` +
+                        `Total Quantity: ${bill.totalQuantity} L\n` +
+                        `Total Amount: ₹${parseFloat(bill.totalAmount || '0').toFixed(2)}\n` +
+                        `Status: ${bill.status?.toUpperCase()}\n` +
+                        `Due Date: ${bill.dueDate && !isNaN(new Date(bill.dueDate).getTime()) ? new Date(bill.dueDate).toLocaleDateString() : 'N/A'}`;
+                      try {
+                        await Share.share({ message, title: `Bill #${bill.id}` });
+                      } catch (e: any) {
+                        Alert.alert('Error', e.message);
+                      }
+                    }}
+                  >
                     <Download size={18} color={textColor} />
                     <Text style={[styles.downloadText, { color: textColor }]}>Download Bill</Text>
                   </TouchableOpacity>

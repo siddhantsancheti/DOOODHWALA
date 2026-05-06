@@ -20,6 +20,11 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { Language } from '../../lib/translations';
 
+const MONTH_ABBR: Record<string, number> = {
+  Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+  Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+};
+
 // ── Mapbox (native only) ────────────────────────────────────────────────────
 let MapboxGL: any = null;
 let mbxDirections: any = null;
@@ -1443,8 +1448,9 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                       keyboardType="numeric"
                       value={localQuantities[index] ?? String(item.quantity || 0)}
                       onChangeText={(v) => {
-                        setLocalQuantities(prev => ({ ...prev, [index]: v }));
-                        updateQuantityDebounced(index, parseFloat(v) || 0);
+                        const clamped = v === '' ? '' : String(Math.max(0, parseFloat(v) || 0));
+                        setLocalQuantities(prev => ({ ...prev, [index]: clamped }));
+                        updateQuantityDebounced(index, parseFloat(clamped) || 0);
                       }}
                     />
                     <TouchableOpacity
@@ -1673,7 +1679,14 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
 
               <Text style={[styles.sectionTitle, { color: textColor, fontSize: 15, marginBottom: 16, fontFamily: fontFamilyBold }]}>{t('deliveryHistory')}</Text>
               {Object.keys(getCustomerMonthlyAnalytics(selectedAnalyticsCustomer.id).byDate).length > 0 ? (
-                Object.entries(getCustomerMonthlyAnalytics(selectedAnalyticsCustomer.id).byDate).sort((a, b) => b[0].localeCompare(a[0])).map(([date, qty]) => (
+                Object.entries(getCustomerMonthlyAnalytics(selectedAnalyticsCustomer.id).byDate).sort((a, b) => {
+                    const parse = (s: string) => {
+                      const [dd, mmm] = s.split(' ');
+                      const [yr] = selectedMonth.split('-').map(Number);
+                      return new Date(yr, MONTH_ABBR[mmm] ?? 0, parseInt(dd, 10)).getTime();
+                    };
+                    return parse(b[0]) - parse(a[0]);
+                  }).map(([date, qty]) => (
                   <View key={date} style={[styles.tinyCard, { backgroundColor: surfaceColor, borderColor, paddingVertical: 12 }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                       <Calendar size={16} color={textMuted} />

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "./db";
-import { customers, users, bills } from "@shared/schema";
+import { customers, users, bills, milkmen } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -266,10 +266,19 @@ router.post("/assign-yd", async (req, res) => {
         const payload = JSON.parse(atob(base64));
         const userId = payload.id;
 
-        const { milkmanId } = req.body;
+        const { milkmanId, groupPassword } = req.body;
 
         if (!milkmanId) {
             return res.status(400).json({ message: "Milkman ID is required" });
+        }
+
+        if (groupPassword !== undefined) {
+            const [milkman] = await db.select().from(milkmen).where(eq(milkmen.id, milkmanId)).limit(1);
+            if (!milkman) return res.status(404).json({ message: "Milkman not found" });
+            const expectedPassword = `${milkman.businessName?.replace(/\s+/g, '').toLowerCase()}123`;
+            if (groupPassword !== expectedPassword) {
+                return res.status(403).json({ message: "Invalid group password" });
+            }
         }
 
         const [customer] = await db
@@ -310,10 +319,19 @@ router.patch("/assign-yd", async (req, res) => {
         const payload = JSON.parse(atob(base64));
         const userId = payload.id;
 
-        const { milkmanId } = req.body;
+        const { milkmanId, groupPassword } = req.body;
 
         if (!milkmanId) {
             return res.status(400).json({ message: "Milkman ID is required" });
+        }
+
+        if (groupPassword !== undefined) {
+            const [milkman] = await db.select().from(milkmen).where(eq(milkmen.id, milkmanId)).limit(1);
+            if (!milkman) return res.status(404).json({ message: "Milkman not found" });
+            const expectedPassword = `${milkman.businessName?.replace(/\s+/g, '').toLowerCase()}123`;
+            if (groupPassword !== expectedPassword) {
+                return res.status(403).json({ message: "Invalid group password" });
+            }
         }
 
         const [customer] = await db
