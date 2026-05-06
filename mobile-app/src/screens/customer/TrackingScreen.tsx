@@ -95,7 +95,7 @@ export default function TrackingScreen({ navigation }: any) {
   const [routeGeoJSON, setRouteGeoJSON]   = useState<any | null>(null);
   const [breadcrumbs, setBreadcrumbs]     = useState<number[][]>([]);
   const [etaSeconds, setEtaSeconds]       = useState<number | null>(null);
-  const [isGeocodingAddr, setIsGeocodingAddr] = useState(false);
+  const [isGeocodingAddr, setIsGeocodingAddr] = useState(false); // shown in awaiting chip
 
   // ── Animated pulse for milkman marker ────────────────────────────────────────
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -138,7 +138,7 @@ export default function TrackingScreen({ navigation }: any) {
       })
       .catch(() => {})
       .finally(() => setIsGeocodingAddr(false));
-  }, [customerProfile]);
+  }, [customerProfile, customerCoord]);
 
   // ── Step 2: Fetch route (Mapbox Directions) ───────────────────────────────────
   const fetchRoute = useCallback(async (milkCoord: number[], custCoord: number[]) => {
@@ -365,7 +365,9 @@ export default function TrackingScreen({ navigation }: any) {
             {!milkmanCoord && (
               <View style={styles.awaitingChip}>
                 <ActivityIndicator size="small" color="#2563EB" style={{ marginRight: 4 }} />
-                <Text style={styles.awaitingText}>Awaiting milkman location…</Text>
+                <Text style={styles.awaitingText}>
+                  {isGeocodingAddr ? 'Locating your address…' : 'Awaiting milkman location…'}
+                </Text>
               </View>
             )}
           </View>
@@ -390,6 +392,32 @@ export default function TrackingScreen({ navigation }: any) {
                   animationDuration={1000}
                 />
 
+                {/* ── POI labels — direct child of MapView, references built-in style source ── */}
+                {MapboxGL.SymbolLayer && (
+                  <MapboxGL.SymbolLayer
+                    id="poi-labels"
+                    sourceID="composite"
+                    sourceLayerID="poi_label"
+                    style={{
+                      textField: '{name}',
+                      textSize: 11,
+                      textOffset: [0, 1.2],
+                      textAnchor: 'top',
+                      textColor: isDark ? '#93C5FD' : '#2563EB',
+                      textHaloColor: isDark ? '#111827' : '#FFFFFF',
+                      textHaloWidth: 1.5,
+                    }}
+                    filter={['any',
+                      ['==', ['get', 'category'], 'hospital'],
+                      ['==', ['get', 'category'], 'school'],
+                      ['==', ['get', 'category'], 'pharmacy'],
+                      ['==', ['get', 'category'], 'restaurant'],
+                      ['==', ['get', 'category'], 'cafe'],
+                      ['==', ['get', 'category'], 'grocery'],
+                    ]}
+                  />
+                )}
+
                 {/* ── Customer destination pin ───────────────────────────── */}
                 {customerCoord && (
                   <MapboxGL.PointAnnotation id="customer-pin" coordinate={customerCoord}>
@@ -403,7 +431,6 @@ export default function TrackingScreen({ navigation }: any) {
                 {milkmanCoord && (
                   <MapboxGL.PointAnnotation id="milkman-pin" coordinate={milkmanCoord}>
                     <View style={styles.milkmanPinContainer}>
-                      {/* Pulse ring — approximated with a larger transparent circle */}
                       <Animated.View style={[styles.milkmanPulse, { transform: [{ scale: pulseAnim }] }]} />
                       <View style={styles.milkmanPin}>
                         <Truck size={16} color="#fff" />
@@ -415,55 +442,14 @@ export default function TrackingScreen({ navigation }: any) {
                 {/* ── Blue driving-route polyline ────────────────────────── */}
                 {routeGeoJSON && (
                   <MapboxGL.ShapeSource id="route-source" shape={routeGeoJSON}>
-                    {/* Shadow / halo */}
                     <MapboxGL.LineLayer
                       id="route-shadow"
                       style={{ lineColor: '#93C5FD', lineWidth: 9, lineOpacity: 0.4, lineCap: 'round', lineJoin: 'round' }}
                     />
-                    {/* Landmarks / POI Layer — making them visible as requested */}
-                <MapboxGL.SymbolLayer
-                  id="poi-labels"
-                  sourceLayerID="poi_label"
-                  style={{
-                    textField: '{name}',
-                    textSize: 11,
-                    textOffset: [0, 1.2],
-                    textAnchor: 'top',
-                    textColor: isDark ? '#93C5FD' : '#2563EB',
-                    textHaloColor: isDark ? '#111827' : '#FFFFFF',
-                    textHaloWidth: 1.5,
-                    iconImage: ['match',
-                      ['get', 'category'],
-                      'hospital', 'hospital-15',
-                      'school', 'school-15',
-                      'pharmacy', 'pharmacy-15',
-                      'restaurant', 'restaurant-15',
-                      'cafe', 'cafe-15',
-                      'bakery', 'bakery-15',
-                      'fast_food', 'fast-food-15',
-                      'grocery', 'grocery-15',
-                      'marker-15'
-                    ],
-                    iconSize: 1.1,
-                    iconOpacity: 0.85,
-                  }}
-                  filter={['any',
-                    ['==', ['get', 'category'], 'hospital'],
-                    ['==', ['get', 'category'], 'school'],
-                    ['==', ['get', 'category'], 'pharmacy'],
-                    ['==', ['get', 'category'], 'restaurant'],
-                    ['==', ['get', 'category'], 'cafe'],
-                    ['==', ['get', 'category'], 'grocery'],
-                  ]}
-                />
-
-                {/* Road route line */}
-                    {/* Main route line */}
                     <MapboxGL.LineLayer
                       id="route-line"
                       style={{ lineColor: '#2563EB', lineWidth: 5, lineOpacity: 1, lineCap: 'round', lineJoin: 'round' }}
                     />
-                    {/* Dashed "ahead" overlay */}
                     <MapboxGL.LineLayer
                       id="route-dash"
                       style={{ lineColor: '#FFFFFF', lineWidth: 2, lineDasharray: [2, 3], lineCap: 'round' }}
