@@ -25,8 +25,18 @@ const isWeb = Platform.OS === 'web';
 // Only import and initialize Mapbox on native platforms outside Expo Go
 let Mapbox: any = null;
 if (!isExpoGo && !isWeb) {
-    Mapbox = require('@rnmapbox/maps').default;
-    Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
+    try {
+        Mapbox = require('@rnmapbox/maps').default;
+        const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+        if (mapboxToken) {
+            Mapbox.setAccessToken(mapboxToken);
+        } else {
+            console.warn('[Mapbox] No access token found — map features disabled');
+        }
+    } catch (e) {
+        console.warn('[Mapbox] Failed to initialize:', e);
+        Mapbox = null;
+    }
 }
 
 // Component to handle top-level auth-dependent hooks securely
