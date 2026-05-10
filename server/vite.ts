@@ -52,9 +52,15 @@ export function serveStatic(app: Express) {
     const distPath = path.resolve(__dirname, "public");
 
     if (!fs.existsSync(distPath)) {
-        throw new Error(
-            `Could not find the build directory: ${distPath}, make sure to build the client first`,
-        );
+        // API-only mode (e.g. running on Termux without a frontend build)
+        // The REST API still works fully — just no web dashboard served
+        console.log(`[express] No frontend build found at ${distPath} — running in API-only mode`);
+        app.use("*", (_req, res, next) => {
+            // Let API routes handle their paths; only return 404 for unknown routes
+            if (_req.originalUrl.startsWith("/api")) return next();
+            res.status(200).json({ status: "DOOODHWALA API running", mode: "api-only" });
+        });
+        return;
     }
 
     app.use(express.static(distPath));
