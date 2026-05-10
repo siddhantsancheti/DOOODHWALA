@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ export default function ProfileSetup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationAutoCapture, setLocationAutoCapture] = useState<'idle' | 'capturing' | 'captured' | 'failed'>('idle');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
 
@@ -38,6 +39,26 @@ export default function ProfileSetup() {
     latitude: '',
     longitude: '',
   });
+
+  // Auto-capture location silently on page load
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setLocationAutoCapture('capturing');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData(prev => ({
+          ...prev,
+          latitude: position.coords.latitude.toString(),
+          longitude: position.coords.longitude.toString(),
+        }));
+        setLocationAutoCapture('captured');
+      },
+      () => {
+        setLocationAutoCapture('failed');
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -64,6 +85,7 @@ export default function ProfileSetup() {
           longitude: position.coords.longitude.toString()
         }));
         setIsLocating(false);
+        setLocationAutoCapture('captured');
         toast({
           title: "Location Captured",
           description: "Your current location has been saved.",
@@ -134,36 +156,43 @@ export default function ProfileSetup() {
     try {
       if (userType === 'customer') {
         // Update customer profile
-        const res = await apiRequest('/api/customers/profile', 'PATCH', {
+        const customerBody: Record<string, any> = {
           name: formData.name,
           email: formData.email,
           address: formData.address,
-          latitude: formData.latitude,
-          longitude: formData.longitude,
-        });
+        };
+        if (formData.latitude && formData.longitude) {
+          customerBody.latitude = formData.latitude;
+          customerBody.longitude = formData.longitude;
+        }
+        const res = await apiRequest('/api/customers/profile', 'PATCH', customerBody);
         await res.json();
+        queryClient.invalidateQueries({ queryKey: ["/api/customers/profile"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       } else {
         // Create milkman profile
-        const res = await apiRequest('/api/milkmen', 'POST', {
+        const milkmanBody: Record<string, any> = {
           contactName: formData.name,
           businessName: formData.businessName || formData.name,
           address: formData.address,
           pricePerLiter: formData.pricePerLiter || '50',
           deliveryTimeStart: formData.deliveryTimeStart,
           deliveryTimeEnd: formData.deliveryTimeEnd,
-        });
+        };
+        if (formData.latitude && formData.longitude) {
+          milkmanBody.latitude = formData.latitude;
+          milkmanBody.longitude = formData.longitude;
+        }
+        const res = await apiRequest('/api/milkmen', 'POST', milkmanBody);
         await res.json();
+        queryClient.invalidateQueries({ queryKey: ["/api/milkmen/profile"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       }
 
       toast({
         title: "Profile Updated Successfully!",
         description: `Your ${userType} profile has been updated. Welcome to DOOODHWALA!`,
       });
-
-      // Refresh the profile data cache
-      if (userType === 'customer') {
-        queryClient.invalidateQueries({ queryKey: ["/api/customers/profile"] });
-      }
 
       // Navigate to appropriate dashboard
       if (userType === 'customer') {
@@ -332,18 +361,22 @@ export default function ProfileSetup() {
                     type="button"
                     variant="outline"
                     onClick={getCurrentLocation}
-                    disabled={isLocating}
-                    className="w-full h-12 text-base font-medium border-2 border-dashed border-gray-300 hover:border-blue-500 hover:text-blue-600 dark:border-gray-600 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-colors"
+                    disabled={isLocating || locationAutoCapture === 'capturing'}
+                    className={`w-full h-12 text-base font-medium border-2 border-dashed transition-colors ${
+                      formData.latitude
+                        ? 'border-green-400 text-green-600 bg-green-50 dark:bg-green-950/20 dark:text-green-400'
+                        : 'border-gray-300 hover:border-blue-500 hover:text-blue-600 dark:border-gray-600 dark:hover:border-blue-400'
+                    }`}
                   >
-                    {isLocating ? (
+                    {(isLocating || locationAutoCapture === 'capturing') ? (
                       <>
                         <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                        Getting Location...
+                        Detecting location…
                       </>
                     ) : formData.latitude && formData.longitude ? (
                       <>
                         <MapPin className="h-5 w-5 mr-2 text-green-500" />
-                        Location Captured ({formData.latitude}, {formData.longitude})
+                        ✓ Location saved ({parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)})
                       </>
                     ) : (
                       <>
@@ -352,6 +385,9 @@ export default function ProfileSetup() {
                       </>
                     )}
                   </Button>
+                  {locationAutoCapture === 'failed' && !locationError && (
+                    <p className="text-sm text-gray-400 mt-1">Auto-detect failed — click above to try manually.</p>
+                  )}
                   {locationError && (
                     <p className="text-sm text-red-500 mt-1">{locationError}</p>
                   )}

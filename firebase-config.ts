@@ -16,13 +16,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Analytics (only in browser environment) - temporarily disabled due to CSP
+// Analytics disabled — CSP blocks Google Analytics script loading
 let analytics: any = null;
-// Temporarily disabled to fix CSP issues with Google Analytics
-// if (typeof window !== 'undefined') {
-//   analytics = getAnalytics(app);
-// }
-console.log('DOODHWALA: Firebase Analytics temporarily disabled (CSP fix)');
 
 // Initialize Auth
 const auth = getAuth(app);

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { useLocation } from "wouter";
 import {
   MapPin,
   CreditCard,
@@ -9,11 +9,13 @@ import {
   Clock,
   Shield,
   Truck,
-  Zap,
   Users,
 } from "lucide-react";
 
 export default function Landing() {
+  const [, navigate] = useLocation();
+  const goToLogin = () => navigate("/login");
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -30,13 +32,13 @@ export default function Landing() {
               <Button
                 variant="ghost"
                 className="text-brand-primary hover:bg-surface-secondary rounded-lg"
-                onClick={() => (window.location.href = "/api/login")}
+                onClick={goToLogin}
               >
                 Login
               </Button>
               <Button
                 className="modern-button px-6 py-2"
-                onClick={() => (window.location.href = "/api/login")}
+                onClick={goToLogin}
               >
                 Sign Up
               </Button>
@@ -64,7 +66,7 @@ export default function Landing() {
             <Button
               size="lg"
               className="modern-button text-lg px-10 py-6 shadow-lg"
-              onClick={() => (window.location.href = "/api/login")}
+              onClick={goToLogin}
             >
               <Users className="mr-3 h-6 w-6" />
               Order as Customer
@@ -73,7 +75,7 @@ export default function Landing() {
               size="lg"
               variant="outline"
               className="bg-brand-secondary text-white hover:bg-brand-secondary/90 border-brand-secondary text-lg px-10 py-6 shadow-lg rounded-lg"
-              onClick={() => (window.location.href = "/api/login")}
+              onClick={goToLogin}
             >
               <Truck className="mr-3 h-6 w-6" />
               Join as Milkman
@@ -183,7 +185,7 @@ export default function Landing() {
             size="lg"
             variant="secondary"
             className="bg-white text-primary-blue hover:bg-gray-100 px-8 py-4 text-lg transform hover:scale-105 transition-all"
-            onClick={() => (window.location.href = "/api/login")}
+            onClick={goToLogin}
           >
             Get Started Today
           </Button>

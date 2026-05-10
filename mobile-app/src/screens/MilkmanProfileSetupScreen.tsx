@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform,
@@ -17,8 +17,10 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [locationAutoCapture, setLocationAutoCapture] = useState<'idle' | 'capturing' | 'captured' | 'failed'>('idle');
   const [focusedField, setFocusedField] = useState('');
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const isMounted = useRef(true);
 
   const [formData, setFormData] = useState({
     contactName: '',
@@ -50,23 +52,54 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
     { id: '2', name: t('evening'), startTime: '17:00', endTime: '20:00', isActive: true },
   ]);
 
+  // Auto-capture location silently on screen load
+  useEffect(() => {
+    isMounted.current = true;
+    captureLocationSilently();
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const captureLocationSilently = async () => {
+    try {
+      setLocationAutoCapture('capturing');
+      const { status: existing } = await Location.getForegroundPermissionsAsync();
+      if (existing !== 'granted') {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (isMounted.current) setLocationAutoCapture('failed');
+          return;
+        }
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (!isMounted.current) return;
+      setFormData(prev => ({
+        ...prev,
+        latitude: loc.coords.latitude.toString(),
+        longitude: loc.coords.longitude.toString(),
+      }));
+      setLocationAutoCapture('captured');
+    } catch {
+      if (isMounted.current) setLocationAutoCapture('failed');
+    }
+  };
+
   const getCurrentLocation = async () => {
     setIsLocating(true);
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(t('error'), 'Location permission is required.');
+        Alert.alert('Permission Denied', 'Please enable location permission in Settings.');
         return;
       }
-      let location = await Location.getCurrentPositionAsync({});
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       setFormData(prev => ({
         ...prev,
         latitude: location.coords.latitude.toString(),
         longitude: location.coords.longitude.toString(),
       }));
-      Alert.alert(t('captureSuccess'), t('captureSuccess'));
+      setLocationAutoCapture('captured');
     } catch (error) {
-      Alert.alert(t('error'), t('error'));
+      Alert.alert(t('error'), 'Could not get your location. Please try again.');
     } finally {
       setIsLocating(false);
     }
@@ -105,10 +138,21 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
 
     setIsSubmitting(true);
     try {
+      // Use first active product's price as the base price per litre
+      const basePricePerLiter = activeProducts[0]?.price || '50';
+
       const profileData = {
-        ...formData,
+        contactName: formData.contactName,
+        businessName: formData.businessName,
         address: fullAddress,
-        pricePerLiter: activeProducts.find(p => p.name === 'Fresh Milk')?.price || '50',
+        latitude: formData.latitude || undefined,
+        longitude: formData.longitude || undefined,
+        bankAccountHolderName: formData.bankAccountHolderName || undefined,
+        bankAccountNumber: formData.bankAccountNumber || undefined,
+        bankIfscCode: formData.bankIfscCode || undefined,
+        bankName: formData.bankName || undefined,
+        upiId: formData.upiId || undefined,
+        pricePerLiter: basePricePerLiter,
         deliveryTimeStart: activeSlots[0].startTime,
         deliveryTimeEnd: activeSlots[0].endTime,
         dairyItems: activeProducts,
@@ -116,8 +160,9 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
       };
       const res = await apiRequest({ url: '/api/milkmen', method: 'POST', body: profileData });
       await res.json();
-      Alert.alert(t('profileUpdated'), t('profileUpdated'));
+      Alert.alert(t('profileUpdated'), 'Welcome to DOOODHWALA! Your milkman profile is ready.');
       await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/milkmen/profile'] });
       navigation.replace('MilkmanHome');
     } catch (error: any) {
       Alert.alert(t('error'), error.message || t('error'));
@@ -206,7 +251,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
                   returnKeyType="next"
                 />
               </View>
-              {fieldError('businessName') && <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 4, fontFamily }}>{t('pincodeRequired')}</Text>}
+              {fieldError('businessName') && <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 4, fontFamily }}>{t('businessNameRequired')}</Text>}
             </View>
           </View>
 
@@ -217,13 +262,26 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
               <Text style={styles.sectionTitle}>{t('serviceArea')}</Text>
             </View>
             <TouchableOpacity
-              style={styles.locationBtn}
+              style={[
+                styles.locationBtn,
+                formData.latitude ? { borderColor: '#22C55E', backgroundColor: isDark ? 'rgba(34,197,94,0.08)' : '#F0FDF4' } : {},
+              ]}
               onPress={getCurrentLocation}
-              disabled={isLocating}
+              disabled={isLocating || locationAutoCapture === 'capturing'}
               activeOpacity={0.7}
             >
-              <MapPin size={20} color="#2563EB" style={{ marginRight: 8 }} />
-              <Text style={styles.locationBtnText}>{isLocating ? t('gettingLocation') : t('getCurrentLocation')}</Text>
+              {(isLocating || locationAutoCapture === 'capturing') ? (
+                <ActivityIndicator size="small" color="#2563EB" style={{ marginRight: 8 }} />
+              ) : (
+                <MapPin size={20} color={formData.latitude ? '#22C55E' : '#2563EB'} style={{ marginRight: 8 }} />
+              )}
+              <Text style={[styles.locationBtnText, formData.latitude ? { color: '#22C55E' } : {}]}>
+                {locationAutoCapture === 'capturing'
+                  ? 'Detecting location…'
+                  : formData.latitude
+                  ? `✓ Location captured (${parseFloat(formData.latitude).toFixed(4)}, ${parseFloat(formData.longitude).toFixed(4)})`
+                  : t('getCurrentLocation')}
+              </Text>
             </TouchableOpacity>
             
             <View style={styles.gridRow}>
@@ -264,9 +322,41 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
               <View style={[styles.gridCol, { marginLeft: 10 }]}>
                 <Text style={[styles.label, { color: fieldError('pincode') ? colors.destructive : colors.foreground }]}>{t('pincode')} <Text style={styles.required}>*</Text></Text>
                 <View style={[styles.inputRow, focusedField === 'pincode' && styles.inputFocused, fieldError('pincode') && { borderColor: colors.destructive, borderWidth: 2 }]}>
-                  <TextInput style={styles.input} placeholder="123456" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" value={formData.pincode} onChangeText={(val) => update('pincode', val)} onFocus={() => setFocusedField('pincode')} onBlur={() => setFocusedField('')} returnKeyType="done" />
+                  <TextInput style={styles.input} placeholder="123456" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" value={formData.pincode} onChangeText={(val) => update('pincode', val)} onFocus={() => setFocusedField('pincode')} onBlur={() => setFocusedField('')} returnKeyType="next" />
                 </View>
                 {fieldError('pincode') && <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 2, fontFamily }}>{t('pincodeRequired')}</Text>}
+              </View>
+            </View>
+
+            <View style={styles.marginTop}>
+              <Text style={styles.label}>{t('state')}</Text>
+              <View style={[styles.inputRow, focusedField === 'state' && styles.inputFocused]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Maharashtra"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={formData.state}
+                  onChangeText={(val) => update('state', val)}
+                  onFocus={() => setFocusedField('state')}
+                  onBlur={() => setFocusedField('')}
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            <View style={styles.marginTop}>
+              <Text style={styles.label}>{t('landmark')}</Text>
+              <View style={[styles.inputRow, focusedField === 'landmark' && styles.inputFocused]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Near City Mall"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={formData.landmark}
+                  onChangeText={(val) => update('landmark', val)}
+                  onFocus={() => setFocusedField('landmark')}
+                  onBlur={() => setFocusedField('')}
+                  returnKeyType="done"
+                />
               </View>
             </View>
           </View>

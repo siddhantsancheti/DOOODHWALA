@@ -1,8 +1,10 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import * as SecureStore from "./storage";
 
-// Use the Supabase Edge Function URL for the backend API
-export const API_BASE_URL = "https://shwofnrufpfmgptrqexc.supabase.co/functions/v1/api";
+// Backend API URL — set EXPO_PUBLIC_API_URL in your .env for local dev,
+// or in EAS build env for production (e.g. your Railway deployment URL).
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ?? "https://dooodhwala.up.railway.app";
 
 async function throwIfResNotOk(res: Response) {
     if (!res.ok) {

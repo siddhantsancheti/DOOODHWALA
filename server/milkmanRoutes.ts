@@ -53,8 +53,6 @@ router.get("/customers", async (req, res) => {
             .where(eq(customers.assignedMilkmanId, milkman.id))
             .orderBy(asc(customers.routeOrder));
 
-        console.log("DEBUG: GET /customers - Found assigned customers count:", assignedCustomers.length);
-
         res.json(assignedCustomers);
     } catch (error) {
         console.error("Get assigned customers error:", error);

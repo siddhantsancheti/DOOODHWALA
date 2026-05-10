@@ -6,19 +6,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ErrorBoundary from "@/components/error-boundary";
 import { GlobalNotificationListener } from "@/components/global-notification-listener";
 
-console.log('DOODHWALA: App.tsx loaded - Build version 1.3.0');
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
-import Home from "@/pages/home";
 import CustomerDashboard from "@/pages/customer-dashboard";
 import MilkmanDashboard from "@/pages/milkman-dashboard";
-// import YDPage from "@/pages/yd-page"; // Deprecated
 import Checkout from "@/pages/checkout";
 import Profile from "@/pages/profile";
 import Features from "@/pages/features";
 import NotFound from "@/pages/not-found";
-// import QuickOrder from "@/pages/quick-order";
 import TrackDelivery from "@/pages/track-delivery";
 import ViewOrders from "@/pages/view-orders";
 import YourDoodhwala from "@/pages/your-doodhwala";
@@ -31,13 +27,9 @@ import UserTypeSelection from "@/pages/user-type-selection";
 import ProfileSetup from "@/pages/profile-setup";
 import MilkmanProfileSetup from "@/pages/milkman-profile-setup";
 import Gateway from "@/pages/gateway";
-
-
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
-
 import { Redirect } from "wouter";
 
-// Helper component for role-based route protection
 const ProtectedRoute = ({
   component: Component,
   allowedRoles,
@@ -59,7 +51,6 @@ function AppRouter() {
   const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Robust profile existence checks (Parity with Mobile)
   const { data: customerProfile, isLoading: isCustomerLoading } = useQuery({
     queryKey: ["/api/customers/profile"],
     enabled: isAuthenticated && user?.userType === 'customer',
@@ -74,30 +65,23 @@ function AppRouter() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const isLoading = isAuthLoading || (isAuthenticated && user?.userType === 'customer' && isCustomerLoading) || (isAuthenticated && user?.userType === 'milkman' && isMilkmanLoading);
+  const isLoading =
+    isAuthLoading ||
+    (isAuthenticated && user?.userType === 'customer' && isCustomerLoading) ||
+    (isAuthenticated && user?.userType === 'milkman' && isMilkmanLoading);
 
-  console.log('AppRouter render:', { isAuthenticated, isLoading, user, shouldShowLogin: isAuthLoading || !isAuthenticated });
-
-  // Determine if onboarding is complete based on profile data
   const isProfileComplete = () => {
     if (!user?.userType) return false;
-    
-    if (user.userType === 'customer') {
+    if (user.userType === 'customer')
       return !!customerProfile && !!(customerProfile as any).name && !!(customerProfile as any).address;
-    }
-    
-    if (user.userType === 'milkman') {
+    if (user.userType === 'milkman')
       return !!milkmanProfile && !!(milkmanProfile as any).contactName && !!(milkmanProfile as any).businessName;
-    }
-    
     if (user.userType === 'admin') return true;
-    
     return false;
   };
 
   const needsOnboarding = isAuthenticated && user && (!user.userType || !isProfileComplete());
 
-  // Determine fallback path based on user role
   const getFallbackPath = (userType: string | null) => {
     switch (userType) {
       case 'customer': return '/customer';
@@ -117,29 +101,39 @@ function AppRouter() {
     return <UserTypeSelection />;
   };
 
+  const loadingFallback = () => (
+    <div className="min-h-screen flex items-center justify-center">
+      <div>Loading...</div>
+    </div>
+  );
+
   return (
     <Switch>
-      {/* Public routes - always accessible */}
+      {/* Always-public routes */}
+      <Route path="/">
+        {() => {
+          if (isLoading) return loadingFallback();
+          if (isAuthenticated && !needsOnboarding) return <Redirect to={fallbackPath} />;
+          if (isAuthenticated && needsOnboarding) return renderOnboarding();
+          return <Landing />;
+        }}
+      </Route>
       <Route path="/login" component={Login} />
+      <Route path="/features" component={Features} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/user-type-selection" component={UserTypeSelection} />
       <Route path="/profile-setup" component={ProfileSetup} />
       <Route path="/milkman-profile-setup" component={MilkmanProfileSetup} />
 
-      {/* Protected routes - need authentication */}
+      {/* Auth-gated routes */}
       {isLoading ? (
-        // Show loading for any route while authentication is being checked
-        <Route path="*" component={() => <div className="min-h-screen flex items-center justify-center"><div>Loading...</div></div>} />
+        <Route path="*" component={loadingFallback} />
       ) : !isAuthenticated ? (
-        // Redirect to login for any route if not authenticated
-        <Route path="*" component={Login} />
+        <Route path="*" component={() => <Redirect to="/login" />} />
       ) : needsOnboarding ? (
-        // Redirect to onboarding for any route if onboarding needed
         <Route path="*">{() => renderOnboarding()}</Route>
       ) : (
-        // All protected routes when authenticated
         <>
-          <Route path="/" component={() => <Redirect to={fallbackPath} />} />
           <Route path="/gateway" component={Gateway} />
           <Route path="/profile" component={Profile} />
 
@@ -153,6 +147,9 @@ function AppRouter() {
           <Route path="/yd">
             {() => <ProtectedRoute component={YourDoodhwala} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
+          <Route path="/your-doodhwala">
+            {() => <ProtectedRoute component={YourDoodhwala} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
+          </Route>
           <Route path="/track-delivery">
             {() => <ProtectedRoute component={TrackDelivery} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
@@ -164,9 +161,6 @@ function AppRouter() {
           </Route>
           <Route path="/order">
             {() => <ProtectedRoute component={OrderPage} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
-          </Route>
-          <Route path="/your-doodhwala">
-            {() => <ProtectedRoute component={YourDoodhwala} allowedRoles={['customer', 'admin']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
 
           {/* Milkman Routes */}
@@ -185,10 +179,7 @@ function AppRouter() {
             {() => <ProtectedRoute component={LocationRecommendations} allowedRoles={['admin', 'milkman']} userRole={userRole} fallbackPath={fallbackPath} />}
           </Route>
 
-          {/* Shared / Public Auth Routes */}
-          <Route path="/features" component={Features} />
-
-          {/* 404 fallback - only when authenticated */}
+          {/* 404 fallback */}
           <Route component={NotFound} />
         </>
       )}

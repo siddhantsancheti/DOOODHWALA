@@ -22,7 +22,8 @@ try {
     if (!serviceAccount) {
         const serviceAccountPath = path.resolve(process.cwd(), 'firebase-service-account.json');
         if (fs.existsSync(serviceAccountPath)) {
-            serviceAccount = require(serviceAccountPath);
+            const raw = fs.readFileSync(serviceAccountPath, 'utf-8');
+            serviceAccount = JSON.parse(raw);
             console.log('[FCM] Loading credentials from firebase-service-account.json file.');
         }
     }

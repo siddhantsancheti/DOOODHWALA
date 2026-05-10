@@ -353,33 +353,39 @@ router.post("/razorpay/verify", async (req, res) => {
         const isValid = expectedSignature === razorpay_signature;
 
         if (isValid) {
-            // Idempotency Check: Check if payment ID already exists
-            const existingPayment = await db.select().from(payments).where(eq(payments.razorpayPaymentId, razorpay_payment_id));
+            // Idempotency: check if payment already recorded
+            const existingPayment = await db
+                .select()
+                .from(payments)
+                .where(eq(payments.razorpayPaymentId, razorpay_payment_id));
 
             if (existingPayment.length > 0) {
                 return res.json({ success: true, message: "Payment already verified" });
             }
 
             const user = (req as any).user;
-            
-            // Link to Bill if orderId was passed
-            const internalOrderId = req.body.orderId; // Passed from mobile app
+            const userId = user?.id ?? null;
+
+            // Link to bill and get authoritative amount from DB (never trust client-sent amount)
+            const internalOrderId = req.body.orderId;
+            let verifiedAmount = "0.00";
+
             if (internalOrderId && internalOrderId.startsWith('BILL_')) {
                 const billId = parseInt(internalOrderId.replace('BILL_', ''));
-                await db.update(bills)
-                    .set({
-                        status: "paid",
-                        paidAt: new Date(),
-                        paidBy: user?.id || "system_verified"
-                    })
-                    .where(eq(bills.id, billId));
+                const [bill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
+                if (bill) {
+                    verifiedAmount = bill.totalAmount;
+                    await db.update(bills)
+                        .set({ status: "paid", paidAt: new Date(), paidBy: userId })
+                        .where(eq(bills.id, billId));
+                }
             }
 
-            // Save successful payment to DB
+            // Record payment
             await db.insert(payments).values({
-                userId: user?.id || "system_verified", 
+                userId,
                 orderId: razorpay_order_id,
-                amount: req.body.amount?.toString() || "0.00", 
+                amount: verifiedAmount,
                 status: "completed",
                 paymentMethod: "razorpay",
                 razorpayOrderId: razorpay_order_id,
@@ -388,11 +394,11 @@ router.post("/razorpay/verify", async (req, res) => {
                 paymentDetails: { verified: true, timestamp: new Date() }
             });
 
-            res.json({ success: true, message: "Payment verified successfully and bill updated" });
+            console.log(`[Payment] Razorpay verified: ${razorpay_payment_id}, amount: ₹${verifiedAmount}`);
+            res.json({ success: true, message: "Payment verified successfully" });
         } else {
-            // Log failed attempt
-            console.warn("Invalid signature attempt:", req.body);
-            res.status(400).json({ success: false, message: "Invalid signature" });
+            console.warn("[Payment] Invalid signature attempt:", { razorpay_order_id, razorpay_payment_id });
+            res.status(400).json({ success: false, message: "Invalid payment signature" });
         }
 
     } catch (error) {

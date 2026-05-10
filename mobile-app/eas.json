@@ -9,7 +9,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "${EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN}"
+        "EXPO_PUBLIC_API_URL": "http://localhost:5001",
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "${EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN}",
+        "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "${RNMAPBOX_MAPS_DOWNLOAD_TOKEN}"
       }
     },
     "preview": {
@@ -19,29 +21,33 @@
       "ios": {
         "simulator": true
       },
+      "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "${EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN}"
+        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_API_URL}",
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "${EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN}",
+        "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "${RNMAPBOX_MAPS_DOWNLOAD_TOKEN}"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "autoIncrement": true,
-      "env": {
-        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "${EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN}"
-      }
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "autoIncrement": true
     }
   },
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "./google-services.json",
-        "track": "internal"
+        "serviceAccountKeyPath": "./play-store-service-account.json",
+        "track": "production"
       },
       "ios": {
         "appleId": "your-apple-id@example.com",
-        "ascAppId": "your-asc-app-id"
+        "ascAppId": "your-asc-app-id",
+        "appleTeamId": "your-apple-team-id"
       }
     }
   }

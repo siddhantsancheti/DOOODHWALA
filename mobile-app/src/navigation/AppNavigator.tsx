@@ -3,14 +3,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../hooks/useAuth';
 import { ActivityIndicator, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 
-// Placeholder screens for navigation structure integration
 import LoginScreen from '../screens/LoginScreen';
 import UserTypeSelectionScreen from '../screens/UserTypeSelectionScreen';
 import CustomerProfileSetupScreen from '../screens/CustomerProfileSetupScreen';
 import MilkmanProfileSetupScreen from '../screens/MilkmanProfileSetupScreen';
-import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '../lib/queryClient';
 
 import CustomerDashboardScreen from '../screens/customer/CustomerDashboardScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
@@ -33,29 +31,31 @@ import LocationRecommendationsScreen from '../screens/admin/LocationRecommendati
 
 const Stack = createNativeStackNavigator();
 
+const isCustomerProfileComplete = (profile: any) =>
+    !!profile && !!profile.name && !!profile.address;
+
+const isMilkmanProfileComplete = (profile: any) =>
+    !!profile && !!profile.contactName && !!profile.businessName;
+
 export default function AppNavigator() {
     const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
-    
+
     const { data: customerProfile, isLoading: isCustLoading } = useQuery({
         queryKey: ['/api/customers/profile'],
         enabled: isAuthenticated && user?.userType === 'customer',
-        retry: false
+        retry: false,
     });
 
     const { data: milkmanProfile, isLoading: isMilkLoading } = useQuery({
         queryKey: ['/api/milkmen/profile'],
         enabled: isAuthenticated && user?.userType === 'milkman',
-        retry: false
+        retry: false,
     });
 
-    const DEV_BYPASS_MODE = false; // Set to 'customer', 'milkman', or false for dev
-
-    const effectiveIsAuthenticated = !!DEV_BYPASS_MODE || isAuthenticated;
-    const effectiveUser = DEV_BYPASS_MODE 
-        ? { id: 'dev-1', userType: DEV_BYPASS_MODE }
-        : user;
-
-    const isLoading = isAuthLoading || (!DEV_BYPASS_MODE && effectiveIsAuthenticated && effectiveUser?.userType === 'customer' && isCustLoading) || (!DEV_BYPASS_MODE && effectiveIsAuthenticated && effectiveUser?.userType === 'milkman' && isMilkLoading);
+    const isLoading =
+        isAuthLoading ||
+        (isAuthenticated && user?.userType === 'customer' && isCustLoading) ||
+        (isAuthenticated && user?.userType === 'milkman' && isMilkLoading);
 
     if (isLoading) {
         return (
@@ -65,37 +65,24 @@ export default function AppNavigator() {
         );
     }
 
-    const isCustomerProfileComplete = (profile: any) => {
-        if (DEV_BYPASS_MODE) return true;
-        return !!profile && !!profile.name && !!profile.address;
-    };
-
-    const isMilkmanProfileComplete = (profile: any) => {
-        if (DEV_BYPASS_MODE && (DEV_BYPASS_MODE as any) === 'milkman') return true;
-        return !!profile && !!profile.contactName && !!profile.businessName;
-    };
-
-    const needsOnboarding = !DEV_BYPASS_MODE && effectiveIsAuthenticated && effectiveUser && !effectiveUser.userType;
-    const needsCustomerSetup = !DEV_BYPASS_MODE && effectiveIsAuthenticated && effectiveUser?.userType === 'customer' && !isCustomerProfileComplete(customerProfile);
-    const needsMilkmanSetup = !DEV_BYPASS_MODE && effectiveIsAuthenticated && effectiveUser?.userType === 'milkman' && !isMilkmanProfileComplete(milkmanProfile);
+    const needsOnboarding   = isAuthenticated && user && !user.userType;
+    const needsCustomerSetup = isAuthenticated && user?.userType === 'customer' && !isCustomerProfileComplete(customerProfile);
+    const needsMilkmanSetup  = isAuthenticated && user?.userType === 'milkman'  && !isMilkmanProfileComplete(milkmanProfile);
 
     return (
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-                {!effectiveIsAuthenticated ? (
-                    // Public stack
+                {!isAuthenticated ? (
                     <Stack.Screen name="Login" component={LoginScreen} />
                 ) : (needsOnboarding || needsCustomerSetup || needsMilkmanSetup) ? (
-                    // Onboarding stack (forced if profile incomplete)
                     <Stack.Group>
                         <Stack.Screen name="UserTypeSelection" component={UserTypeSelectionScreen} />
                         <Stack.Screen name="CustomerProfileSetup" component={CustomerProfileSetupScreen} />
                         <Stack.Screen name="MilkmanProfileSetup" component={MilkmanProfileSetupScreen} />
                     </Stack.Group>
                 ) : (
-                    // Main App stack based on role
                     <Stack.Group>
-                        {effectiveUser!.userType === 'customer' && (
+                        {user!.userType === 'customer' && (
                             <Stack.Group>
                                 <Stack.Screen name="CustomerHome" component={CustomerDashboardScreen} />
                                 <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -110,15 +97,16 @@ export default function AppNavigator() {
                                 <Stack.Screen name="CustomerCare" component={CustomerCareScreen} />
                             </Stack.Group>
                         )}
-                        {effectiveUser!.userType === 'milkman' && (
+                        {user!.userType === 'milkman' && (
                             <Stack.Group>
                                 <Stack.Screen name="MilkmanHome" component={MilkmanDashboardScreen} />
                                 <Stack.Screen name="Profile" component={ProfileScreen} />
                                 <Stack.Screen name="Chat" component={ChatScreen} />
                                 <Stack.Screen name="CustomerCare" component={CustomerCareScreen} />
+                                <Stack.Screen name="CustomerAnalytics" component={CustomerAnalyticsScreen} />
                             </Stack.Group>
                         )}
-                        {effectiveUser!.userType === 'admin' && (
+                        {user!.userType === 'admin' && (
                             <Stack.Group>
                                 <Stack.Screen name="AdminHome" component={AdminDashboardScreen} />
                                 <Stack.Screen name="Gateway" component={GatewayScreen} />
@@ -126,8 +114,7 @@ export default function AppNavigator() {
                                 <Stack.Screen name="LocationRecommendations" component={LocationRecommendationsScreen} />
                             </Stack.Group>
                         )}
-                        {/* Fallback to something if role is weird */}
-                        {!['customer', 'milkman', 'admin'].includes(effectiveUser!.userType || '') && (
+                        {!['customer', 'milkman', 'admin'].includes(user!.userType || '') && (
                             <Stack.Screen name="Login" component={LoginScreen} />
                         )}
                     </Stack.Group>

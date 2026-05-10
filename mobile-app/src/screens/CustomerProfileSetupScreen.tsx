@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform, Image,
@@ -37,26 +37,62 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [locationAutoCapture, setLocationAutoCapture] = useState<'idle' | 'capturing' | 'captured' | 'failed'>('idle');
   const [focusedField, setFocusedField] = useState('');
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const isMounted = useRef(true);
 
+  // ── Auto-capture location silently on screen load ──────────────────────────
+  useEffect(() => {
+    isMounted.current = true;
+    captureLocationSilently();
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const captureLocationSilently = async () => {
+    try {
+      setLocationAutoCapture('capturing');
+      // Check existing permission first — don't prompt on load, just use if already granted
+      const { status: existing } = await Location.getForegroundPermissionsAsync();
+      if (existing !== 'granted') {
+        // Not yet granted — request permission (system dialog)
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (isMounted.current) setLocationAutoCapture('failed');
+          return;
+        }
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (!isMounted.current) return;
+      setFormData(prev => ({
+        ...prev,
+        latitude: loc.coords.latitude.toString(),
+        longitude: loc.coords.longitude.toString(),
+      }));
+      setLocationAutoCapture('captured');
+    } catch {
+      if (isMounted.current) setLocationAutoCapture('failed');
+    }
+  };
+
+  // ── Manual re-capture (button press) ──────────────────────────────────────
   const getCurrentLocation = async () => {
     setIsLocating(true);
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required.');
+        Alert.alert('Permission Denied', 'Please enable location permission in Settings.');
         return;
       }
-      let location = await Location.getCurrentPositionAsync({});
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       setFormData(prev => ({
         ...prev,
         latitude: location.coords.latitude.toString(),
         longitude: location.coords.longitude.toString(),
       }));
-      Alert.alert(t('captureSuccess'), t('captureSuccess'));
+      setLocationAutoCapture('captured');
     } catch (error) {
-      Alert.alert(t('error'), t('error'));
+      Alert.alert(t('error'), 'Could not get your location. Please try again.');
     } finally {
       setIsLocating(false);
     }
@@ -86,13 +122,28 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
 
     setIsSubmitting(true);
     try {
+      const body: any = {
+        name: formData.name,
+        email: formData.email,
+        address: fullAddress,
+        houseNumber: formData.houseNumber,
+        buildingName: formData.buildingName,
+        streetName: formData.streetName,
+        area: formData.area,
+        landmark: formData.landmark,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
+      };
+      // Only include coordinates if captured
+      if (formData.latitude && formData.longitude) {
+        body.latitude = formData.latitude;
+        body.longitude = formData.longitude;
+      }
       const res = await apiRequest({
         url: '/api/customers/profile',
         method: 'PATCH',
-        body: {
-          ...formData,
-          address: fullAddress,
-        },
+        body,
       });
       await res.json();
       Alert.alert(t('profileUpdated'), t('welcomeDoodhwala'));
@@ -317,17 +368,23 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
 
             {/* Location */}
             <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: colors.foreground }]}>{t('locationCoords')}</Text>
+              <Text style={[styles.label, { color: colors.foreground }]}>
+                {t('locationCoords')}{' '}
+                <Text style={{ fontSize: 13, fontWeight: '400', color: colors.mutedForeground }}>(auto-detected)</Text>
+              </Text>
               <TouchableOpacity
                 style={[
                   styles.locationBtn,
-                  { borderColor: colors.border }
+                  {
+                    borderColor: formData.latitude ? '#22C55E' : colors.border,
+                    backgroundColor: formData.latitude ? 'rgba(34,197,94,0.06)' : 'transparent',
+                  }
                 ]}
                 onPress={getCurrentLocation}
-                disabled={isLocating}
+                disabled={isLocating || locationAutoCapture === 'capturing'}
                 activeOpacity={0.7}
               >
-                {isLocating ? (
+                {(isLocating || locationAutoCapture === 'capturing') ? (
                   <ActivityIndicator color={colors.mutedForeground} style={{ marginRight: 8 }} />
                 ) : (
                   <MapPin
@@ -340,12 +397,18 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
                   styles.locationBtnText,
                   { color: formData.latitude ? '#22C55E' : colors.mutedForeground }
                 ]}>
-                  {isLocating ? t('gettingLocation') :
-                    formData.latitude
-                      ? `${t('captureSuccess')} (${formData.latitude.slice(0, 7)}, ${formData.longitude.slice(0, 7)})`
+                  {locationAutoCapture === 'capturing'
+                    ? 'Detecting location…'
+                    : formData.latitude
+                      ? `✓ Location saved (${parseFloat(formData.latitude).toFixed(4)}, ${parseFloat(formData.longitude).toFixed(4)})`
                       : t('getCurrentLocation')}
                 </Text>
               </TouchableOpacity>
+              {locationAutoCapture === 'failed' && (
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 4, fontFamily }}>
+                  Could not auto-detect — tap above to try manually.
+                </Text>
+              )}
             </View>
 
             {/* Submit */}
@@ -353,16 +416,16 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
               onPress={handleSubmit}
               disabled={isSubmitting}
               activeOpacity={0.8}
-              style={{ marginTop: 24 }}
+              style={{ marginTop: 24, opacity: isSubmitting ? 0.7 : 1 }}
             >
               <LinearGradient
-                colors={!isSubmitting ? ['#2563EB', '#9333EA'] : [colors.muted, colors.muted]}
+                colors={['#2563EB', '#9333EA']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.submitBtn}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator color={colors.white} />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.submitBtnText}>
                     {t('completeSetup')}

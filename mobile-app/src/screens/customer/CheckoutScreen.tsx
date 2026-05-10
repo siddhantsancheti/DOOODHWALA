@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../lib/queryClient';
 import { Banknote, CreditCard, Wallet, ShieldCheck, ArrowLeft, Check, Smartphone } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import RazorpayCheckout from 'react-native-razorpay';
 
 export default function CheckoutScreen({ route, navigation }: any) {
   const { user } = useAuth();
@@ -31,57 +32,66 @@ export default function CheckoutScreen({ route, navigation }: any) {
   const handleRazorpayPayment = async () => {
     setIsProcessing(true);
     try {
+      // Step 1: Create Razorpay order on our server
       const resp: any = await apiRequest({
-        url: '/api/payments/razorpay/create-order', method: 'POST',
-        body: { 
-          amount, 
-          orderId, 
-          description,
-          paymentType,
-          groupId
-        },
+        url: '/api/payments/razorpay/create-order',
+        method: 'POST',
+        body: { amount, orderId, description, paymentType, groupId },
       });
+
       const { razorpayOrderId, key } = resp;
 
-      if (!key || key === 'rzp_test_placeholder') {
-        Alert.alert('Test Mode Active', 'Simulating successful payment.', [{ text: 'OK' }]);
-        setTimeout(() => {
-          Alert.alert('Payment Successful', 'Test payment processed successfully!');
-          navigation.navigate('CustomerDashboard');
-        }, 1500);
-        setIsProcessing(false);
-        return;
+      if (!key || !razorpayOrderId) {
+        throw new Error('Payment initialization failed. Please try again.');
       }
 
-      Alert.alert('Expo Go Test Mode', 'Razorpay not supported in Expo Go. Simulating payment.', [
-        { text: 'Cancel', style: 'cancel', onPress: () => setIsProcessing(false) },
-        {
-          text: 'Simulate Success',
-          onPress: async () => {
-            try {
-              const verifyResp = await apiRequest({
-                url: '/api/payments/razorpay/verify', method: 'POST',
-                body: {
-                  razorpay_order_id: razorpayOrderId,
-                  razorpay_payment_id: `mock_pay_${Date.now()}`,
-                  razorpay_signature: 'mock_signature_for_expo_go',
-                  orderId: orderId, // Pass internal orderId (e.g. BILL_XX) for bill status update
-                  amount: amount, // Pass amount for record keeping
-                },
-              });
-              // @ts-ignore
-              if (verifyResp.success) {
-                Alert.alert('Payment Successful', 'Your payment has been processed successfully!');
-                navigation.navigate('CustomerDashboard');
-              } else throw new Error('Payment verification failed');
-            } catch (e: any) {
-              Alert.alert('Payment Verification Failed', 'Please contact support if money was deducted.');
-            } finally { setIsProcessing(false); }
-          },
+      // Step 2: Open Razorpay checkout (real SDK)
+      const options = {
+        description,
+        image: 'https://dooodhwala.com/logo.png',
+        currency: 'INR',
+        key,
+        amount: Math.round(amount * 100), // paise
+        name: 'DOOODHWALA',
+        order_id: razorpayOrderId,
+        prefill: {
+          email: user?.email || '',
+          contact: user?.phone || '',
+          name: user?.name || 'Customer',
         },
-      ]);
+        theme: { color: '#2563EB' },
+      };
+
+      const paymentData = await RazorpayCheckout.open(options);
+
+      // Step 3: Verify payment signature on server
+      const verifyResp: any = await apiRequest({
+        url: '/api/payments/razorpay/verify',
+        method: 'POST',
+        body: {
+          razorpay_order_id: paymentData.razorpay_order_id,
+          razorpay_payment_id: paymentData.razorpay_payment_id,
+          razorpay_signature: paymentData.razorpay_signature,
+          orderId,   // internal bill ID e.g. BILL_42
+          amount,
+        },
+      });
+
+      if (verifyResp?.success) {
+        Alert.alert('Payment Successful! 🎉', `₹${amount} paid successfully via Razorpay.`, [
+          { text: 'OK', onPress: () => navigation.navigate('CustomerDashboard') },
+        ]);
+      } else {
+        throw new Error('Payment verification failed. Please contact support.');
+      }
     } catch (e: any) {
-      Alert.alert('Payment Failed', e.message || "Failed to initialize payment. Check internet connection.");
+      // Razorpay SDK throws when user cancels — code 0 or 2
+      if (e?.code === 0 || e?.code === 2) {
+        Alert.alert('Payment Cancelled', 'You cancelled the payment.');
+      } else {
+        Alert.alert('Payment Failed', e.message || 'Something went wrong. Please try again.');
+      }
+    } finally {
       setIsProcessing(false);
     }
   };
