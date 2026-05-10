@@ -8,7 +8,13 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../lib/queryClient';
 import { Banknote, CreditCard, Wallet, ShieldCheck, ArrowLeft, Check, Smartphone } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
-import RazorpayCheckout from 'react-native-razorpay';
+// Lazy import to prevent native module crash on startup
+let RazorpayCheckout: any = null;
+try {
+  RazorpayCheckout = require('react-native-razorpay').default;
+} catch (e) {
+  console.warn('react-native-razorpay not available:', e);
+}
 
 export default function CheckoutScreen({ route, navigation }: any) {
   const { user } = useAuth();
