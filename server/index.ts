@@ -102,6 +102,9 @@ app.use((req, res, next) => {
         process.exit(1);
     }
 
+    // Health check for Render
+    app.get("/healthz", (_req, res) => res.json({ status: "ok" }));
+
     const server = registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
