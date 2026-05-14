@@ -14,10 +14,17 @@ if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
     console.warn("Razorpay keys are missing. Payment routes will fail.");
 }
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || "",
-    key_secret: process.env.RAZORPAY_KEY_SECRET || "",
-});
+let razorpay: Razorpay | null = null;
+try {
+    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+        razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
+    }
+} catch (e) {
+    console.warn("Razorpay initialization skipped:", e);
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
     // apiVersion: '2024-10-28.acacia', // Use a recent valid API version
@@ -320,6 +327,9 @@ router.post("/razorpay/create-order", async (req, res) => {
             }
         };
 
+        if (!razorpay) {
+            return res.status(503).json({ message: "Payment gateway not configured" });
+        }
         const order = await razorpay.orders.create(options);
 
         res.json({
