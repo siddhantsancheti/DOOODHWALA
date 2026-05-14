@@ -1,23 +1,49 @@
 import React from 'react';
-import { StatusBar, Platform, View, ActivityIndicator } from 'react-native';
+import { StatusBar, Platform, View, ActivityIndicator, Text, ScrollView } from 'react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from './src/lib/queryClient';
+import { queryClient, refreshApiBaseUrl } from './src/lib/queryClient';
 import AppNavigator from './src/navigation/AppNavigator';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import Constants from 'expo-constants';
-import { 
-  useFonts, 
-  Inter_400Regular, 
-  Inter_700Bold 
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_700Bold
 } from '@expo-google-fonts/inter';
-import { 
-  Mukta_400Regular, 
-  Mukta_700Bold 
+import {
+  Mukta_400Regular,
+  Mukta_700Bold
 } from '@expo-google-fonts/mukta';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import * as SplashScreen from 'expo-splash-screen';
 
+// Global error boundary to catch and display crashes
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: string | null}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { error: error?.message || String(error) };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <ScrollView style={{ flex: 1, padding: 20, backgroundColor: '#fff' }}>
+          <Text style={{ color: 'red', fontSize: 16, fontWeight: 'bold', marginTop: 60 }}>App Error:</Text>
+          <Text style={{ color: '#333', fontSize: 12, marginTop: 10 }}>{this.state.error}</Text>
+        </ScrollView>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 SplashScreen.preventAutoHideAsync();
+
+// Fetch the current server URL from Supabase on startup
+// This means we NEVER need to rebuild when the tunnel URL changes
+refreshApiBaseUrl();
 
 const isExpoGo = Constants.appOwnership === 'expo';
 const isWeb = Platform.OS === 'web';
@@ -48,20 +74,29 @@ function AppWrapper() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_700Bold,
     Mukta_400Regular,
     Mukta_700Bold
   });
 
+  // Fallback: if fonts fail or take too long, proceed anyway after 3s
+  const [fontTimeout, setFontTimeout] = React.useState(false);
   React.useEffect(() => {
-    if (fontsLoaded) {
+    const timer = setTimeout(() => setFontTimeout(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const appReady = fontsLoaded || fontError || fontTimeout;
+
+  React.useEffect(() => {
+    if (appReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [appReady]);
 
-  if (!fontsLoaded) {
+  if (!appReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' }}>
           <ActivityIndicator size="large" color="#2563EB" />
@@ -70,11 +105,13 @@ export default function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        <AppWrapper />
-      </LanguageProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+          <AppWrapper />
+        </LanguageProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { otpCodes, smsQueue } from "@shared/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, lt } from "drizzle-orm";
 
 // In-memory OTP store — used in development only
 const devOtpStore = new Map<string, { code: string; expiresAt: Date; isUsed: boolean }>();
@@ -19,13 +19,19 @@ export class OTPService {
             const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
             if (process.env.NODE_ENV === 'development') {
-                // Development: use in-memory store, return code directly
+                // Development: replace any existing OTP for this phone
                 devOtpStore.set(phone, { code, expiresAt, isUsed: false });
                 console.log(`[OTPService] DEV OTP for ${phone}: ${code}`);
                 return { success: true, message: "OTP sent successfully", debugCode: code };
             }
 
-            // Production: store in database and queue SMS via Android Gateway
+            // Production: invalidate all previous unused OTPs for this phone
+            await db
+                .update(otpCodes)
+                .set({ isUsed: true })
+                .where(and(eq(otpCodes.phone, phone), eq(otpCodes.isUsed, false)));
+
+            // Store new OTP in database and queue SMS via Android Gateway
             await db.insert(otpCodes).values({ phone, code, expiresAt });
 
             const message = `Your DOOODHWALA verification code is: ${code}. Valid for 10 minutes. Do not share this code.`;

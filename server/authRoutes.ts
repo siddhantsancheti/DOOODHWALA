@@ -54,12 +54,15 @@ router.post("/verify-otp", async (req, res) => {
 
             if (!user) {
                 const userId = crypto.randomUUID();
+                const digits = phone.replace(/\D/g, '').slice(-6);
+                const suffix = Math.random().toString(36).slice(2, 6);
+                const username = `user_${digits}_${suffix}`;
                 [user] = await db
                     .insert(users)
                     .values({
                         id: userId,
                         phone,
-                        username: `user_${phone.slice(-4)}`,
+                        username,
                         userType: isAdmin ? 'admin' : null,
                     })
                     .returning();

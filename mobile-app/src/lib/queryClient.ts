@@ -1,10 +1,36 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import * as SecureStore from "./storage";
 
-// Backend API URL — set EXPO_PUBLIC_API_URL in your .env for local dev,
-// or in EAS build env for production (e.g. your Railway deployment URL).
-export const API_BASE_URL =
+// Backend API URL — dynamically fetched from Supabase on startup so it
+// never needs a rebuild when the tunnel URL changes.
+// Falls back to the build-time env var if Supabase fetch fails.
+export let API_BASE_URL: string =
   process.env.EXPO_PUBLIC_API_URL ?? "https://dooodhwala.up.railway.app";
+
+export async function refreshApiBaseUrl(): Promise<void> {
+  try {
+    const supabaseUrl = 'https://shwofnrufpfmgptrqexc.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNod29mbnJ1ZnBmbWdwdHJxZXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDAwMTMsImV4cCI6MjA5MjQ3NjAxM30.GnLyzcR-YzkINqnZioexJ4cv20aChmDWbPvUwlDauH8';
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/app_config?key=eq.api_url&select=value`,
+      {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.[0]?.value) {
+        API_BASE_URL = data[0].value;
+        console.log('[Config] API URL loaded from Supabase:', API_BASE_URL);
+      }
+    }
+  } catch (e) {
+    console.warn('[Config] Could not fetch API URL from Supabase, using default:', API_BASE_URL);
+  }
+}
 
 async function throwIfResNotOk(res: Response) {
     if (!res.ok) {
@@ -33,11 +59,23 @@ async function throwIfResNotOk(res: Response) {
     }
 }
 
+// Refresh URL at most once every 5 minutes to avoid hammering Supabase
+let lastUrlRefresh = 0;
+async function maybeRefreshUrl() {
+    const now = Date.now();
+    if (now - lastUrlRefresh > 5 * 60 * 1000) {
+        lastUrlRefresh = now;
+        await refreshApiBaseUrl();
+    }
+}
+
 export async function apiRequest(params: {
     url: string;
     method: string;
     body?: unknown;
 }): Promise<Response> {
+    await maybeRefreshUrl();
+
     let url = params.url;
     let requestMethod = params.method;
     let body = params.body;

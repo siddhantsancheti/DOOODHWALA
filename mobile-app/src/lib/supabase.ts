@@ -1,12 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from './storage';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase URL or Anon Key is missing. Please check your .env file.');
-}
+// Hardcoded fallbacks ensure app never crashes even if env vars aren't resolved
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://shwofnrufpfmgptrqexc.supabase.co';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNod29mbnJ1ZnBmbWdwdHJxZXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDAwMTMsImV4cCI6MjA5MjQ3NjAxM30.GnLyzcR-YzkINqnZioexJ4cv20aChmDWbPvUwlDauH8';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

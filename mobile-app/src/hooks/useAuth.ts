@@ -73,24 +73,18 @@ export function useAuth() {
         },
         onSuccess: async (data: any) => {
             if (data.success) {
-                let tokenToSet = null;
-                let refreshTokenToSet = null;
-
-                if (data.data?.accessToken) {
-                    tokenToSet = data.data.accessToken;
-                } else if (data.data?.tokens?.accessToken) {
-                    tokenToSet = data.data.tokens.accessToken;
-                    refreshTokenToSet = data.data.tokens.refreshToken;
-                } else if (data.data?.token) {
-                    tokenToSet = data.data.token;
-                }
+                // Handle token from our own backend: { success, data: { accessToken, user } }
+                const tokenToSet =
+                    data.data?.accessToken ||
+                    data.data?.tokens?.accessToken ||
+                    data.data?.token ||
+                    data.accessToken ||
+                    data.token ||
+                    null;
 
                 if (tokenToSet) {
                     await SecureStore.setItemAsync('token', tokenToSet);
                     await SecureStore.setItemAsync('accessToken', tokenToSet);
-                    if (refreshTokenToSet) {
-                        await SecureStore.setItemAsync('refreshToken', refreshTokenToSet);
-                    }
                     setHasToken(true);
                     queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
                 }

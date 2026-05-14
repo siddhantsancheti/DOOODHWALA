@@ -152,7 +152,7 @@ export default function LoginScreen({ navigation }: any) {
             </View>
 
             {/* Title with gradient effect (simulated) */}
-            <Text style={styles.title}>DOOODHWALA</Text>
+            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>DOOODHWALA</Text>
             <Text style={styles.subtitle}>{t('trustedDairy')}</Text>
 
             {/* Login Header */}
@@ -361,12 +361,13 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
 
   // Title
   title: {
-    fontSize: fontSize['4xl'],
+    fontSize: fontSize['3xl'],
     fontWeight: fontWeight.bold,
     textAlign: 'center',
     color: colors.brandPrimary,
     marginBottom: spacing.xs,
     fontFamily: fontFamilyBold,
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: fontSize.lg,

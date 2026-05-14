@@ -1,6 +1,8 @@
-import { API_BASE_URL } from "./queryClient";
+import * as queryClientModule from "./queryClient";
 import * as SecureStore from "./storage";
-import { supabase } from "./supabase";
+
+// Always read API_BASE_URL dynamically so it reflects Supabase-fetched value
+const getBaseUrl = () => queryClientModule.API_BASE_URL;
 
 export interface APIResponse<T = any> {
     success: boolean;
@@ -9,46 +11,20 @@ export interface APIResponse<T = any> {
     error?: string;
 }
 
+// Safely parse JSON — if server returns HTML (e.g. 502 from tunnel), give a clear message
+async function safeJson(response: Response): Promise<any> {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        return response.json();
+    }
+    // Not JSON — server is likely down or tunnel is showing an error page
+    if (!response.ok) {
+        throw new Error(`Server is unreachable (${response.status}). Please make sure the server is running.`);
+    }
+    return {};
+}
+
 export class AuthAPI {
-    private baseUrl: string;
-
-    constructor(baseUrl: string = API_BASE_URL) {
-        this.baseUrl = baseUrl;
-    }
-
-    private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-
-        const headers = new Headers(options.headers || {});
-        if (token) {
-            headers.set("Authorization", `Bearer ${token}`);
-        }
-
-        if (options.body && typeof options.body === 'string' && !headers.has("Content-Type")) {
-            headers.set("Content-Type", "application/json");
-        }
-
-        if (!headers.has("Accept")) {
-            headers.set("Accept", "application/json");
-        }
-
-        const config: RequestInit = {
-            ...options,
-            headers,
-        };
-
-        const normalizedEndpoint = endpoint.startsWith('/api') ? endpoint.substring(4) : endpoint;
-
-        try {
-            return await fetch(`${this.baseUrl}${normalizedEndpoint}`, config);
-        } catch (error: any) {
-            if (error.message && (error.message.includes('Network request failed') || error.message.includes('Failed to fetch'))) {
-                throw new Error("Unable to connect. Please check your internet connection.");
-            }
-            throw error;
-        }
-    }
 
     async sendOTP(phone: string): Promise<APIResponse> {
         const cleanPhone = phone.replace(/[^0-9]/g, '').replace(/^\+?91/, '');
@@ -59,14 +35,23 @@ export class AuthAPI {
         const fullPhone = `+91${cleanPhone}`;
 
         try {
-            const { error } = await supabase.auth.signInWithOtp({
-                phone: fullPhone,
+            const response = await fetch(`${getBaseUrl()}/api/auth/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone }),
             });
 
-            if (error) throw error;
+            const data = await safeJson(response);
 
-            return { success: true, message: "OTP sent successfully" };
+            if (!response.ok) {
+                throw new Error(data.message || "Failed to send OTP");
+            }
+
+            return { success: true, message: data.message || "OTP sent successfully" };
         } catch (error: any) {
+            if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+                throw new Error("Cannot reach server. Is the server running?");
+            }
             throw new Error(error.message || "Failed to send OTP");
         }
     }
@@ -76,34 +61,39 @@ export class AuthAPI {
         const fullPhone = `+91${cleanPhone}`;
 
         try {
-            const { data, error } = await supabase.auth.verifyOtp({
-                phone: fullPhone,
-                token: otp,
-                type: 'sms',
+            const response = await fetch(`${getBaseUrl()}/api/auth/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone, otp }),
             });
 
-            if (error) throw error;
+            const data = await safeJson(response);
+
+            if (!response.ok) {
+                throw new Error(data.message || "Invalid or expired OTP");
+            }
 
             return {
                 success: true,
-                data: { 
-                    tokens: { 
-                        accessToken: data.session?.access_token, 
-                        refreshToken: data.session?.refresh_token 
-                    }, 
-                    user: data.user 
+                data: {
+                    accessToken: data.accessToken,
+                    user: data.user,
                 },
-                message: "OTP verified successfully"
+                message: data.message || "OTP verified successfully"
             };
         } catch (error: any) {
+            if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+                throw new Error("Cannot reach server. Is the server running?");
+            }
             throw new Error(error.message || "Failed to verify OTP");
         }
     }
 
     async logout(): Promise<APIResponse> {
         try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
+            await SecureStore.deleteItemAsync('token');
+            await SecureStore.deleteItemAsync('accessToken');
+            await SecureStore.deleteItemAsync('refreshToken');
             return { success: true, message: "Logged out successfully" };
         } catch (error: any) {
             return { success: false, message: error.message || "Logout failed" };
