@@ -5,7 +5,7 @@ import * as SecureStore from "./storage";
 // never needs a rebuild when the tunnel URL changes.
 // Falls back to the build-time env var if Supabase fetch fails.
 export let API_BASE_URL: string =
-  process.env.EXPO_PUBLIC_API_URL ?? "https://dooodhwala.up.railway.app";
+  process.env.EXPO_PUBLIC_API_URL ?? "https://dooodhwala-server.onrender.com";
 
 export async function refreshApiBaseUrl(): Promise<void> {
   try {
