@@ -9,9 +9,10 @@ import { apiRequest, queryClient } from '../../lib/queryClient';
 import {
   Clock, CheckCircle, XCircle, DollarSign, ShoppingCart, ArrowLeft, Edit, Save, X, Plus, Minus,
 } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 
 export default function ServiceRequestsScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const [editingRequest, setEditingRequest] = React.useState<number | null>(null);
   const [editData, setEditData] = React.useState<any>({});
@@ -317,7 +318,7 @@ export default function ServiceRequestsScreen({ navigation }: any) {
             </Text>
             <TouchableOpacity 
               style={styles.emptyBtn} 
-              onPress={() => navigation.navigate('CustomerDashboard')}
+              onPress={() => navigation.navigate('CustomerHome')}
               activeOpacity={0.8}
             >
               <Text style={styles.emptyBtnText}>Go to Your Doodhwala</Text>

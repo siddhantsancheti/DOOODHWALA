@@ -1,6 +1,9 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { Server } from "http";
+import jwt from "jsonwebtoken";
 import { log } from "./vite";
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 interface WebSocketMessage {
     type: string;
@@ -8,9 +11,10 @@ interface WebSocketMessage {
 }
 
 interface AuthenticatedWebSocket extends WebSocket {
-    userId?: number;
+    userId?: string;
     userType?: string;
     isAlive?: boolean;
+    isAuthenticated?: boolean;
 }
 
 let wss: WebSocketServer;
@@ -20,6 +24,7 @@ export function setupWebSocket(server: Server) {
 
     wss.on("connection", (ws: AuthenticatedWebSocket) => {
         ws.isAlive = true;
+        ws.isAuthenticated = false;
         ws.on("pong", () => {
             ws.isAlive = true;
         });
@@ -29,12 +34,23 @@ export function setupWebSocket(server: Server) {
                 const message: WebSocketMessage = JSON.parse(data);
 
                 if (message.type === "authenticate") {
-                    ws.userId = parseInt(message.userId);
-                    ws.userType = message.userType;
-                    log(`WebSocket authenticated: User ${ws.userId} (${ws.userType})`);
+                    // Verify JWT token instead of trusting client-provided userId
+                    if (!message.token || !JWT_SECRET) {
+                        ws.send(JSON.stringify({ type: 'auth_error', message: 'Token required' }));
+                        return;
+                    }
 
-                    // Send confirmation back
-                    ws.send(JSON.stringify({ type: 'authenticated' }));
+                    try {
+                        const decoded = jwt.verify(message.token, JWT_SECRET) as any;
+                        ws.userId = decoded.id;
+                        ws.userType = message.userType; // userType can be trusted since token is verified
+                        ws.isAuthenticated = true;
+                        log(`WebSocket authenticated: User ${ws.userId} (${ws.userType})`);
+                        ws.send(JSON.stringify({ type: 'authenticated' }));
+                    } catch (jwtError) {
+                        ws.send(JSON.stringify({ type: 'auth_error', message: 'Invalid token' }));
+                        ws.close(4001, 'Invalid token');
+                    }
                 }
             } catch (error) {
                 console.error("WebSocket message error:", error);
@@ -44,6 +60,13 @@ export function setupWebSocket(server: Server) {
         ws.on("error", (error) => {
             console.error("WebSocket error:", error);
         });
+
+        // Auto-disconnect unauthenticated clients after 10 seconds
+        setTimeout(() => {
+            if (!ws.isAuthenticated && ws.readyState === WebSocket.OPEN) {
+                ws.close(4000, 'Authentication timeout');
+            }
+        }, 10000);
     });
 
     // Keep-alive

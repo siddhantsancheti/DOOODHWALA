@@ -2,22 +2,15 @@ import { Router } from "express";
 import { db } from "./db";
 import { orders, customers, milkmen, notifications } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
+import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
 
 // GET /api/orders/customer
-router.get("/customer", async (req, res) => {
+router.get("/customer", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
-
-        // Get customer ID first
         const [customer] = await db
             .select()
             .from(customers)
@@ -41,12 +34,32 @@ router.get("/customer", async (req, res) => {
     }
 });
 
-// GET /api/orders/customer/:customerId (for milkmen to view a customer's orders)
-router.get("/customer/:customerId", async (req, res) => {
+// GET /api/orders/customer/:customerId (for milkmen to view their own customer's orders)
+router.get("/customer/:customerId", async (req: AuthRequest, res) => {
     try {
+        const userId = req.user!.id;
         const customerId = parseInt(req.params.customerId);
         if (isNaN(customerId)) {
             return res.status(400).json({ message: "Invalid customer ID" });
+        }
+
+        // Authorization: verify the requesting milkman owns this customer
+        const [milkman] = await db
+            .select()
+            .from(milkmen)
+            .where(eq(milkmen.userId, userId))
+            .limit(1);
+
+        if (milkman) {
+            const [customer] = await db
+                .select()
+                .from(customers)
+                .where(eq(customers.id, customerId))
+                .limit(1);
+
+            if (customer && customer.assignedMilkmanId !== milkman.id) {
+                return res.status(403).json({ message: "Not authorized to view this customer's orders" });
+            }
         }
 
         const customerOrders = await db
@@ -63,18 +76,10 @@ router.get("/customer/:customerId", async (req, res) => {
 });
 
 // GET /api/orders/milkman
-router.get("/milkman", async (req, res) => {
+router.get("/milkman", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
-
-        // Get milkman ID first
         const [milkman] = await db
             .select()
             .from(milkmen)
@@ -99,20 +104,11 @@ router.get("/milkman", async (req, res) => {
 });
 
 // POST /api/orders
-router.post("/", async (req, res) => {
+router.post("/", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
-
+        const userId = req.user!.id;
         const { milkmanId, quantity, pricePerLiter, deliveryDate, deliveryTime, specialInstructions } = req.body;
 
-        // Get customer ID
         const [customer] = await db
             .select()
             .from(customers)
@@ -145,7 +141,6 @@ router.post("/", async (req, res) => {
 
         // Notify Milkman about New Order
         try {
-            // Find milkman's userId first to send notification
             const [milkman] = await db
                 .select()
                 .from(milkmen)
@@ -172,7 +167,7 @@ router.post("/", async (req, res) => {
 });
 
 // PATCH /api/orders/:id/status
-router.patch("/:id/status", async (req, res) => {
+router.patch("/:id/status", async (req: AuthRequest, res) => {
     try {
         const orderId = parseInt(req.params.id);
         const { status } = req.body;
@@ -181,14 +176,7 @@ router.patch("/:id/status", async (req, res) => {
             return res.status(400).json({ message: "Invalid request parameters" });
         }
 
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
+        const userId = req.user!.id;
 
         // Verify the milkman owns this order
         const [milkman] = await db

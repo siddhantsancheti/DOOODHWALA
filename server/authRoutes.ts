@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { db } from "./db";
 import { users, otpCodes } from "@shared/schema";
 import { eq, and, gt } from "drizzle-orm";
@@ -11,8 +12,17 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 import { OTPService } from "./services/otpService";
 
+// Strict rate limit for OTP endpoints — 5 requests per 10 minutes per IP
+const otpRateLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    message: { message: "Too many OTP requests. Please try again after 10 minutes." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // POST /api/auth/send-otp
-router.post("/send-otp", async (req, res) => {
+router.post("/send-otp", otpRateLimiter, async (req, res) => {
     try {
         const { phone } = req.body;
         if (!phone) {
@@ -31,7 +41,7 @@ router.post("/send-otp", async (req, res) => {
 });
 
 // POST /api/auth/verify-otp
-router.post("/verify-otp", async (req, res) => {
+router.post("/verify-otp", otpRateLimiter, async (req, res) => {
     try {
         const { phone, otp } = req.body;
         if (!phone || !otp) {
@@ -50,7 +60,8 @@ router.post("/verify-otp", async (req, res) => {
             let [user] = await db.select().from(users).where(eq(users.phone, phone)).limit(1);
 
             const formattedPhone = phone.replace(/\s+/g, '');
-            const isAdmin = formattedPhone === '+918087906174' || formattedPhone === '8087906174';
+            const adminPhone = process.env.ADMIN_PHONE || '8087906174';
+            const isAdmin = formattedPhone === `+91${adminPhone}` || formattedPhone === adminPhone;
 
             if (!user) {
                 const userId = crypto.randomUUID();

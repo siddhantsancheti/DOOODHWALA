@@ -8,9 +8,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import { User, Phone, Mail, MapPin, Edit3, Save, X, Camera, Map } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 
 export default function ProfileScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ name: '', address: '', email: '', businessName: '', pricePerLiter: '' });

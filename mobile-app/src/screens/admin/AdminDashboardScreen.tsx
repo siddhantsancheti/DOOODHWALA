@@ -6,11 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Users, Truck, ShoppingCart, DollarSign, LogOut, Globe } from 'lucide-react-native';
 import { useAuth } from '../../hooks/useAuth';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 
 const ADMIN_DARK = '#1E293B';
 
 export default function AdminDashboardScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const { logout } = useAuth();
   const [pendingRates, setPendingRates] = useState<Record<number, string>>({});
   const [refreshing, setRefreshing] = useState(false);

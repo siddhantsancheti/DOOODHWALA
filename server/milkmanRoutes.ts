@@ -3,6 +3,7 @@ import { db } from "./db";
 import { milkmen, users, products, customers } from "@shared/schema";
 import { eq, asc, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
+import { type AuthRequest } from "./middleware/auth";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
@@ -61,16 +62,9 @@ router.get("/customers", async (req, res) => {
 });
 
 // GET /api/milkmen/profile
-router.get("/profile", async (req, res) => {
+router.get("/profile", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
-        const userId = payload.id;
+        const userId = req.user!.id;
 
         const [milkman] = await db
             .select()
@@ -90,16 +84,9 @@ router.get("/profile", async (req, res) => {
 });
 
 // PATCH /api/milkmen/profile
-router.patch("/profile", async (req, res) => {
+router.patch("/profile", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
-        const userId = payload.id;
+        const userId = req.user!.id;
 
         const {
             businessName,
@@ -142,17 +129,10 @@ router.patch("/profile", async (req, res) => {
 });
 
 // POST /api/milkmen
-router.post("/", async (req, res) => {
+router.post("/", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
-        const userId = payload.id;
-        const phone = payload.phone; // Extract phone from token
+        const userId = req.user!.id;
+        const phone = req.user!.phone;
 
         const {
             contactName,
@@ -266,16 +246,9 @@ router.post("/", async (req, res) => {
     }
 });
 // PATCH /api/milkmen/products
-router.patch("/products", async (req, res) => {
+router.patch("/products", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
-        const userId = payload.id;
+        const userId = req.user!.id;
 
         const { dairyItems } = req.body;
 
@@ -325,16 +298,9 @@ router.patch("/products", async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });// PATCH /api/milkmen/availability
-router.patch("/availability", async (req, res) => {
+router.patch("/availability", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
-        const userId = payload.id;
+        const userId = req.user!.id;
 
         const { isAvailable } = req.body;
 

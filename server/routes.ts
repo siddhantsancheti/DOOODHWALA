@@ -39,8 +39,8 @@ export function registerRoutes(app: Express): Server {
     // Admin Routes
     app.use("/api/admin", authenticateToken, authorizeRole(['admin']), adminRoutes);
 
-    // Public Routes (or handle auth internally if mixed)
-    app.use("/api/products", productRoutes);
+    // Products — require authentication
+    app.use("/api/products", authenticateToken, productRoutes);
 
     // Add other API routes here as needed
 

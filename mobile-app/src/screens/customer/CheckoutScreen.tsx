@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../lib/queryClient';
 import { Banknote, CreditCard, Wallet, ShieldCheck, ArrowLeft, Check, Smartphone } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 // Lazy import to prevent native module crash on startup
 let RazorpayCheckout: any = null;
 try {
@@ -17,6 +17,7 @@ try {
 }
 
 export default function CheckoutScreen({ route, navigation }: any) {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const amount = route.params?.amount || 100;
   const description = route.params?.description || 'Milk Delivery Payment';
@@ -63,7 +64,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
         prefill: {
           email: user?.email || '',
           contact: user?.phone || '',
-          name: user?.name || 'Customer',
+          name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Customer',
         },
         theme: { color: '#2563EB' },
       };
@@ -85,7 +86,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
 
       if (verifyResp?.success) {
         Alert.alert('Payment Successful! 🎉', `₹${amount} paid successfully via Razorpay.`, [
-          { text: 'OK', onPress: () => navigation.navigate('CustomerDashboard') },
+          { text: 'OK', onPress: () => navigation.navigate('CustomerHome') },
         ]);
       } else {
         throw new Error('Payment verification failed. Please contact support.');
@@ -126,7 +127,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
         } else {
            Alert.alert('COD Order Created Successfully!', `Your order for ₹${amount} has been confirmed. Pay ₹${amount} in cash upon delivery.`);
         }
-        setTimeout(() => navigation.navigate('CustomerDashboard'), 2000);
+        setTimeout(() => navigation.navigate('CustomerHome'), 2000);
       } else throw new Error(resp.message || 'Failed to place COD order');
     } catch (e: any) {
       Alert.alert('Order Failed', e.message || "Failed to place order. Please try again.");

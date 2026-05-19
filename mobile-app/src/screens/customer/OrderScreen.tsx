@@ -10,9 +10,10 @@ import { apiRequest, queryClient } from '../../lib/queryClient';
 import {
   User, MapPin, Clock, Phone, Minus, Plus, ShoppingCart, Star, CheckCircle, ArrowLeft
 } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 
 export default function OrderScreen({ route, navigation }: any) {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const milkmanId = route.params?.milkmanId || 1;
 

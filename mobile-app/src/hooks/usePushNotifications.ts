@@ -22,10 +22,6 @@ if (!isExpoGo) {
 }
 
 export function usePushNotifications() {
-    if (isExpoGo) {
-        return { expoPushToken: null };
-    }
-
     const { user } = useAuth();
     const [expoPushToken, setExpoPushToken] = useState('');
     const [notification, setNotification] = useState<Notifications.Notification | false>(false);
@@ -33,7 +29,8 @@ export function usePushNotifications() {
     const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
     useEffect(() => {
-        if (!user) return;
+        // Skip push notification registration in Expo Go
+        if (isExpoGo || !user) return;
 
         registerForPushNotificationsAsync().then(token => {
             if (token) {
@@ -58,6 +55,10 @@ export function usePushNotifications() {
             responseListener.current?.remove();
         };
     }, [user]);
+
+    if (isExpoGo) {
+        return { expoPushToken: null, notification: false };
+    }
 
     return { expoPushToken, notification };
 }

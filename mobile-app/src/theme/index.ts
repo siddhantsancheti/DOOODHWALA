@@ -129,6 +129,18 @@ export const darkColors = {
 // Default export for backward compatibility
 export const colors = lightColors;
 
+// ─── useTheme hook — returns correct colors + fonts for dark mode ───
+import { useColorScheme } from 'react-native';
+
+export function useTheme() {
+  const colorScheme = useColorScheme() || 'light';
+  const isDark = colorScheme === 'dark';
+  return {
+    colors: isDark ? darkColors : lightColors,
+    isDark,
+  };
+}
+
 // ─── Typography ────────────────────────────────────────────────
 export const fontSize = {
   xs: 13,        // 0.8125rem (web mobile override)

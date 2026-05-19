@@ -5,9 +5,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Package, Clock, CheckCircle, XCircle, ShoppingBag, Download, ArrowLeft, Calendar } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 
 export default function ViewOrdersScreen({ navigation }: any) {
+  const { colors } = useTheme();
   const [tab, setTab] = useState<'active' | 'history'>('active');
 
   const { data: customerProfile, isLoading: profileLoading } = useQuery({

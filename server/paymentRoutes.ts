@@ -6,29 +6,27 @@ import Razorpay from "razorpay";
 import Stripe from "stripe";
 import crypto from "crypto";
 import { BillingService } from "./services/billingService";
+import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
 
-// Initialize Payment Gateways
-if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    console.warn("Razorpay keys are missing. Payment routes will fail.");
-}
-
+// Initialize Payment Gateways — conditionally to avoid crashes when keys are missing
 let razorpay: Razorpay | null = null;
-try {
-    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-        razorpay = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET,
-        });
-    }
-} catch (e) {
-    console.warn("Razorpay initialization skipped:", e);
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+} else {
+    console.warn("Razorpay keys missing — payment endpoints will return 503.");
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
-    // apiVersion: '2024-10-28.acacia', // Use a recent valid API version
-});
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+} else {
+    console.warn("Stripe key missing — Stripe endpoints will return 503.");
+}
 
 // Helper to calculate total from chat messages (reusing logic)
 const calculatePendingTotal = async (milkmanId: number) => {
@@ -229,16 +227,9 @@ router.post("/consolidated/:milkmanId/generate", async (req, res) => {
 // Deleted duplicate route mapping for bills/customer to prevent nesting conflicts.
 
 // GET /api/bills/current (Current month bill for the logged in customer)
-router.get("/current", async (req, res) => {
+router.get("/current", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
+        const userId = req.user!.id;
 
         const [customer] = await db
             .select()
@@ -315,6 +306,10 @@ router.get("/customer/:customerId", async (req, res) => {
 // Razorpay: Create Order
 router.post("/razorpay/create-order", async (req, res) => {
     try {
+        if (!razorpay) {
+            return res.status(503).json({ message: "Razorpay is not configured. Contact support." });
+        }
+
         const { amount, orderId, description } = req.body;
 
         // Amount should be in paise
@@ -507,16 +502,12 @@ router.post("/cod/create-order", async (req, res) => {
             });
         }
 
-        // Return success with OTP info (in real app, don't return OTP if strict security needed, strictly send via SMS)
-        // But for user feedback in this demo, we can return it.
-
+        // Never return OTP in response — it's sent via SMS only
         res.json({
             success: true,
             otpSent: true,
             smsOtpSent: !!customerPhone,
-            chatOtpSent: true, // Assuming chat integration would happen too
-            codOTP: otp,
-            message: "Order placed successfully"
+            message: "Order placed successfully. OTP sent via SMS."
         });
 
     } catch (error) {
@@ -528,6 +519,10 @@ router.post("/cod/create-order", async (req, res) => {
 // Stripe: Create Payment Intent
 router.post("/stripe/create-intent", async (req, res) => {
     try {
+        if (!stripe) {
+            return res.status(503).json({ message: "Stripe is not configured. Contact support." });
+        }
+
         const { amount, description } = req.body;
 
         const paymentIntent = await stripe.paymentIntents.create({

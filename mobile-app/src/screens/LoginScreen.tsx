@@ -75,7 +75,7 @@ export default function LoginScreen({ navigation }: any) {
       const data = await sendOtp({ phone: e164Phone });
       if (data.success) {
         setStep('otp');
-        setResendTimer(300);
+        setResendTimer(60);
       } else {
         showAlert(t('failedSendOtp'), data.message || t('waitTryAgain'));
       }
@@ -103,7 +103,7 @@ export default function LoginScreen({ navigation }: any) {
       const e164Phone = `+91${phone}`;
       const data = await sendOtp({ phone: e164Phone });
       if (data.success) {
-        setResendTimer(300);
+        setResendTimer(60);
         setOtp('');
         showAlert(t('otpResent'), t('newCodeSent'));
       } else {

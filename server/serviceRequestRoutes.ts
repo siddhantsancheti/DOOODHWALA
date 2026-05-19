@@ -2,27 +2,17 @@ import { Router } from "express";
 import { db } from "./db";
 import { serviceRequests, customers, milkmen } from "@shared/schema";
 import { eq, desc, ne, and } from "drizzle-orm";
-import jwt from "jsonwebtoken";
+import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 // GET /api/service-requests/test
 router.get("/test", (req, res) => res.json({ message: "Service requests route working" }));
 
 // GET /api/service-requests/customer
-router.get("/customer", async (req, res) => {
+router.get("/customer", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        // Legacy manual decode - ideally should be updated too but leaving as is if it works for existing
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
+        const userId = req.user!.id;
 
         const [customer] = await db
             .select()
@@ -48,20 +38,9 @@ router.get("/customer", async (req, res) => {
 });
 
 // GET /api/service-requests/milkman
-router.get("/milkman", async (req, res) => {
+router.get("/milkman", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        let decoded;
-        try {
-            decoded = jwt.verify(token, JWT_SECRET) as any;
-        } catch (err) {
-            return res.status(401).json({ message: "Invalid token" });
-        }
-
-        const userId = decoded.id;
+        const userId = req.user!.id;
 
         const [milkman] = await db
             .select()
@@ -110,21 +89,9 @@ router.get("/milkman", async (req, res) => {
 });
 
 // POST /api/service-requests
-router.post("/", async (req, res) => {
+router.post("/", async (req: AuthRequest, res) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        let decoded;
-        try {
-            decoded = jwt.verify(token, JWT_SECRET) as any;
-        } catch (err) {
-            return res.status(401).json({ message: "Invalid token" });
-        }
-
-        const userId = decoded.id;
-
+        const userId = req.user!.id;
         const { milkmanId, services, customerNotes } = req.body;
 
         const [customer] = await db
@@ -159,9 +126,8 @@ router.post("/", async (req, res) => {
 router.post("/:id/approve", async (req, res) => {
     try {
         const requestId = parseInt(req.params.id);
-        const { services } = req.body; // Optional: updated services with final prices
+        const { services } = req.body;
 
-        // 1. Get the request
         const [request] = await db
             .select()
             .from(serviceRequests)
@@ -172,7 +138,6 @@ router.post("/:id/approve", async (req, res) => {
             return res.status(404).json({ message: "Request not found" });
         }
 
-        // 2. Update request status to accepted
         const [updatedRequest] = await db
             .update(serviceRequests)
             .set({
@@ -184,7 +149,6 @@ router.post("/:id/approve", async (req, res) => {
             .where(eq(serviceRequests.id, requestId))
             .returning();
 
-        // Assign milkman to customer
         await db
             .update(customers)
             .set({
@@ -192,12 +156,6 @@ router.post("/:id/approve", async (req, res) => {
                 updatedAt: new Date()
             })
             .where(eq(customers.id, request.customerId));
-
-        // 4. Create customer pricing entries if services have prices
-        if (updatedRequest.services && Array.isArray(updatedRequest.services)) {
-            // This is optional but good for data consistency - we might want to save agreed prices
-            // Implementation depends on if we want to overwrite existing pricing
-        }
 
         res.json(updatedRequest);
     } catch (error) {

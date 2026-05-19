@@ -4,9 +4,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Smartphone, Send, XCircle, RefreshCw } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 
 export default function GatewayScreen() {
+  const { colors } = useTheme();
   const [isActive, setIsActive] = useState(false);
   const [secret, setSecret] = useState('');
   const [logs, setLogs] = useState<string[]>([]);

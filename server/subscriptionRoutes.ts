@@ -2,25 +2,14 @@ import { Router } from "express";
 import { db } from "./db";
 import { subscriptions, customers, milkmen } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
 
-// Helper: extract userId from JWT
-function getUserId(req: any): string | null {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return null;
-    const token = authHeader.split(" ")[1];
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-    return payload.id;
-}
-
 // POST /api/subscriptions — Create subscription
-router.post("/", async (req, res) => {
+router.post("/", async (req: AuthRequest, res) => {
     try {
-        const userId = getUserId(req);
-        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
         const [customer] = await db
             .select()
@@ -75,10 +64,9 @@ router.post("/", async (req, res) => {
 });
 
 // GET /api/subscriptions/customer — List customer's subscriptions
-router.get("/customer", async (req, res) => {
+router.get("/customer", async (req: AuthRequest, res) => {
     try {
-        const userId = getUserId(req);
-        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
         const [customer] = await db
             .select()
@@ -104,10 +92,9 @@ router.get("/customer", async (req, res) => {
 });
 
 // GET /api/subscriptions/milkman — List subscriptions for milkman's customers
-router.get("/milkman", async (req, res) => {
+router.get("/milkman", async (req: AuthRequest, res) => {
     try {
-        const userId = getUserId(req);
-        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
         const [milkman] = await db
             .select()
@@ -133,10 +120,9 @@ router.get("/milkman", async (req, res) => {
 });
 
 // PATCH /api/subscriptions/:id/toggle — Toggle active/inactive
-router.patch("/:id/toggle", async (req, res) => {
+router.patch("/:id/toggle", async (req: AuthRequest, res) => {
     try {
-        const userId = getUserId(req);
-        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
         const subscriptionId = parseInt(req.params.id);
 
@@ -178,10 +164,9 @@ router.patch("/:id/toggle", async (req, res) => {
 });
 
 // PATCH /api/subscriptions/:id — Update subscription
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", async (req: AuthRequest, res) => {
     try {
-        const userId = getUserId(req);
-        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
         const subscriptionId = parseInt(req.params.id);
 
@@ -228,10 +213,9 @@ router.patch("/:id", async (req, res) => {
 });
 
 // DELETE /api/subscriptions/:id — Delete subscription
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
     try {
-        const userId = getUserId(req);
-        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        const userId = req.user!.id;
 
         const subscriptionId = parseInt(req.params.id);
 

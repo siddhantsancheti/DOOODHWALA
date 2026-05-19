@@ -4,6 +4,7 @@ import { chatMessages, users, orders, milkmen, products, notifications, customer
 import { eq, or, and, asc, gt, gte, lt } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
+import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
 
@@ -52,109 +53,55 @@ router.get("/messages", async (req, res) => {
     }
 });
 
+// Shared handler for POST /api/chat/messages and POST /api/chat/send
+const sendMessageHandler = async (req: AuthRequest, res: any) => {
+    try {
+        const userId = req.user!.id;
+
+        const {
+            milkmanId,
+            customerId,
+            message,
+            senderType,
+            messageType = "text",
+            orderQuantity,
+            orderProduct,
+            orderTotal,
+            orderItems,
+            voiceUrl,
+            voiceDuration
+        } = req.body;
+
+        const [newMessage] = await db
+            .insert(chatMessages)
+            .values({
+                milkmanId,
+                customerId,
+                senderId: userId,
+                message,
+                senderType,
+                messageType,
+                orderQuantity: orderQuantity ? orderQuantity.toString() : null,
+                orderProduct,
+                orderTotal: orderTotal ? orderTotal.toString() : null,
+                orderItems,
+                voiceUrl,
+                voiceDuration,
+                isRead: false,
+            })
+            .returning();
+
+        res.json(newMessage);
+    } catch (error) {
+        console.error("Send message error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 // POST /api/chat/messages
-router.post("/messages", async (req, res) => {
-    try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
-
-        const {
-            milkmanId,
-            customerId,
-            message,
-            senderType,
-            messageType = "text",
-            orderQuantity,
-            orderProduct,
-            orderTotal,
-            orderItems,
-            voiceUrl,
-            voiceDuration
-        } = req.body;
-
-        const [newMessage] = await db
-            .insert(chatMessages)
-            .values({
-                milkmanId,
-                customerId,
-                senderId: userId,
-                message,
-                senderType,
-                messageType,
-                orderQuantity: orderQuantity ? orderQuantity.toString() : null,
-                orderProduct,
-                orderTotal: orderTotal ? orderTotal.toString() : null,
-                orderItems,
-                voiceUrl,
-                voiceDuration,
-                isRead: false,
-            })
-            .returning();
-
-        res.json(newMessage);
-    } catch (error) {
-        console.error("Send message error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
-
-// POST /api/chat/send (Alias for POST /messages)
-router.post("/send", async (req, res) => {
-    try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
-
-        const token = authHeader.split(" ")[1];
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const userId = payload.id;
-
-        const {
-            milkmanId,
-            customerId,
-            message,
-            senderType,
-            messageType = "text",
-            orderQuantity,
-            orderProduct,
-            orderTotal,
-            orderItems,
-            voiceUrl,
-            voiceDuration
-        } = req.body;
-
-        const [newMessage] = await db
-            .insert(chatMessages)
-            .values({
-                milkmanId,
-                customerId,
-                senderId: userId,
-                message,
-                senderType,
-                messageType,
-                orderQuantity: orderQuantity ? orderQuantity.toString() : null,
-                orderProduct,
-                orderTotal: orderTotal ? orderTotal.toString() : null,
-                orderItems,
-                voiceUrl,
-                voiceDuration,
-                isRead: false,
-            })
-            .returning();
-
-        res.json(newMessage);
-    } catch (error) {
-        console.error("Send message error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-});
+router.post("/messages", sendMessageHandler);
+// POST /api/chat/send (alias — deduplicated)
+router.post("/send", sendMessageHandler);
 
 
 // POST /api/chat/messages/:id/accepted
@@ -182,8 +129,6 @@ router.post("/messages/:id/accepted", async (req, res) => {
 
         // Create an official order record from this accepted chat request
         if (updatedMessage.orderQuantity) {
-            // Fetch milkman's default price first (optimization: could be a join or separate query)
-            // For now, simpler separate query to be safe
             const milkman = await db.query.milkmen.findFirst({
                 where: eq(milkmen.id, updatedMessage.milkmanId)
             });
@@ -196,15 +141,15 @@ router.post("/messages/:id/accepted", async (req, res) => {
                     quantity: updatedMessage.orderQuantity,
                     pricePerLiter: milkman.pricePerLiter,
                     totalAmount: (parseFloat(updatedMessage.orderQuantity) * parseFloat(milkman.pricePerLiter)).toString(),
-                    status: "pending", // Or "confirmed" since it's accepted? Let's say "confirmed" or "pending" delivery
-                    deliveryDate: new Date(), // Today
+                    status: "pending",
+                    deliveryDate: new Date(),
                     createdAt: new Date(),
                     updatedAt: new Date(),
                 });
             }
         }
 
-        // Update inventory in milkmen.dairyItems JSONB (Source of Truth for Dashboard)
+        // Update inventory in milkmen.dairyItems JSONB
         if (updatedMessage.orderProduct && updatedMessage.orderQuantity) {
             try {
                 const milkman = await db.query.milkmen.findFirst({
@@ -216,18 +161,15 @@ router.post("/messages/:id/accepted", async (req, res) => {
                     const orderQty = parseFloat(updatedMessage.orderQuantity);
                     const productName = updatedMessage.orderProduct.toLowerCase();
 
-                    // Find and update item
                     const updatedItems = dairyItems.map(item => {
                         if (item.name.toLowerCase() === productName) {
                             const currentQty = parseFloat(item.quantity || "0");
                             const newQty = Math.max(0, currentQty - orderQty);
-                            console.log(`Updating JSONB inventory for ${item.name}: ${currentQty} -> ${newQty}`);
                             return { ...item, quantity: newQty };
                         }
                         return item;
                     });
 
-                    // Save back to DB
                     await db
                         .update(milkmen)
                         .set({
@@ -236,7 +178,6 @@ router.post("/messages/:id/accepted", async (req, res) => {
                         })
                         .where(eq(milkmen.id, updatedMessage.milkmanId));
 
-                    // Broadcast inventory update
                     broadcast({
                         type: "inventory_update",
                         milkmanId: updatedMessage.milkmanId,
@@ -255,15 +196,14 @@ router.post("/messages/:id/accepted", async (req, res) => {
         if (updatedMessage.senderType === 'customer' && updatedMessage.customerId) {
             try {
                 await db.insert(notifications).values({
-                    userId: updatedMessage.senderId, // The customer who sent the order
+                    userId: updatedMessage.senderId,
                     title: "Order Accepted",
                     message: `Your order for ${updatedMessage.orderProduct || 'items'} has been accepted.`,
                     type: "order",
-                    relatedId: updatedMessage.id, // chat message id
+                    relatedId: updatedMessage.id,
                     isRead: false
                 });
 
-                // Send push notification
                 const customerUser = await db.query.users.findFirst({
                     where: eq(users.id, updatedMessage.senderId)
                 });
@@ -311,7 +251,7 @@ router.post("/messages/:id/delivered", async (req, res) => {
             .set({
                 isDelivered: true,
                 deliveredAt: new Date(),
-                isEditable: false, // Lock editing
+                isEditable: false,
             })
             .where(eq(chatMessages.id, messageId))
             .returning();
@@ -321,7 +261,6 @@ router.post("/messages/:id/delivered", async (req, res) => {
         }
 
         // Update the corresponding order record to 'delivered'
-        // We use heuristics since we don't have a direct link (milkmanId, customerId, quantity, pending status)
         if (updatedMessage.orderQuantity) {
             const [updatedOrder] = await db
                 .update(orders)
@@ -334,11 +273,8 @@ router.post("/messages/:id/delivered", async (req, res) => {
                     and(
                         eq(orders.milkmanId, updatedMessage.milkmanId),
                         updatedMessage.customerId !== null ? eq(orders.customerId, updatedMessage.customerId) : undefined,
-                        // eq(orders.orderedBy, updatedMessage.senderId), // Sender might be user ID but orderedBy is also user ID. Secure match.
-                        // Actually, simplified check: match quantity and 'pending' status created today
                         eq(orders.quantity, updatedMessage.orderQuantity),
                         eq(orders.status, "pending")
-                        // We could also check date but let's assume FIFO or matching quantity on pending is enough for now.
                     )
                 )
                 .returning();
@@ -368,8 +304,7 @@ router.post("/messages/:id/delivered", async (req, res) => {
             }
         }
 
-
-        // Check for next customer notification (Route Optimization Feature)
+        // Check for next customer notification (Route Optimization)
         if (updatedMessage.customerId && updatedMessage.milkmanId) {
             const [currentCustomer] = await db.select().from(customers).where(eq(customers.id, updatedMessage.customerId)).limit(1);
 
@@ -400,10 +335,8 @@ router.post("/messages/:id/delivered", async (req, res) => {
                         .limit(1);
 
                     if (!nextOrder) {
-                        // Get milkman user id for sender
                         const [milkmanData] = await db.select().from(milkmen).where(eq(milkmen.id, updatedMessage.milkmanId)).limit(1);
                         if (milkmanData) {
-                            // Send proactive chat message
                             await db.insert(chatMessages).values({
                                 milkmanId: updatedMessage.milkmanId,
                                 customerId: nextCustomer.id,
@@ -414,7 +347,6 @@ router.post("/messages/:id/delivered", async (req, res) => {
                                 isRead: false
                             });
 
-                            // Also send a push notification
                             await db.insert(notifications).values({
                                 userId: nextCustomer.userId,
                                 title: "Milkman Nearby",
@@ -423,7 +355,6 @@ router.post("/messages/:id/delivered", async (req, res) => {
                                 isRead: false
                             });
 
-                            // Send push notification for 'out for delivery'
                             const nextCustomerUser = await db.query.users.findFirst({
                                 where: eq(users.id, nextCustomer.userId)
                             });
@@ -439,8 +370,6 @@ router.post("/messages/:id/delivered", async (req, res) => {
                                     }
                                 );
                             }
-
-                            console.log(`Proactive notification sent to Customer ${nextCustomer.id}`);
                         }
                     }
                 }
