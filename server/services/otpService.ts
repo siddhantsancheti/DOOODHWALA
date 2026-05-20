@@ -61,10 +61,12 @@ export class OTPService {
                 return false;
             }
 
-            // Production: check database
-            const [validOtp] = await db
-                .select()
-                .from(otpCodes)
+            // Production: atomically claim the OTP — mark it used only if it is
+            // still valid. Doing the check + update in a single statement closes
+            // the race window where two concurrent requests could both succeed.
+            const claimed = await db
+                .update(otpCodes)
+                .set({ isUsed: true })
                 .where(
                     and(
                         eq(otpCodes.phone, phone),
@@ -73,10 +75,9 @@ export class OTPService {
                         gt(otpCodes.expiresAt, new Date())
                     )
                 )
-                .limit(1);
+                .returning({ id: otpCodes.id });
 
-            if (validOtp) {
-                await db.update(otpCodes).set({ isUsed: true }).where(eq(otpCodes.id, validOtp.id));
+            if (claimed.length > 0) {
                 console.log(`[OTPService] OTP verified for ${phone}`);
                 return true;
             }

@@ -21,6 +21,20 @@ const otpRateLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+// Per-phone brute-force guard for OTP verification.
+// Keyed by phone (not IP) so an attacker can't bypass it by rotating IPs.
+// skipSuccessfulRequests => only wrong-OTP attempts count toward the limit,
+// so legitimate users who log in on the first try are never throttled.
+const verifyOtpLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => String(req.body?.phone || req.ip),
+    skipSuccessfulRequests: true,
+    message: { message: "Too many incorrect OTP attempts. Please request a new code." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // POST /api/auth/send-otp
 router.post("/send-otp", otpRateLimiter, async (req, res) => {
     try {
@@ -41,7 +55,7 @@ router.post("/send-otp", otpRateLimiter, async (req, res) => {
 });
 
 // POST /api/auth/verify-otp
-router.post("/verify-otp", otpRateLimiter, async (req, res) => {
+router.post("/verify-otp", otpRateLimiter, verifyOtpLimiter, async (req, res) => {
     try {
         const { phone, otp } = req.body;
         if (!phone || !otp) {
