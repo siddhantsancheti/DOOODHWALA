@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "./db";
 import { chatMessages, users, orders, milkmen, products, notifications, customers } from "@shared/schema";
-import { eq, or, and, asc, gt, gte, lt } from "drizzle-orm";
+import { eq, or, and, asc, desc, gt, gte, lt } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
 import { type AuthRequest } from "./middleware/auth";
@@ -180,20 +180,39 @@ router.post("/messages/:id/accepted", async (req, res) => {
             milkmanId: updatedMessage.milkmanId
         });
 
+        // An order message may carry an explicit orderQuantity (ChatScreen) or
+        // only an orderItems array (ChatComponent). Normalise both here.
+        const acceptedItems: any[] = Array.isArray(updatedMessage.orderItems)
+            ? (updatedMessage.orderItems as any[])
+            : [];
+        const qtyFromItems = acceptedItems.reduce(
+            (sum, it) => sum + (parseFloat(it.quantity) || 0), 0
+        );
+        const acceptedQty = updatedMessage.orderQuantity
+            ? parseFloat(updatedMessage.orderQuantity)
+            : qtyFromItems;
+
         // Create an official order record from this accepted chat request
-        if (updatedMessage.orderQuantity) {
+        if (acceptedQty > 0) {
             const milkman = await db.query.milkmen.findFirst({
                 where: eq(milkmen.id, updatedMessage.milkmanId)
             });
 
             if (milkman) {
+                const pricePerLiter = parseFloat(milkman.pricePerLiter || "0");
+                // Prefer the customer-facing total (correct for multi-product /
+                // custom-priced orders); fall back to qty × the standard rate.
+                const totalAmount = updatedMessage.orderTotal && parseFloat(updatedMessage.orderTotal) > 0
+                    ? String(updatedMessage.orderTotal)
+                    : (acceptedQty * pricePerLiter).toString();
+
                 await db.insert(orders).values({
                     milkmanId: updatedMessage.milkmanId,
                     customerId: updatedMessage.customerId,
                     orderedBy: updatedMessage.senderId,
-                    quantity: updatedMessage.orderQuantity,
+                    quantity: acceptedQty.toString(),
                     pricePerLiter: milkman.pricePerLiter,
-                    totalAmount: (parseFloat(updatedMessage.orderQuantity) * parseFloat(milkman.pricePerLiter)).toString(),
+                    totalAmount,
                     status: "pending",
                     deliveryDate: new Date(),
                     createdAt: new Date(),
@@ -203,7 +222,7 @@ router.post("/messages/:id/accepted", async (req, res) => {
         }
 
         // Update inventory in milkmen.dairyItems JSONB
-        if (updatedMessage.orderProduct && updatedMessage.orderQuantity) {
+        if (updatedMessage.orderProduct || acceptedItems.length > 0) {
             try {
                 const milkman = await db.query.milkmen.findFirst({
                     where: eq(milkmen.id, updatedMessage.milkmanId)
@@ -211,13 +230,26 @@ router.post("/messages/:id/accepted", async (req, res) => {
 
                 if (milkman && milkman.dairyItems) {
                     const dairyItems = milkman.dairyItems as any[];
-                    const orderQty = parseFloat(updatedMessage.orderQuantity);
-                    const productName = updatedMessage.orderProduct.toLowerCase();
+
+                    // Build {productNameLower: quantityToDeduct} from whichever
+                    // shape the order message carries.
+                    const deduction: Record<string, number> = {};
+                    if (acceptedItems.length > 0) {
+                        for (const it of acceptedItems) {
+                            if (!it.product) continue;
+                            const key = String(it.product).toLowerCase();
+                            deduction[key] = (deduction[key] || 0) + (parseFloat(it.quantity) || 0);
+                        }
+                    } else if (updatedMessage.orderProduct && updatedMessage.orderQuantity) {
+                        deduction[updatedMessage.orderProduct.toLowerCase()] =
+                            parseFloat(updatedMessage.orderQuantity);
+                    }
 
                     const updatedItems = dairyItems.map(item => {
-                        if (item.name.toLowerCase() === productName) {
+                        const deduct = deduction[String(item.name).toLowerCase()];
+                        if (deduct) {
                             const currentQty = parseFloat(item.quantity || "0");
-                            const newQty = Math.max(0, currentQty - orderQty);
+                            const newQty = Math.max(0, currentQty - deduct);
                             return { ...item, quantity: newQty };
                         }
                         return item;
@@ -235,7 +267,7 @@ router.post("/messages/:id/accepted", async (req, res) => {
                         type: "inventory_update",
                         milkmanId: updatedMessage.milkmanId,
                         data: {
-                            message: `Inventory updated: ${updatedMessage.orderProduct}`,
+                            message: `Inventory updated: ${updatedMessage.orderProduct || Object.keys(deduction).join(', ') || 'order'}`,
                             dairyItems: updatedItems
                         }
                     });
@@ -319,27 +351,41 @@ router.post("/messages/:id/delivered", async (req, res) => {
             milkmanId: updatedMessage.milkmanId
         });
 
-        // Update the corresponding order record to 'delivered'
-        if (updatedMessage.orderQuantity) {
-            const [updatedOrder] = await db
-                .update(orders)
-                .set({
-                    status: "delivered",
-                    deliveredAt: new Date(),
-                    updatedAt: new Date()
-                })
+        // Update the corresponding order record to 'delivered'.
+        // An order message carries orderQuantity (ChatScreen) or orderItems
+        // (ChatComponent) — treat either as "this message was an order".
+        const deliveredItems: any[] = Array.isArray(updatedMessage.orderItems)
+            ? (updatedMessage.orderItems as any[])
+            : [];
+        const isOrderMessage = !!updatedMessage.orderQuantity || deliveredItems.length > 0;
+
+        if (isOrderMessage && updatedMessage.customerId !== null) {
+            // Mark the most recent still-pending order for this customer+milkman
+            // delivered (the orders table has no chat-message link, so match the
+            // latest pending one rather than a fragile quantity comparison).
+            const [pendingOrder] = await db
+                .select()
+                .from(orders)
                 .where(
                     and(
                         eq(orders.milkmanId, updatedMessage.milkmanId),
-                        updatedMessage.customerId !== null ? eq(orders.customerId, updatedMessage.customerId) : undefined,
-                        eq(orders.quantity, updatedMessage.orderQuantity),
+                        eq(orders.customerId, updatedMessage.customerId),
                         eq(orders.status, "pending")
                     )
                 )
-                .returning();
+                .orderBy(desc(orders.createdAt))
+                .limit(1);
 
-            if (updatedOrder) {
-                console.log(`Order ${updatedOrder.id} confirmed as delivered from chat message ${messageId}`);
+            if (pendingOrder) {
+                await db
+                    .update(orders)
+                    .set({
+                        status: "delivered",
+                        deliveredAt: new Date(),
+                        updatedAt: new Date()
+                    })
+                    .where(eq(orders.id, pendingOrder.id));
+                console.log(`Order ${pendingOrder.id} confirmed as delivered from chat message ${messageId}`);
             }
 
             // Send push notification for delivery
