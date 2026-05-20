@@ -92,9 +92,53 @@ const sendMessageHandler = async (req: AuthRequest, res: any) => {
             .returning();
 
         res.json(newMessage);
+
+        // Push the new message/order to all connected clients in real time so
+        // the recipient's group chat updates without a manual refresh.
+        // Mirrors the order_accepted / order_delivered broadcasts.
+        broadcast({
+            type: "new_message",
+            message: newMessage,
+            customerId: newMessage.customerId,
+            milkmanId: newMessage.milkmanId,
+        });
+
+        // Notify the milkman when a customer places an order via chat.
+        if (newMessage.messageType === "order" && newMessage.senderType === "customer") {
+            try {
+                const milkmanRow = await db.query.milkmen.findFirst({
+                    where: eq(milkmen.id, newMessage.milkmanId),
+                });
+                if (milkmanRow) {
+                    await db.insert(notifications).values({
+                        userId: milkmanRow.userId,
+                        title: "New Order Request",
+                        message: `New order request for ${newMessage.orderProduct || "items"}.`,
+                        type: "order",
+                        relatedId: newMessage.id,
+                        isRead: false,
+                    });
+                    const milkmanUser = await db.query.users.findFirst({
+                        where: eq(users.id, milkmanRow.userId),
+                    });
+                    if (milkmanUser && milkmanUser.fcmToken) {
+                        await sendPushNotification(
+                            milkmanUser.fcmToken,
+                            "New Order Request",
+                            `New order request for ${newMessage.orderProduct || "items"}.`,
+                            { type: "order_request", messageId: String(newMessage.id) }
+                        );
+                    }
+                }
+            } catch (notifError) {
+                console.error("Failed to notify milkman of new order:", notifError);
+            }
+        }
     } catch (error) {
         console.error("Send message error:", error);
-        res.status(500).json({ message: "Server error" });
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Server error" });
+        }
     }
 };
 
@@ -126,6 +170,15 @@ router.post("/messages/:id/accepted", async (req, res) => {
         }
 
         res.json(updatedMessage);
+
+        // Push the 2-tick (accepted) state immediately — before any best-effort
+        // follow-up work, so a failure there can never suppress the tick.
+        broadcast({
+            type: "order_accepted",
+            messageId: updatedMessage.id,
+            customerId: updatedMessage.customerId,
+            milkmanId: updatedMessage.milkmanId
+        });
 
         // Create an official order record from this accepted chat request
         if (updatedMessage.orderQuantity) {
@@ -225,16 +278,11 @@ router.post("/messages/:id/accepted", async (req, res) => {
             }
         }
 
-        broadcast({
-            type: "order_accepted",
-            messageId: updatedMessage.id,
-            customerId: updatedMessage.customerId,
-            milkmanId: updatedMessage.milkmanId
-        });
-
     } catch (error) {
         console.error("Accept order error:", error);
-        res.status(500).json({ message: "Server error" });
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Server error" });
+        }
     }
 });
 
@@ -259,6 +307,17 @@ router.post("/messages/:id/delivered", async (req, res) => {
         if (!updatedMessage) {
             return res.status(404).json({ message: "Message not found" });
         }
+
+        res.json(updatedMessage);
+
+        // Push the 3-tick (delivered) state immediately — before best-effort
+        // order-status sync and route-optimisation, so neither can suppress it.
+        broadcast({
+            type: "order_delivered",
+            messageId: updatedMessage.id,
+            customerId: updatedMessage.customerId,
+            milkmanId: updatedMessage.milkmanId
+        });
 
         // Update the corresponding order record to 'delivered'
         if (updatedMessage.orderQuantity) {
@@ -376,18 +435,11 @@ router.post("/messages/:id/delivered", async (req, res) => {
             }
         }
 
-        res.json(updatedMessage);
-
-        broadcast({
-            type: "order_delivered",
-            messageId: updatedMessage.id,
-            customerId: updatedMessage.customerId,
-            milkmanId: updatedMessage.milkmanId
-        });
-
     } catch (error) {
         console.error("Mark delivered error:", error);
-        res.status(500).json({ message: "Server error" });
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Server error" });
+        }
     }
 });
 
