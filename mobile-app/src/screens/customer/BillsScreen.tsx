@@ -17,7 +17,7 @@ export default function BillsScreen({ navigation }: any) {
   const isDark = colorScheme === 'dark';
 
   const { data: bills, isLoading: billsLoading } = useQuery<any[]>({
-    queryKey: ['/api/bills/current'],
+    queryKey: ['/api/bills/list'],
     enabled: !!user,
   });
 
@@ -91,8 +91,8 @@ export default function BillsScreen({ navigation }: any) {
                 </View>
 
                 <View style={styles.billActions}>
-                    {bill.status === 'pending' && (
-                    <TouchableOpacity 
+                    {(bill.status === 'pending' || bill.status === 'overdue') && (
+                    <TouchableOpacity
                       style={[styles.payBtn, { backgroundColor: '#2563EB' }]}
                       activeOpacity={0.8}
                       onPress={() => navigation.navigate('Checkout', {

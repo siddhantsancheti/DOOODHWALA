@@ -226,6 +226,48 @@ router.post("/consolidated/:milkmanId/generate", async (req, res) => {
 
 // Deleted duplicate route mapping for bills/customer to prevent nesting conflicts.
 
+// GET /api/bills/list — all bills for the authenticated customer, newest first.
+// Each bill is enriched with a display month/year and a computed totalQuantity.
+router.get("/list", async (req: AuthRequest, res) => {
+    try {
+        const [customer] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.userId, req.user!.id))
+            .limit(1);
+
+        if (!customer) {
+            return res.status(404).json({ message: "Customer profile not found" });
+        }
+
+        const customerBills = await db
+            .select()
+            .from(bills)
+            .where(eq(bills.customerId, customer.id))
+            .orderBy(desc(bills.createdAt));
+
+        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+
+        const enriched = customerBills.map((b) => {
+            const [year, month] = (b.billMonth || '').split('-');
+            const items = Array.isArray(b.items) ? (b.items as any[]) : [];
+            const totalQuantity = items.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0), 0);
+            return {
+                ...b,
+                month: monthNames[parseInt(month)] || b.billMonth || '',
+                year: year || '',
+                totalQuantity,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error) {
+        console.error("Get customer bill list error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // GET /api/bills/current (Current month bill for the logged in customer)
 router.get("/current", async (req: AuthRequest, res) => {
     try {
