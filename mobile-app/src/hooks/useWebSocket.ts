@@ -16,11 +16,13 @@ export interface ChatMessage {
 }
 
 export interface WebSocketMessage {
-  type: 'new_message' | 'message_sent' | 'messages_read' | 'authenticated' | 'auth_error' | 'error' | 'order_accepted';
+  type: 'new_message' | 'message_sent' | 'messages_read' | 'authenticated' | 'auth_error' | 'error' | 'order_accepted' | 'order_delivered' | 'service_request_update';
   message?: ChatMessage;
   customerId?: number;
   milkmanId?: number;
   messageId?: number;
+  requestId?: number;
+  event?: string;
   userId?: string;
   error?: string;
 }

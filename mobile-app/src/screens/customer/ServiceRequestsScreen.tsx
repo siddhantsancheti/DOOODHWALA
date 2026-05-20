@@ -10,6 +10,7 @@ import {
   Clock, CheckCircle, XCircle, DollarSign, ShoppingCart, ArrowLeft, Edit, Save, X, Plus, Minus,
 } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 export default function ServiceRequestsScreen({ navigation }: any) {
   const { colors } = useTheme();
@@ -20,6 +21,18 @@ export default function ServiceRequestsScreen({ navigation }: any) {
   const { data: requests, isLoading } = useQuery({
     queryKey: ['/api/service-requests/customer'], enabled: !!user,
   });
+
+  // Real-time: refresh the list when the milkman quotes/accepts/rejects.
+  const { addMessageHandler, removeMessageHandler } = useWebSocket();
+  React.useEffect(() => {
+    const handler = (data: any) => {
+      if (data.type === 'service_request_update') {
+        queryClient.invalidateQueries({ queryKey: ['/api/service-requests/customer'] });
+      }
+    };
+    addMessageHandler('service-requests-screen', handler);
+    return () => removeMessageHandler('service-requests-screen');
+  }, [addMessageHandler, removeMessageHandler]);
 
   const acceptQuoteMutation = useMutation({
     mutationFn: async (requestId: number) => {

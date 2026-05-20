@@ -95,6 +95,9 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
       } else if (data.type === 'new_order') {
         setHasNewActivity(true);
         queryClient.invalidateQueries({ queryKey: ['/api/orders/milkman'] });
+      } else if (data.type === 'service_request_update') {
+        setHasNewActivity(true);
+        queryClient.invalidateQueries({ queryKey: ['/api/service-requests/milkman'] });
       }
     };
     addMessageHandler('milkman-dashboard', handler);
