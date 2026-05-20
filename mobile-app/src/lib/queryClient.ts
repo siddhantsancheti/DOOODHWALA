@@ -32,6 +32,22 @@ export async function refreshApiBaseUrl(): Promise<void> {
   }
 }
 
+// Build a full request URL from an app-relative path.
+// The backend serves every route under `/api`, and all frontend paths/query
+// keys are written with the `/api` prefix. This joins them to API_BASE_URL
+// without dropping the prefix, and tolerates a base URL that already ends
+// with `/api` (collapsing the duplicate) so it works no matter how the
+// Supabase-provided or env-provided base URL is formatted.
+export function buildApiUrl(url: string): string {
+    if (url.startsWith('http')) return url;
+    const base = API_BASE_URL.replace(/\/+$/, '');
+    let path = url.startsWith('/') ? url : `/${url}`;
+    if (base.endsWith('/api') && path.startsWith('/api/')) {
+        path = path.substring(4);
+    }
+    return `${base}${path}`;
+}
+
 async function throwIfResNotOk(res: Response) {
     if (!res.ok) {
         try {
@@ -95,8 +111,7 @@ export async function apiRequest(params: {
         ...(token ? { "Authorization": `Bearer ${token}` } : {}),
     };
 
-    const normalizedUrl = url.startsWith('/api') ? url.substring(4) : url;
-    const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${normalizedUrl}`;
+    const fullUrl = buildApiUrl(url);
 
     let res: Response;
     try {
@@ -137,8 +152,7 @@ export const getQueryFn: <T>(options: {
             };
 
             const url = queryKey[0] as string;
-            const normalizedUrl = url.startsWith('/api') ? url.substring(4) : url;
-            const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${normalizedUrl}`;
+            const fullUrl = buildApiUrl(url);
 
             let res: Response;
             try {

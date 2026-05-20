@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './useAuth';
 import { API_BASE_URL } from '../lib/queryClient';
+import * as SecureStore from '../lib/storage';
 
 export interface ChatMessage {
   id: number;
@@ -15,7 +16,7 @@ export interface ChatMessage {
 }
 
 export interface WebSocketMessage {
-  type: 'new_message' | 'message_sent' | 'messages_read' | 'authenticated' | 'error' | 'order_accepted';
+  type: 'new_message' | 'message_sent' | 'messages_read' | 'authenticated' | 'auth_error' | 'error' | 'order_accepted';
   message?: ChatMessage;
   customerId?: number;
   milkmanId?: number;
@@ -43,16 +44,25 @@ export function useWebSocket() {
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       console.log('WebSocket connected');
       setIsConnected(true);
-      
-      const numericId = user.id?.includes('_') ? user.id.split('_').pop() : user.id;
-      
+
+      // Server verifies the JWT — authenticate with the token, not a raw userId.
+      const token =
+        (await SecureStore.getItemAsync('token')) ||
+        (await SecureStore.getItemAsync('accessToken'));
+
+      if (!token) {
+        console.warn('WebSocket: no auth token available, closing connection');
+        ws.close();
+        return;
+      }
+
       ws.send(JSON.stringify({
         type: 'authenticate',
-        userId: numericId,
-        userType: user.userType || 'customer'
+        token,
+        userType: user.userType || 'customer',
       }));
     };
 

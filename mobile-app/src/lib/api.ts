@@ -1,8 +1,5 @@
-import * as queryClientModule from "./queryClient";
+import { buildApiUrl } from "./queryClient";
 import * as SecureStore from "./storage";
-
-// Always read API_BASE_URL dynamically so it reflects Supabase-fetched value
-const getBaseUrl = () => queryClientModule.API_BASE_URL;
 
 export interface APIResponse<T = any> {
     success: boolean;
@@ -35,7 +32,7 @@ export class AuthAPI {
         const fullPhone = `+91${cleanPhone}`;
 
         try {
-            const response = await fetch(`${getBaseUrl()}/api/auth/send-otp`, {
+            const response = await fetch(buildApiUrl('/api/auth/send-otp'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                 body: JSON.stringify({ phone: fullPhone }),
@@ -61,7 +58,7 @@ export class AuthAPI {
         const fullPhone = `+91${cleanPhone}`;
 
         try {
-            const response = await fetch(`${getBaseUrl()}/api/auth/verify-otp`, {
+            const response = await fetch(buildApiUrl('/api/auth/verify-otp'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                 body: JSON.stringify({ phone: fullPhone, otp }),
