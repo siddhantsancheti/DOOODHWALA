@@ -174,6 +174,28 @@ router.post("/", async (req: AuthRequest, res) => {
     }
 });
 
+// GET /api/customers/group/:milkmanId — customers assigned to a milkman
+// (used to render the milkman group-chat member list). Declared before the
+// "/:id" route so the literal "group" segment is matched first.
+router.get("/group/:milkmanId", async (req: AuthRequest, res) => {
+    try {
+        const milkmanId = parseInt(req.params.milkmanId);
+        if (isNaN(milkmanId)) {
+            return res.status(400).json({ message: "Invalid milkman ID" });
+        }
+
+        const members = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.assignedMilkmanId, milkmanId));
+
+        res.json(members);
+    } catch (error) {
+        console.error("Get group members error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // GET /api/customers/:id
 router.get("/:id", async (req: AuthRequest, res) => {
     try {

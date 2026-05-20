@@ -144,7 +144,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   });
 
   const { data: customerPricings = [] } = useQuery<any[]>({
-    queryKey: ["/api/milkmen", milkmanProfile?.id, "customer-pricings"],
+    queryKey: ["/api/customer-pricings"],
     enabled: !!milkmanProfile?.id,
   });
 
@@ -247,7 +247,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
       return await apiRequest({ url: "/api/customer-pricings", method: "POST", body: data });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/milkmen", milkmanProfile?.id, "customer-pricings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customer-pricings"] });
       Alert.alert(t('success'), t('pricingAdded'));
     },
   });
@@ -257,7 +257,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
       return await apiRequest({ url: `/api/customer-pricings/${id}`, method: "PUT", body: data });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/milkmen", milkmanProfile?.id, "customer-pricings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customer-pricings"] });
       setEditingPricing(null);
       Alert.alert(t('success'), t('pricingUpdated'));
     },
@@ -268,7 +268,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
       return await apiRequest({ url: `/api/customer-pricings/${id}`, method: "DELETE" });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/milkmen", milkmanProfile?.id, "customer-pricings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customer-pricings"] });
       Alert.alert(t('success'), t('pricingDeleted'));
     },
   });

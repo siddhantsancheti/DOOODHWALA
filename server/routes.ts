@@ -13,6 +13,7 @@ import productRoutes from "./productRoutes";
 import { setupWebSocket } from "./websocket";
 import deliveryRoutes from "./deliveryRoutes";
 import subscriptionRoutes from "./subscriptionRoutes";
+import customerPricingRoutes from "./customerPricingRoutes";
 
 import { authenticateToken, authorizeRole } from "./middleware/auth";
 import userRoutes from "./userRoutes";
@@ -35,6 +36,7 @@ export function registerRoutes(app: Express): Server {
     app.use("/api/chat", authenticateToken, chatRoutes);
     app.use("/api/subscriptions", authenticateToken, subscriptionRoutes);
     app.use("/api/locations", authenticateToken, locationRoutes);
+    app.use("/api/customer-pricings", authenticateToken, customerPricingRoutes);
 
     // Admin Routes
     app.use("/api/admin", authenticateToken, authorizeRole(['admin']), adminRoutes);
