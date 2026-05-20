@@ -9,6 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import { lightColors, darkColors, borderRadius, spacing } from '../../theme';
 import { useTranslation } from '../../contexts/LanguageContext';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import ChatComponent from '../../components/ChatComponent';
 import AnalyticsComponent from '../../components/AnalyticsComponent';
 
@@ -38,6 +39,13 @@ export default function YDPageScreen({ navigation }: any) {
   const [groupPassword, setGroupPassword] = useState("");
   const [isJoining, setIsJoining] = useState(false);
 
+  // Service request modal state
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestMilkman, setRequestMilkman] = useState<any>(null);
+  const [reqProducts, setReqProducts] = useState<Record<string, number>>({});
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [requestNotes, setRequestNotes] = useState("");
+
   const scrollRef = useRef<ScrollView>(null);
 
   const { data: customerProfile, isLoading: profileLoading } = useQuery<any>({
@@ -59,6 +67,78 @@ export default function YDPageScreen({ navigation }: any) {
     },
     onError: (e: any) => Alert.alert(t('error'), e.message),
   });
+
+  // Send a new service request to a milkman
+  const createRequestMutation = useMutation({
+    mutationFn: async (body: any) => {
+      const res = await apiRequest({ url: '/api/service-requests', method: 'POST', body });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/service-requests/customer'] });
+      setShowRequestModal(false);
+      setReqProducts({});
+      setSelectedSlot("");
+      setRequestNotes("");
+      Alert.alert('Request Sent', 'Your service request was sent. The dairyman will respond shortly.');
+    },
+    onError: (e: any) => Alert.alert(t('error'), e.message || 'Failed to send request'),
+  });
+
+  // Real-time: refresh when the dairyman responds to a request.
+  const { addMessageHandler, removeMessageHandler } = useWebSocket();
+  React.useEffect(() => {
+    const handler = (data: any) => {
+      if (data.type === 'service_request_update') {
+        queryClient.invalidateQueries({ queryKey: ['/api/service-requests/customer'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
+      }
+    };
+    addMessageHandler('yd-page', handler);
+    return () => removeMessageHandler('yd-page');
+  }, [addMessageHandler, removeMessageHandler]);
+
+  const getDeliverySlots = (m: any): string[] => {
+    if (m?.deliverySlots && Array.isArray(m.deliverySlots) && m.deliverySlots.length > 0) {
+      return m.deliverySlots
+        .filter((s: any) => s.isActive !== false)
+        .map((s: any) => `${s.name} (${s.startTime}-${s.endTime})`);
+    }
+    if (m?.deliveryTimeStart && m?.deliveryTimeEnd) {
+      return [`${m.deliveryTimeStart} - ${m.deliveryTimeEnd}`];
+    }
+    return ['Morning', 'Evening'];
+  };
+
+  const openRequestModal = (m: any) => {
+    setRequestMilkman(m);
+    setReqProducts({});
+    setRequestNotes("");
+    const slots = getDeliverySlots(m);
+    setSelectedSlot(slots[0] || "");
+    setShowRequestModal(true);
+  };
+
+  const handleSendRequest = () => {
+    if (!requestMilkman) return;
+    const items: any[] = Array.isArray(requestMilkman.dairyItems) ? requestMilkman.dairyItems : [];
+    const services = Object.entries(reqProducts)
+      .filter(([, q]) => (q as number) > 0)
+      .map(([name, q]) => {
+        const item = items.find((i: any) => i.name === name);
+        return { name, unit: item?.unit || 'liter', quantity: q, price: parseFloat(item?.price || 0) };
+      });
+    if (services.length === 0) {
+      Alert.alert('Select Products', 'Please select at least one product.');
+      return;
+    }
+    if (!selectedSlot) {
+      Alert.alert('Delivery Time', 'Please choose a delivery time.');
+      return;
+    }
+    const notes = `Preferred delivery: ${selectedSlot}${requestNotes ? `\n${requestNotes}` : ''}`;
+    createRequestMutation.mutate({ milkmanId: requestMilkman.id, services, customerNotes: notes });
+  };
 
   const handleJoinGroup = async () => {
     if (!groupCode || !groupPassword) {
@@ -268,12 +348,9 @@ export default function YDPageScreen({ navigation }: any) {
                 </View>
                 <TouchableOpacity
                   style={[styles.smallRequestBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => {
-                    setSelectedMilkman(m);
-                    setShowDetailsModal(true);
-                  }}
+                  onPress={() => openRequestModal(m)}
                 >
-                  <Text style={styles.smallRequestBtnText}>{t('view')}</Text>
+                  <Text style={styles.smallRequestBtnText}>Select</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -383,6 +460,94 @@ export default function YDPageScreen({ navigation }: any) {
             </View>
             <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: textColor }]} onPress={() => setShowDetailsModal(false)}>
               <Text style={[styles.modalSubmitBtnText, { color: surfaceColor }]}>{t('close')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Service Request Modal */}
+      <Modal visible={showRequestModal} animationType="slide" transparent={true} onRequestClose={() => setShowRequestModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor, maxHeight: '88%' }]}>
+            <View style={styles.modalTopRow}>
+              <Text style={[styles.modalTitleSmall, { color: textColor }]} numberOfLines={1}>
+                Request {requestMilkman?.businessName || 'Dairyman'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowRequestModal(false)}><X size={24} color={textColor} /></TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.inputLabel, { color: textColor }]}>Select Products</Text>
+              {(Array.isArray(requestMilkman?.dairyItems) ? requestMilkman.dairyItems : [])
+                .filter((i: any) => i.isAvailable !== false)
+                .map((item: any, idx: number) => {
+                  const qty = reqProducts[item.name] || 0;
+                  return (
+                    <View key={idx} style={[styles.reqProductRow, { borderColor }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.reqProductName, { color: textColor }]}>{item.name}</Text>
+                        <Text style={{ color: textMuted, fontSize: 12, fontFamily }}>₹{item.price}/{item.unit}</Text>
+                      </View>
+                      <View style={styles.reqQtyRow}>
+                        <TouchableOpacity
+                          style={[styles.reqQtyBtn, { borderColor }]}
+                          onPress={() => setReqProducts(p => ({ ...p, [item.name]: Math.max(0, (p[item.name] || 0) - 1) }))}
+                        >
+                          <Text style={[styles.reqQtyBtnText, { color: textColor }]}>−</Text>
+                        </TouchableOpacity>
+                        <Text style={[styles.reqQtyVal, { color: textColor }]}>{qty}</Text>
+                        <TouchableOpacity
+                          style={[styles.reqQtyBtn, { borderColor }]}
+                          onPress={() => setReqProducts(p => ({ ...p, [item.name]: (p[item.name] || 0) + 1 }))}
+                        >
+                          <Text style={[styles.reqQtyBtnText, { color: textColor }]}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              {(!requestMilkman?.dairyItems || requestMilkman.dairyItems.length === 0) && (
+                <Text style={{ color: textMuted, fontSize: 13, fontFamily, paddingVertical: 12 }}>
+                  This dairyman has not listed any products yet.
+                </Text>
+              )}
+
+              <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>Delivery Time</Text>
+              <View style={styles.reqSlotRow}>
+                {getDeliverySlots(requestMilkman).map((slot, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.reqSlotChip,
+                      { borderColor },
+                      selectedSlot === slot && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
+                    onPress={() => setSelectedSlot(slot)}
+                  >
+                    <Text style={[styles.reqSlotText, { color: selectedSlot === slot ? '#FFFFFF' : textColor }]}>{slot}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>Notes (optional)</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily, height: 70, textAlignVertical: 'top', paddingTop: 10 }]}
+                placeholder="Any special instructions"
+                placeholderTextColor={textMuted}
+                value={requestNotes}
+                onChangeText={setRequestNotes}
+                multiline
+              />
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]}
+              onPress={handleSendRequest}
+              disabled={createRequestMutation.isPending}
+            >
+              {createRequestMutation.isPending
+                ? <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.modalSubmitBtnText}>Send Request</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -526,4 +691,21 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   pendingSubtitle: { fontSize: 12, marginTop: 2 },
   pendingActionBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   pendingActionText: { fontSize: 13, fontWeight: '700' },
+
+  // Service request modal
+  reqProductRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: 1,
+  },
+  reqProductName: { fontSize: 15, fontWeight: '600', fontFamily: fontFamilyBold },
+  reqQtyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  reqQtyBtn: {
+    width: 32, height: 32, borderRadius: 16, borderWidth: 1,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  reqQtyBtnText: { fontSize: 18, fontWeight: '700' },
+  reqQtyVal: { fontSize: 15, fontWeight: '700', minWidth: 20, textAlign: 'center', fontFamily: fontFamilyBold },
+  reqSlotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  reqSlotChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+  reqSlotText: { fontSize: 13, fontWeight: '600', fontFamily },
 });
