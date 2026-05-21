@@ -216,10 +216,12 @@ export default function MilkmanDashboard() {
     refetchInterval: 3000, // Poll every 3 seconds for real-time updates
   });
 
-  // Fetch group chat messages for monthly orders
+  // Fetch group chat messages for monthly orders.
+  // The query function uses queryKey[0] verbatim as the URL, so the milkmanId
+  // must be part of the path string — not a separate array element.
   const { data: groupChatMessages } = useQuery<any[]>({
-    queryKey: ["/api/chat/group", milkmanProfile?.id],
-    enabled: !!milkmanProfile,
+    queryKey: [`/api/chat/group/${milkmanProfile?.id}`],
+    enabled: !!milkmanProfile?.id,
   });
 
   // Fetch pending COD payments for this milkman
