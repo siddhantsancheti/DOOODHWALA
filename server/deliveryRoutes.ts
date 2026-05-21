@@ -6,6 +6,7 @@ import { eq, and, asc, gt, desc, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { sendPushNotification } from "./services/fcmService";
 import { broadcastLocationUpdate } from "./websocket";
+import { nudgeCustomerToOrder, distanceMetres, PROXIMITY_THRESHOLD_M } from "./services/routeNotify";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -343,8 +344,87 @@ router.post("/location", async (req, res) => {
 
         res.json({ success: true, location: newLocation });
 
+        // ── Route-proximity nudge ────────────────────────────────────────────
+        // When the milkman reaches a delivery stop, nudge the NEXT customer in
+        // the optimised route to place their order (if they haven't already).
+        // Best-effort — runs after the response and never throws.
+        try {
+            const routeCustomers = await db
+                .select()
+                .from(customers)
+                .where(eq(customers.assignedMilkmanId, milkman.id))
+                .orderBy(asc(customers.routeOrder));
+
+            const curLat = parseFloat(latitude);
+            const curLng = parseFloat(longitude);
+
+            for (let i = 0; i < routeCustomers.length - 1; i++) {
+                const stop = routeCustomers[i];
+                if (!stop.latitude || !stop.longitude) continue;
+
+                const reached = distanceMetres(
+                    curLat, curLng,
+                    parseFloat(stop.latitude as string),
+                    parseFloat(stop.longitude as string)
+                ) <= PROXIMITY_THRESHOLD_M;
+
+                if (reached) {
+                    // Milkman has reached this stop — nudge the next customer.
+                    await nudgeCustomerToOrder(milkman, routeCustomers[i + 1]);
+                }
+            }
+        } catch (proxErr) {
+            console.error("Route proximity check failed:", proxErr);
+        }
+
     } catch (error) {
         console.error("Update milkman location error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: "Server error" });
+        }
+    }
+});
+
+// POST /api/delivery/start-route
+// Called when the milkman begins their delivery run — nudges the FIRST
+// customer in the optimised route to place their order if they haven't.
+router.post("/start-route", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+
+        const token = authHeader.split(" ")[1];
+        let decoded: any;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (e) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        const [milkman] = await db
+            .select()
+            .from(milkmen)
+            .where(eq(milkmen.userId, decoded.id))
+            .limit(1);
+
+        if (!milkman) {
+            return res.status(404).json({ message: "Milkman profile not found" });
+        }
+
+        const routeCustomers = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.assignedMilkmanId, milkman.id))
+            .orderBy(asc(customers.routeOrder));
+
+        let firstNudged = false;
+        if (routeCustomers.length > 0) {
+            firstNudged = await nudgeCustomerToOrder(milkman, routeCustomers[0]);
+        }
+
+        res.json({ success: true, stops: routeCustomers.length, firstCustomerNotified: firstNudged });
+    } catch (error) {
+        console.error("Start route error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });

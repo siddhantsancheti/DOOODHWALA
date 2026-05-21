@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "./db";
 import { chatMessages, users, orders, milkmen, products, notifications, customers } from "@shared/schema";
-import { eq, or, and, asc, desc, gt, gte, lt } from "drizzle-orm";
+import { eq, or, and, asc, desc, gt } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
+import { nudgeCustomerToOrder } from "./services/routeNotify";
 import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
@@ -409,9 +410,13 @@ router.post("/messages/:id/delivered", async (req, res) => {
             }
         }
 
-        // Check for next customer notification (Route Optimization)
+        // When a delivery is completed, nudge the NEXT customer in the route to
+        // place their order. This complements the GPS-proximity trigger in
+        // /api/delivery/location — whichever fires first wins, the shared
+        // nudgeCustomerToOrder helper dedups so the customer is nudged once.
         if (updatedMessage.customerId && updatedMessage.milkmanId) {
-            const [currentCustomer] = await db.select().from(customers).where(eq(customers.id, updatedMessage.customerId)).limit(1);
+            const [currentCustomer] = await db.select().from(customers)
+                .where(eq(customers.id, updatedMessage.customerId)).limit(1);
 
             if (currentCustomer && currentCustomer.routeOrder !== null) {
                 const [nextCustomer] = await db.select()
@@ -424,58 +429,10 @@ router.post("/messages/:id/delivered", async (req, res) => {
                     .limit(1);
 
                 if (nextCustomer) {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-
-                    const [nextOrder] = await db.select()
-                        .from(orders)
-                        .where(and(
-                            eq(orders.milkmanId, updatedMessage.milkmanId),
-                            eq(orders.customerId, nextCustomer.id),
-                            gte(orders.deliveryDate, today),
-                            lt(orders.deliveryDate, tomorrow)
-                        ))
-                        .limit(1);
-
-                    if (!nextOrder) {
-                        const [milkmanData] = await db.select().from(milkmen).where(eq(milkmen.id, updatedMessage.milkmanId)).limit(1);
-                        if (milkmanData) {
-                            await db.insert(chatMessages).values({
-                                milkmanId: updatedMessage.milkmanId,
-                                customerId: nextCustomer.id,
-                                senderId: milkmanData.userId,
-                                senderType: "milkman",
-                                message: "Hello! I am nearby (at the previous stop). Do you want to place an order today?",
-                                messageType: "text",
-                                isRead: false
-                            });
-
-                            await db.insert(notifications).values({
-                                userId: nextCustomer.userId,
-                                title: "Milkman Nearby",
-                                message: "Your milkman is at the previous stop. Place your order now if you haven't!",
-                                type: "proximity",
-                                isRead: false
-                            });
-
-                            const nextCustomerUser = await db.query.users.findFirst({
-                                where: eq(users.id, nextCustomer.userId)
-                            });
-
-                            if (nextCustomerUser && nextCustomerUser.fcmToken) {
-                                await sendPushNotification(
-                                    nextCustomerUser.fcmToken,
-                                    "Out for Delivery",
-                                    "Your milkman is at the previous stop! Get ready.",
-                                    {
-                                        type: 'order_status',
-                                        status: 'out_for_delivery'
-                                    }
-                                );
-                            }
-                        }
+                    const [milkmanData] = await db.select().from(milkmen)
+                        .where(eq(milkmen.id, updatedMessage.milkmanId)).limit(1);
+                    if (milkmanData) {
+                        await nudgeCustomerToOrder(milkmanData, nextCustomer);
                     }
                 }
             }

@@ -506,6 +506,11 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
         }
       );
       setIsBroadcasting(true);
+
+      // Notify the first customer in the route to place their order.
+      // Subsequent customers are nudged automatically as the milkman's GPS
+      // reaches each previous delivery stop.
+      apiRequest({ url: '/api/delivery/start-route', method: 'POST' }).catch(() => {});
     } catch (e) { console.error(e); }
   };
   const stopBroadcast = () => {
