@@ -71,6 +71,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [showLanguageSubmenu, setShowLanguageSubmenu] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const { logout } = useAuth();
 
   const languages: { code: Language; name: string; nativeName: string }[] = [
@@ -82,6 +83,18 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   const handleLogout = async () => {
     setShowSettingsDropdown(false);
     await logout();
+  };
+
+  // One-tap logout with confirmation, used by the direct top-bar button
+  const confirmLogout = () => {
+    Alert.alert(
+      t('logout') || 'Sign Out',
+      t('logoutConfirm') || 'Are you sure you want to sign out?',
+      [
+        { text: t('cancel') || 'Cancel', style: 'cancel' },
+        { text: t('logout') || 'Sign Out', style: 'destructive', onPress: () => logout() },
+      ]
+    );
   };
 
   // WebSocket for real-time updates
@@ -149,6 +162,21 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   const { data: customerPricings = [] } = useQuery<any[]>({
     queryKey: ["/api/customer-pricings"],
     enabled: !!milkmanProfile?.id,
+  });
+
+  // Notifications for the top-bar bell icon (with unread count).
+  const { data: notifications = [] } = useQuery<any[]>({
+    queryKey: ['/api/notifications'],
+    enabled: !!milkmanProfile,
+    refetchInterval: 30000, // poll every 30s so the badge stays fresh
+  });
+  const unreadNotifications = notifications.filter((n: any) => !n.isRead).length;
+
+  const markAllNotificationsReadMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest({ url: '/api/notifications/mark-all-read', method: 'PATCH' });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/notifications'] }),
   });
 
   const updateOrderStatusMutation = useMutation({
@@ -565,26 +593,55 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
               <Text style={[styles.businessName, { color: textColor, fontFamily: fontFamilyBold }]}>{milkmanProfile.businessName || t('imMilkman')}</Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: milkmanProfile.isAvailable ? (isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7') : (isDark ? 'rgba(239,68,68,0.1)' : '#FEE2E2'), borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 }}>
-              {isConnected ? <Wifi size={12} color="#16A34A" /> : <WifiOff size={12} color="#9CA3AF" />}
-              <Switch
-                value={!!milkmanProfile.isAvailable}
-                onValueChange={(v) => updateAvailabilityMutation.mutate(v)}
-                trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
-                thumbColor={milkmanProfile.isAvailable ? '#16A34A' : '#9CA3AF'}
-                style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-              />
-              <Text style={{ fontSize: 11, fontWeight: '700', color: milkmanProfile.isAvailable ? '#16A34A' : '#9CA3AF', fontFamily: fontFamilyBold }}>
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            {/* Notifications */}
+            <TouchableOpacity
+              style={[styles.headerIconBtn, { backgroundColor: surfaceColor, borderColor }]}
+              onPress={() => setShowNotificationsModal(true)}
+            >
+              <Bell size={20} color={textMuted} />
+              {unreadNotifications > 0 && (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>
+                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {/* Settings */}
+            <TouchableOpacity
+              style={[styles.headerIconBtn, { backgroundColor: surfaceColor, borderColor }]}
+              onPress={() => setShowSettingsDropdown(true)}
+            >
+              <Settings size={20} color={showSettingsDropdown ? colors.primary : textMuted} />
+            </TouchableOpacity>
+            {/* Logout */}
+            <TouchableOpacity
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2', borderColor: '#FCA5A5' }]}
+              onPress={confirmLogout}
+            >
+              <LogOut size={20} color="#DC2626" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Availability strip — moved below the header so the right-side
+            action buttons (notifications / settings / logout) are always
+            visible and never pushed off screen by this wider control. */}
+        <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, backgroundColor: milkmanProfile.isAvailable ? (isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7') : (isDark ? 'rgba(239,68,68,0.1)' : '#FEE2E2'), borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {isConnected ? <Wifi size={14} color="#16A34A" /> : <WifiOff size={14} color="#9CA3AF" />}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: milkmanProfile.isAvailable ? '#16A34A' : '#9CA3AF', fontFamily: fontFamilyBold }}>
                 {milkmanProfile.isAvailable ? t('active') : t('disabledLabel')}
               </Text>
             </View>
-            <TouchableOpacity 
-              style={[styles.settingsBtn, { backgroundColor: surfaceColor, borderColor }]} 
-              onPress={() => setShowSettingsDropdown(true)}
-            >
-              <Settings size={22} color={showSettingsDropdown ? colors.primary : textMuted} />
-            </TouchableOpacity>
+            <Switch
+              value={!!milkmanProfile.isAvailable}
+              onValueChange={(v) => updateAvailabilityMutation.mutate(v)}
+              trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
+              thumbColor={milkmanProfile.isAvailable ? '#16A34A' : '#9CA3AF'}
+            />
           </View>
         </View>
 
@@ -704,6 +761,70 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                 </>
               )}
             </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Notifications Modal */}
+        <Modal
+          visible={showNotificationsModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowNotificationsModal(false)}
+        >
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
+            activeOpacity={1}
+            onPress={() => setShowNotificationsModal(false)}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={{ backgroundColor: surfaceColor, maxHeight: '75%', borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }}
+            >
+              <View style={{ paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: borderColor, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Bell size={20} color={textColor} />
+                  <Text style={{ fontSize: 17, fontWeight: '700', color: textColor, fontFamily: fontFamilyBold }}>
+                    {t('notifications') || 'Notifications'}
+                  </Text>
+                  {unreadNotifications > 0 && (
+                    <View style={{ backgroundColor: '#DC2626', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>{unreadNotifications}</Text>
+                    </View>
+                  )}
+                </View>
+                {unreadNotifications > 0 && (
+                  <TouchableOpacity onPress={() => markAllNotificationsReadMutation.mutate()}>
+                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600', fontFamily }}>
+                      {t('markAllRead') || 'Mark all read'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView style={{ maxHeight: 500 }}>
+                {notifications.length === 0 ? (
+                  <View style={{ padding: 40, alignItems: 'center' }}>
+                    <Bell size={36} color={textMuted} />
+                    <Text style={{ color: textMuted, marginTop: 12, fontSize: 14, fontFamily }}>
+                      {t('noNotifications') || 'No notifications yet'}
+                    </Text>
+                  </View>
+                ) : (
+                  notifications.map((n: any) => (
+                    <View key={n.id} style={[styles.notifItem, { borderBottomColor: borderColor, backgroundColor: n.isRead ? 'transparent' : (isDark ? 'rgba(37,99,235,0.08)' : '#EFF6FF') }]}>
+                      <View style={[styles.notifDot, { backgroundColor: n.isRead ? '#9CA3AF' : '#2563EB' }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.notifTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{n.title}</Text>
+                        <Text style={[styles.notifBody, { color: textMuted, fontFamily }]}>{n.message}</Text>
+                        <Text style={[styles.notifTime, { color: textMuted, fontFamily }]}>
+                          {n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
 
@@ -1732,6 +1853,33 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     borderRadius: 22, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1,
   },
+  // Compact header buttons (notifications / settings / logout) — sit on the
+  // right side of the top bar in a row so all three are always visible.
+  headerIconBtn: {
+    width: 38, height: 38,
+    borderRadius: 19, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, position: 'relative',
+  },
+  headerBadge: {
+    position: 'absolute', top: -3, right: -3,
+    backgroundColor: '#DC2626', borderRadius: 10,
+    minWidth: 18, height: 18, paddingHorizontal: 4,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#FFFFFF',
+  },
+  headerBadgeText: {
+    color: '#FFFFFF', fontSize: 10, fontWeight: '700', lineHeight: 12,
+  },
+  // Notifications modal list items
+  notifItem: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  notifDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+  notifTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  notifBody: { fontSize: 13, lineHeight: 18 },
+  notifTime: { fontSize: 11, marginTop: 4 },
 
   // Hero Card
   heroCard: {
