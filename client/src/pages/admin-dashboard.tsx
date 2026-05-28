@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -62,6 +63,7 @@ interface Milkman {
   verified: boolean;
   rating: string;
   totalReviews: number;
+  commissionPercentage?: string | null;
 }
 
 interface Order {
@@ -91,6 +93,9 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  // Local draft input per milkman row for the commission % field, keyed by id
+  const [commissionDrafts, setCommissionDrafts] = useState<Record<number, string>>({});
+  const [savingCommission, setSavingCommission] = useState<Record<number, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -138,6 +143,41 @@ export default function AdminDashboard() {
         description: error.message || "Failed to update verification status",
         variant: "destructive",
       });
+    }
+  };
+
+  const updateMilkmanCommission = async (milkmanId: number) => {
+    const draft = commissionDrafts[milkmanId];
+    const percentage = parseFloat(draft);
+    if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+      toast({
+        title: "Invalid percentage",
+        description: "Enter a number between 0 and 100",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavingCommission((s) => ({ ...s, [milkmanId]: true }));
+    try {
+      await apiRequest(`/api/admin/milkmen/${milkmanId}/commission`, 'PATCH', { percentage });
+      await fetchDashboardData();
+      setCommissionDrafts((d) => {
+        const next = { ...d };
+        delete next[milkmanId];
+        return next;
+      });
+      toast({
+        title: "Commission updated",
+        description: `Set to ${percentage}% — earnings will be tracked from now on`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update commission",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCommission((s) => ({ ...s, [milkmanId]: false }));
     }
   };
 
@@ -438,6 +478,7 @@ export default function AdminDashboard() {
                       <TableHead>Price/Liter</TableHead>
                       <TableHead>Rating</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Commission %</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -475,6 +516,40 @@ export default function AdminDashboard() {
                               {milkman.isAvailable ? 'Available' : 'Unavailable'}
                             </Badge>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.5"
+                              placeholder={milkman.commissionPercentage ?? '—'}
+                              value={commissionDrafts[milkman.id] ?? ''}
+                              onChange={(e) =>
+                                setCommissionDrafts((d) => ({ ...d, [milkman.id]: e.target.value }))
+                              }
+                              className="h-9 w-20"
+                              data-testid={`commission-input-${milkman.id}`}
+                            />
+                            <span className="text-sm text-gray-500">%</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                !commissionDrafts[milkman.id] ||
+                                !!savingCommission[milkman.id]
+                              }
+                              onClick={() => updateMilkmanCommission(milkman.id)}
+                            >
+                              {savingCommission[milkman.id] ? 'Saving…' : 'Set'}
+                            </Button>
+                          </div>
+                          {milkman.commissionPercentage != null && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Currently {milkman.commissionPercentage}%
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Button
