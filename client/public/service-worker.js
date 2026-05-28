@@ -1,212 +1,49 @@
-// Service Worker for DOOODHWALA - Offline Support
-// This enables offline functionality and caches assets for faster loading
+// Self-unregistering service worker — kill-switch.
+//
+// An earlier version of this app registered a service worker that
+// aggressively cached the SPA's static assets. After a Render redeploy
+// briefly returned 500 for those assets, the old SW cached the failures
+// and stranded users on a blank page, surviving hard refreshes.
+//
+// This replacement does the opposite: on activation it deletes every
+// cache it can see, unregisters itself, and forces every controlled tab
+// to reload from the network. Any browser that fetches /service-worker.js
+// from this point on installs THIS file, which then evicts itself
+// permanently. New visitors are never registered for a service worker
+// at all because the React code no longer calls .register().
 
-const CACHE_NAME = 'dooodhwala-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-];
-
-// Install event - cache essential assets
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS);
-    }).then(() => {
-      // Skip waiting and activate immediately
-      self.skipWaiting();
-    })
-  );
-});
-
-// Activate event - cleanup old caches
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
-  
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((cacheName) => cacheName !== CACHE_NAME)
-          .map((cacheName) => {
-            console.log(`[SW] Deleting old cache: ${cacheName}`);
-            return caches.delete(cacheName);
-          })
-      );
-    }).then(() => {
-      // Take control of all pages immediately
-      self.clients.claim();
-    })
-  );
-});
-
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Don't cache API requests or external resources
-  if (url.pathname.startsWith('/api') || url.origin !== self.location.origin) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Clone response for caching
-          const clonedResponse = response.clone();
-          
-          // Cache successful API responses for offline support
-          if (response.ok && request.method === 'GET') {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clonedResponse);
-            });
-          }
-          
-          return response;
-        })
-        .catch(() => {
-          // Return cached response if network fails
-          return caches.match(request).then((response) => {
-            if (response) {
-              console.log(`[SW] Serving from cache: ${request.url}`);
-              return response;
-            }
-            
-            // Return offline page if no cache
-            if (request.destination === 'document') {
-              return caches.match('/index.html');
-            }
-            
-            throw new Error('Network request failed and no cache available');
-          });
-        })
-    );
-    return;
-  }
-
-  // Network first for HTML/app files
-  if (request.destination === 'document') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful responses
-          if (response.ok) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, response.clone());
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cache
-          return caches.match(request);
-        })
-    );
-    return;
-  }
-
-  // Cache first for other assets
-  event.respondWith(
-    caches.match(request).then((response) => {
-      if (response) {
-        return response;
-      }
-
-      return fetch(request).then((response) => {
-        // Cache successful responses
-        if (!response || response.status !== 200 || request.method !== 'GET') {
-          return response;
-        }
-
-        const clonedResponse = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, clonedResponse);
-        });
-
-        return response;
-      });
-    })
-  );
-});
-
-// Message handler for cache updates
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
+self.addEventListener('install', () => {
     self.skipWaiting();
-  }
-  
-  if (event.data?.type === 'CLEAR_CACHE') {
-    caches.delete(CACHE_NAME).then(() => {
-      console.log('[SW] Cache cleared');
-    });
-  }
 });
 
-// Handle background sync for offline actions
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-orders') {
-    event.waitUntil(
-      // Sync pending orders when connection is restored
-      fetch('/api/sync-pending-orders', { method: 'POST' })
-        .then((response) => response.json())
-        .then((data) => {
-          console.log('[SW] Orders synced:', data);
-          
-          // Notify clients that sync is complete
-          self.clients.matchAll().then((clients) => {
+self.addEventListener('activate', (event) => {
+    event.waitUntil((async () => {
+        try {
+            const names = await caches.keys();
+            await Promise.all(names.map((n) => caches.delete(n)));
+        } catch (e) {
+            // ignore — best-effort cleanup
+        }
+        try {
+            await self.registration.unregister();
+        } catch (e) {
+            // ignore
+        }
+        try {
+            const clients = await self.clients.matchAll({ type: 'window' });
             clients.forEach((client) => {
-              client.postMessage({
-                type: 'SYNC_COMPLETE',
-                tag: 'sync-orders',
-                success: true,
-              });
+                // Reload each controlled tab so the user sees fresh content
+                // immediately instead of the stranded blank page.
+                client.navigate(client.url);
             });
-          });
-        })
-        .catch((error) => {
-          console.error('[SW] Sync failed:', error);
-          
-          // Notify clients of failure
-          self.clients.matchAll().then((clients) => {
-            clients.forEach((client) => {
-              client.postMessage({
-                type: 'SYNC_COMPLETE',
-                tag: 'sync-orders',
-                success: false,
-              });
-            });
-          });
-        })
-    );
-  }
+        } catch (e) {
+            // ignore
+        }
+    })());
 });
 
-// Periodic background sync for keeping data fresh
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'update-orders') {
-    event.waitUntil(
-      fetch('/api/orders', { method: 'GET' })
-        .then((response) => response.json())
-        .then((data) => {
-          // Cache the updated orders
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put('/api/orders', new Response(JSON.stringify(data)));
-          });
-          
-          // Notify clients of update
-          self.clients.matchAll().then((clients) => {
-            clients.forEach((client) => {
-              client.postMessage({
-                type: 'ORDERS_UPDATED',
-                data,
-              });
-            });
-          });
-        })
-    );
-  }
+// While this worker is briefly alive, pass every fetch straight through
+// to the network — never serve from cache.
+self.addEventListener('fetch', (event) => {
+    event.respondWith(fetch(event.request));
 });
-
-console.log('[SW] Service Worker loaded');
