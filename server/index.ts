@@ -15,24 +15,38 @@ app.set('trust proxy', 1);
 app.use(helmet({
     contentSecurityPolicy: false, // typically disabled for Vite dev server / dynamic apps unless configured carefully
 }));
+// Origins that may make credentialed cross-origin requests (e.g. cookies / Authorization).
+// Same-origin requests still come through here because Vite tags every asset
+// with `crossorigin`, which forces the browser to send an Origin header even
+// for assets served from the very same host — so the production hosts must
+// be on this list or every static asset fetch will be rejected.
 const allowedOrigins = [
+    "https://dooodhwala-server.onrender.com",
     "https://dooodhwala-production-0667.up.railway.app",
     "https://dooodhwala.com",
+    "https://www.dooodhwala.com",
     "http://localhost:5001",
     "http://localhost:5173",
     "http://localhost:19006",
-    "http://127.0.0.1:19006"
+    "http://127.0.0.1:19006",
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps, curl requests)
+        // No Origin header (server-to-server, curl, native mobile app, same-origin
+        // navigation) — allow.
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        // Allow any *.onrender.com host so preview deploys and the primary
+        // service URL both work without needing to maintain an exact list.
+        try {
+            const host = new URL(origin).hostname;
+            if (host.endsWith(".onrender.com")) return callback(null, true);
+        } catch { /* malformed Origin — fall through */ }
+        // Unknown origin: deny CORS headers, but do NOT throw. Throwing here
+        // surfaces as a 500 from the JSON error handler, which is what was
+        // breaking static asset loads in production.
+        return callback(null, false);
     },
     credentials: true,
 }));
