@@ -186,9 +186,12 @@ export default function Login() {
         // Clear the OTP field to prevent resubmission
         setOtp("");
 
-        // Small delay to show success message, then navigate to user type selection
+        // Send the user to "/" — App.tsx routes them based on their actual
+        // userType (admin -> /admin, customer -> /customer, milkman -> /milkman,
+        // no userType -> /user-type-selection). The previous hardcoded
+        // /user-type-selection redirect sent admins through onboarding too.
         setTimeout(() => {
-          setLocation("/user-type-selection");
+          setLocation("/");
         }, 1000);
       } else {
         toast({

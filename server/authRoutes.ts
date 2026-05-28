@@ -73,9 +73,14 @@ router.post("/verify-otp", otpRateLimiter, verifyOtpLimiter, async (req, res) =>
         try {
             let [user] = await db.select().from(users).where(eq(users.phone, phone)).limit(1);
 
-            const formattedPhone = phone.replace(/\s+/g, '');
-            const adminPhone = process.env.ADMIN_PHONE || '8087906174';
-            const isAdmin = formattedPhone === `+91${adminPhone}` || formattedPhone === adminPhone;
+            // Match the admin phone by its last 10 digits so any input format
+            // (+91XXXXXXXXXX, 91XXXXXXXXXX, plain XXXXXXXXXX, with spaces)
+            // is normalised to the same key. Defaults to 8087906174 when the
+            // ADMIN_PHONE env var isn't set on Render.
+            const normalize = (p: string) => (p || "").replace(/\D/g, "").slice(-10);
+            const adminPhone = process.env.ADMIN_PHONE || "8087906174";
+            const isAdmin = normalize(phone) === normalize(adminPhone) && normalize(phone).length === 10;
+            if (isAdmin) console.log(`[Auth] Admin phone matched: ${normalize(phone)}`);
 
             if (!user) {
                 const userId = crypto.randomUUID();
