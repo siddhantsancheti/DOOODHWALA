@@ -11,6 +11,62 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 import { OTPService } from "./services/otpService";
+// Importing fcmService initializes the firebase-admin app (side effect) so we
+// can verify Firebase ID tokens for phone-auth login below.
+import * as admin from "firebase-admin";
+import "./services/fcmService";
+
+// Shared: find-or-create a user for a verified phone number and return our JWT.
+// Used by both the legacy OTP flow and Firebase phone-auth login.
+async function issueSessionForPhone(phone: string, res: any) {
+    const normalize = (p: string) => (p || "").replace(/\D/g, "").slice(-10);
+    const adminPhone = process.env.ADMIN_PHONE || "8087906174";
+    const isAdmin = normalize(phone) === normalize(adminPhone) && normalize(phone).length === 10;
+    if (isAdmin) console.log(`[Auth] Admin phone matched: ${normalize(phone)}`);
+
+    let [user] = await db.select().from(users).where(eq(users.phone, phone)).limit(1);
+    if (!user) {
+        const userId = crypto.randomUUID();
+        const digits = phone.replace(/\D/g, "").slice(-6);
+        const suffix = Math.random().toString(36).slice(2, 6);
+        const username = `user_${digits}_${suffix}`;
+        [user] = await db
+            .insert(users)
+            .values({ id: userId, phone, username, userType: isAdmin ? "admin" : null })
+            .returning();
+    } else if (isAdmin && user.userType !== "admin") {
+        [user] = await db.update(users).set({ userType: "admin" }).where(eq(users.id, user.id)).returning();
+    }
+
+    const token = jwt.sign({ id: user.id, phone: user.phone }, JWT_SECRET!, { expiresIn: "30d" });
+    return res.json({ success: true, message: "Login successful", accessToken: token, user });
+}
+
+// POST /api/auth/firebase-login
+// Exchanges a Firebase phone-auth ID token for our app JWT. Firebase (Google)
+// handles SMS delivery + verification; we just trust the verified token here.
+router.post("/firebase-login", async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ message: "idToken is required" });
+
+        let decoded: admin.auth.DecodedIdToken;
+        try {
+            decoded = await admin.auth().verifyIdToken(idToken);
+        } catch (err: any) {
+            console.error("[Auth] Firebase token verify failed:", err?.message);
+            return res.status(401).json({ message: "Invalid or expired Firebase token" });
+        }
+
+        const phone = decoded.phone_number;
+        if (!phone) return res.status(400).json({ message: "Token has no phone number" });
+
+        return await issueSessionForPhone(phone, res);
+    } catch (error: any) {
+        console.error("Firebase login error:", error);
+        return res.status(500).json({ message: "Server error during Firebase login" });
+    }
+});
 
 // Strict rate limit for OTP endpoints — 5 requests per 10 minutes per IP
 const otpRateLimiter = rateLimit({
