@@ -33,7 +33,16 @@ export function registerRoutes(app: Express): Server {
     app.use("/api/orders", authenticateToken, orderRoutes);
     app.use("/api/service-requests", authenticateToken, serviceRequestRoutes);
     app.use("/api/bills", authenticateToken, paymentRoutes); // Mapping bills to payment routes for now
-    app.use("/api/payments", authenticateToken, paymentRoutes);
+    // Payment gateway webhooks (Razorpay/Stripe) authenticate via their own
+    // signature header, NOT a JWT — exempt them from authenticateToken so the
+    // gateway's POSTs reach the signature-verifying handlers instead of 401ing.
+    const paymentsAuth = (req: any, res: any, next: any) => {
+        if (req.path.startsWith("/razorpay/webhook") || req.path.startsWith("/stripe/webhook")) {
+            return next();
+        }
+        return authenticateToken(req, res, next);
+    };
+    app.use("/api/payments", paymentsAuth, paymentRoutes);
     app.use("/api/delivery", authenticateToken, deliveryRoutes);
     app.use("/api/chat", authenticateToken, chatRoutes);
     app.use("/api/subscriptions", authenticateToken, subscriptionRoutes);
