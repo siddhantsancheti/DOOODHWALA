@@ -8,6 +8,60 @@ import { sendPushNotification } from "./fcmService";
 // a delivery stop. ~150 m comfortably covers arriving at a doorstep/building.
 export const PROXIMITY_THRESHOLD_M = 150;
 
+// Parse a "HH:MM" (24h) or "h:MM AM/PM" time string into minutes-of-day.
+function minutesOfDay(t?: string): number | null {
+    if (!t) return null;
+    const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = m[3]?.toUpperCase();
+    if (ap === "PM" && h < 12) h += 12;
+    if (ap === "AM" && h === 12) h = 0;
+    return h * 60 + min;
+}
+
+/**
+ * Determine which delivery slot the milkman is currently running and the
+ * earliest moment an order "counts" for that slot. For a milkman with both a
+ * morning and an evening slot, an order placed before the morning slot ends
+ * counts for the morning; one placed after counts for the evening. This lets
+ * the nudge be slot-specific instead of once-per-day.
+ */
+function currentSlotWindow(milkman: any): { name: string; start: Date } {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    let parsed: { name: string; start: number; end: number }[] = [];
+    const slots = Array.isArray(milkman?.deliverySlots) ? milkman.deliverySlots : [];
+    for (const s of slots) {
+        if (s?.isActive === false) continue;
+        const start = minutesOfDay(s?.startTime);
+        if (start == null) continue;
+        const end = minutesOfDay(s?.endTime) ?? start + 180;
+        parsed.push({ name: s?.name || "Delivery", start, end });
+    }
+    if (parsed.length === 0) {
+        const start = minutesOfDay(milkman?.deliveryTimeStart);
+        if (start != null) parsed.push({ name: "Delivery", start, end: minutesOfDay(milkman?.deliveryTimeEnd) ?? start + 180 });
+    }
+    // No usable slot info → fall back to whole-day window.
+    if (parsed.length === 0) return { name: "", start: todayStart };
+
+    parsed.sort((a, b) => a.start - b.start);
+    // The slot in play is the latest one whose window has started (small lead so
+    // a nudge fired shortly before the slot still maps to it). Default: first.
+    let idx = 0;
+    for (let i = 0; i < parsed.length; i++) {
+        if (nowMins >= parsed[i].start - 60) idx = i;
+    }
+    const lower = new Date(todayStart);
+    if (idx > 0) lower.setMinutes(parsed[idx - 1].end); // boundary = previous slot's end
+    return { name: parsed[idx].name, start: lower };
+}
+
 // Great-circle distance between two lat/lng points, in metres.
 export function distanceMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371000;
@@ -35,10 +89,14 @@ export async function nudgeCustomerToOrder(milkman: any, customer: any): Promise
     try {
         if (!milkman || !customer || !customer.id || !customer.userId) return false;
 
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        // Scope everything to the CURRENT delivery slot's window, so a milkman
+        // who delivers morning + evening nudges separately for each: an unplaced
+        // morning order is nudged in the morning, an unplaced evening order in
+        // the evening.
+        const slot = currentSlotWindow(milkman);
+        const slotStart = slot.start;
 
-        // Work out whose order "counts" for today. For a lone customer that's
+        // Work out whose order "counts" for this slot. For a lone customer that's
         // just them; for a household group it's ANY member — so once one member
         // places today's order, no member gets nudged for the rest of the day.
         let orderCustomerIds: number[] = [customer.id];
@@ -88,14 +146,14 @@ export async function nudgeCustomerToOrder(milkman: any, customer: any): Promise
                     eq(chatMessages.milkmanId, milkman.id),
                     eq(chatMessages.messageType, "order"),
                     eq(chatMessages.senderType, "customer"),
-                    gte(chatMessages.createdAt, todayStart)
+                    gte(chatMessages.createdAt, slotStart)
                 )
             )
             .limit(1);
         if (existingOrder) return false;
 
-        // Skip if this customer was already nudged today (dedup across both the
-        // GPS-proximity trigger and the delivery-completion trigger).
+        // Skip if this customer was already nudged within this slot's window
+        // (dedup across both the GPS-proximity and delivery-start triggers).
         const [alreadyNudged] = await db
             .select()
             .from(chatMessages)
@@ -105,14 +163,15 @@ export async function nudgeCustomerToOrder(milkman: any, customer: any): Promise
                     eq(chatMessages.milkmanId, milkman.id),
                     eq(chatMessages.messageType, "notification"),
                     eq(chatMessages.senderType, "milkman"),
-                    gte(chatMessages.createdAt, todayStart)
+                    gte(chatMessages.createdAt, slotStart)
                 )
             )
             .limit(1);
         if (alreadyNudged) return false;
 
+        const slotLabel = slot.name ? `${slot.name.toLowerCase()} ` : "";
         const text =
-            "🛵 Your milkman is one stop away! Please place your order now if you haven't already.";
+            `🛵 Your milkman is one stop away! Please place your ${slotLabel}order now if you haven't already.`;
 
         const [msg] = await db
             .insert(chatMessages)
@@ -130,7 +189,7 @@ export async function nudgeCustomerToOrder(milkman: any, customer: any): Promise
         await db.insert(notifications).values({
             userId: customer.userId,
             title: "Milkman Almost There",
-            message: "Your milkman is one stop away — place your order now!",
+            message: `Your milkman is one stop away — place your ${slotLabel}order now!`,
             type: "proximity",
             isRead: false,
         });
