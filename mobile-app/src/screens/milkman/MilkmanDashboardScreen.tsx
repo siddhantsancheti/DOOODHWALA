@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   CheckCircle, X, Phone, MessageCircle, MapPin, ChevronRight, TrendingUp, BarChart3, AlertCircle,
   Clock, Send, MessageSquare, Bell, Plus, IndianRupee, Edit, Trash2, Banknote, Receipt, Calendar, Wifi, WifiOff,
-  Moon, Sun, Languages, LogOut, Headset, Check, Truck, Settings, User, Navigation, Package, DollarSign, Users
+  Moon, Sun, Languages, LogOut, Headset, Check, Truck, Settings, User, Navigation, Package, DollarSign, Users, ClipboardList
 } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
@@ -46,6 +46,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   const [showDeliveriesModal, setShowDeliveriesModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showCustomersModal, setShowCustomersModal] = useState(false);
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [quotingServices, setQuotingServices] = useState<any>({});
   const [milkmanNotes, setMilkmanNotes] = useState("");
@@ -158,6 +159,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
     queryKey: ['/api/service-requests/milkman'],
     enabled: !!milkmanProfile,
   });
+  const pendingRequestsCount = serviceRequests.filter((r: any) => r.status === 'pending').length;
 
   const { data: customerPricings = [] } = useQuery<any[]>({
     queryKey: ["/api/customer-pricings"],
@@ -898,9 +900,29 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
             </View>
           </TouchableOpacity>
           
-          <TouchableOpacity 
-             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]} 
-             onPress={() => setShowInventoryModal(true)} 
+          {/* Accept Service Requests */}
+          <TouchableOpacity
+             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]}
+             onPress={() => setShowRequestsModal(true)}
+             activeOpacity={0.8}
+          >
+            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE' }]}>
+              <ClipboardList size={20} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>{pendingRequestsCount}</Text>
+              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('acceptServiceRequests') || 'Accept Service Requests'}</Text>
+            </View>
+            {pendingRequestsCount > 0 && (
+              <View style={{ backgroundColor: '#EF4444', minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: fontFamilyBold }}>{pendingRequestsCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]}
+             onPress={() => setShowInventoryModal(true)}
              activeOpacity={0.8}
           >
             <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(234, 179, 8, 0.2)' : '#FEF08A' }]}>
@@ -1292,6 +1314,87 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
               );
             })}
             {todaysOrders.length === 0 && <Text style={[styles.modalEmpty, { color: textMuted, fontFamily }]}>{t('noOrdersToday')}</Text>}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Service Requests Modal — accept & set pricing */}
+      <Modal visible={showRequestsModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
+            <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('acceptServiceRequests') || 'Service Requests'}</Text>
+            <TouchableOpacity onPress={() => setShowRequestsModal(false)} style={styles.closeBtn}>
+              <X size={24} color={textColor} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
+            {serviceRequests.filter((r: any) => r.status === 'pending').map((r: any) => {
+              // Price only the products the customer requested; fall back to the
+              // milkman's full product list if the request didn't carry items.
+              const requested = (Array.isArray(r.services) && r.services.length > 0)
+                ? r.services.map((s: any) => {
+                    const di = milkmanProfile.dairyItems?.find((d: any) => d.name === s.name);
+                    return { name: s.name, unit: s.unit || di?.unit || 'liter', price: di?.price ?? '' };
+                  })
+                : (milkmanProfile.dairyItems || []);
+              const editable = quotingServices[r.id] || requested;
+              return (
+                <View key={`req-${r.id}`} style={[styles.modalCard, { backgroundColor: surfaceColor, borderColor, padding: 16, marginBottom: 16 }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: '700', color: textColor, fontSize: 15, fontFamily: fontFamilyBold }}>{r.customerName || r.customer?.name || t('newCustomer')}</Text>
+                      <Text style={{ color: textMuted, fontSize: 12, marginTop: 2, fontFamily }}>{r.address || r.customer?.address}</Text>
+                      {r.customerNotes ? <Text style={{ color: textMuted, fontSize: 12, marginTop: 4, fontStyle: 'italic', fontFamily }}>{r.customerNotes}</Text> : null}
+                    </View>
+                    <View style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                      <Text style={{ color: '#2563EB', fontSize: 10, fontWeight: '700', fontFamily: fontFamilyBold }}>{t('newLabel') || 'NEW'}</Text>
+                    </View>
+                  </View>
+                  <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: borderColor, paddingTop: 12 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: textColor, marginBottom: 8, fontFamily: fontFamilyBold }}>{t('setCustomPricing') || 'Set pricing for requested products'}</Text>
+                    {editable.map((item: any, idx: number) => (
+                      <View key={`reqprice-${r.id}-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Text style={{ color: textMuted, fontSize: 13, fontFamily }}>{item.name}{item.unit ? ` / ${item.unit}` : ''}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text style={{ color: textMuted, fontSize: 12, fontFamily }}>₹</Text>
+                          <TextInput
+                            style={{ color: textColor, fontWeight: '700', borderBottomWidth: 1, borderColor, width: 50, textAlign: 'right', padding: 2, fontFamily: fontFamilyBold }}
+                            placeholder={String(item.price ?? '')}
+                            defaultValue={item.price != null ? String(item.price) : ''}
+                            keyboardType="numeric"
+                            onChangeText={(v) => {
+                              const updated = [...editable];
+                              updated[idx] = { ...updated[idx], price: v };
+                              setQuotingServices({ ...quotingServices, [r.id]: updated });
+                            }}
+                          />
+                        </View>
+                      </View>
+                    ))}
+                    {editable.length === 0 && (
+                      <Text style={{ color: textMuted, fontSize: 12, fontFamily }}>No products to price.</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.acceptButton, { marginTop: 16 }]}
+                    onPress={() => {
+                      const services = editable.map((i: any) => ({ name: i.name, unit: i.unit, price: i.price }));
+                      acceptSrMutation.mutate({ requestId: r.id, services });
+                      setShowRequestsModal(false);
+                    }}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontFamily: fontFamilyBold }}>{t('acceptEnroll') || 'Accept & Enroll'}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+            {pendingRequestsCount === 0 && (
+              <View style={[styles.emptyList, { backgroundColor: surfaceColor, borderColor }]}>
+                <ClipboardList size={32} color={textMuted} />
+                <Text style={[styles.emptyListTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('noPendingRequests') || 'No pending requests'}</Text>
+                <Text style={[styles.emptyListSub, { color: textMuted, fontFamily }]}>New service requests from customers will appear here.</Text>
+              </View>
+            )}
           </ScrollView>
         </View>
       </Modal>
