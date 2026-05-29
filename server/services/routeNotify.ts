@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { chatMessages, notifications, users } from "@shared/schema";
-import { eq, and, gte } from "drizzle-orm";
+import { chatMessages, notifications, users, familyChats, familyChatMembers, customers } from "@shared/schema";
+import { eq, and, gte, or, inArray } from "drizzle-orm";
 import { broadcast } from "../websocket";
 import { sendPushNotification } from "./fcmService";
 
@@ -38,13 +38,53 @@ export async function nudgeCustomerToOrder(milkman: any, customer: any): Promise
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
-        // Skip if the customer already placed an order in chat today.
+        // Work out whose order "counts" for today. For a lone customer that's
+        // just them; for a household group it's ANY member — so once one member
+        // places today's order, no member gets nudged for the rest of the day.
+        let orderCustomerIds: number[] = [customer.id];
+        let groupId: number | null = null;
+        try {
+            const memberships = await db
+                .select()
+                .from(familyChatMembers)
+                .where(eq(familyChatMembers.userId, customer.userId));
+            if (memberships.length) {
+                const chatIds = memberships.map((m) => m.chatId);
+                const [group] = await db
+                    .select()
+                    .from(familyChats)
+                    .where(and(inArray(familyChats.id, chatIds), eq(familyChats.isActive, true)))
+                    .limit(1);
+                if (group) {
+                    groupId = group.id;
+                    const members = await db
+                        .select()
+                        .from(familyChatMembers)
+                        .where(eq(familyChatMembers.chatId, group.id));
+                    const memberUserIds = members.map((m) => m.userId);
+                    const memberCustomers = await db
+                        .select()
+                        .from(customers)
+                        .where(inArray(customers.userId, memberUserIds));
+                    if (memberCustomers.length) orderCustomerIds = memberCustomers.map((c) => c.id);
+                }
+            }
+        } catch (e) {
+            console.error("[routeNotify] group lookup failed (falling back to single customer):", e);
+        }
+
+        // Skip if today's order has already been placed — by this customer, by
+        // any household-group member, or tagged to the group chat.
+        const orderedTodayWhere = groupId
+            ? or(inArray(chatMessages.customerId, orderCustomerIds), eq(chatMessages.familyChatId, groupId))
+            : eq(chatMessages.customerId, customer.id);
+
         const [existingOrder] = await db
             .select()
             .from(chatMessages)
             .where(
                 and(
-                    eq(chatMessages.customerId, customer.id),
+                    orderedTodayWhere,
                     eq(chatMessages.milkmanId, milkman.id),
                     eq(chatMessages.messageType, "order"),
                     eq(chatMessages.senderType, "customer"),
