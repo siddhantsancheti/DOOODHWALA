@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "./db";
-import { bills, payments, customers, chatMessages, smsQueue, notifications } from "@shared/schema";
-import { eq, desc, and, isNull, inArray } from "drizzle-orm";
+import { bills, payments, customers, chatMessages, smsQueue, notifications, familyChatMembers } from "@shared/schema";
+import { eq, desc, and, isNull, inArray, or } from "drizzle-orm";
 import Razorpay from "razorpay";
 import Stripe from "stripe";
 import crypto from "crypto";
@@ -240,10 +240,22 @@ router.get("/list", async (req: AuthRequest, res) => {
             return res.status(404).json({ message: "Customer profile not found" });
         }
 
+        // Individual bills for this customer + combined bills for any household
+        // group the caller belongs to (so any member sees & can pay the group bill).
+        const memberships = await db
+            .select()
+            .from(familyChatMembers)
+            .where(eq(familyChatMembers.userId, req.user!.id));
+        const groupIds = memberships.map((m) => m.chatId);
+
         const customerBills = await db
             .select()
             .from(bills)
-            .where(eq(bills.customerId, customer.id))
+            .where(
+                groupIds.length > 0
+                    ? or(eq(bills.customerId, customer.id), inArray(bills.familyChatId, groupIds))
+                    : eq(bills.customerId, customer.id),
+            )
             .orderBy(desc(bills.createdAt));
 
         const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
@@ -258,6 +270,7 @@ router.get("/list", async (req: AuthRequest, res) => {
                 month: monthNames[parseInt(month)] || b.billMonth || '',
                 year: year || '',
                 totalQuantity,
+                isGroupBill: b.familyChatId != null,
             };
         });
 

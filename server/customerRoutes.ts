@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "./db";
 import { customers, users, bills } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
+import { BillingService } from "./services/billingService";
 
 const router = Router();
 
@@ -259,6 +260,54 @@ const assignYdHandler = async (req: AuthRequest, res: any) => {
 
 router.post("/assign-yd", assignYdHandler);
 router.patch("/assign-yd", assignYdHandler);
+
+// POST /api/customers/finalize-bill
+// Generates/refreshes the final outstanding bill for the caller + their assigned
+// milkman so they can settle it before unassigning. Returns the pending bill
+// (or { bill: null } when nothing is due).
+router.post("/finalize-bill", async (req: AuthRequest, res) => {
+    try {
+        const userId = req.user!.id;
+
+        const [customer] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.userId, userId))
+            .limit(1);
+
+        if (!customer) {
+            return res.status(404).json({ message: "Customer profile not found" });
+        }
+        if (!customer.assignedMilkmanId) {
+            return res.status(400).json({ message: "No milkman assigned" });
+        }
+
+        // Roll all of this customer's order messages into a pending bill.
+        await BillingService.generateMonthlyBill(customer.assignedMilkmanId);
+
+        const [pendingBill] = await db
+            .select()
+            .from(bills)
+            .where(
+                and(
+                    eq(bills.customerId, customer.id),
+                    eq(bills.milkmanId, customer.assignedMilkmanId),
+                    eq(bills.status, "pending")
+                )
+            )
+            .orderBy(desc(bills.createdAt))
+            .limit(1);
+
+        if (!pendingBill || parseFloat(pendingBill.totalAmount) <= 0) {
+            return res.json({ bill: null, amount: 0 });
+        }
+
+        res.json({ bill: pendingBill, amount: parseFloat(pendingBill.totalAmount) });
+    } catch (error) {
+        console.error("Finalize bill error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
 // POST /api/customers/unassign-yd
 router.post("/unassign-yd", async (req: AuthRequest, res) => {

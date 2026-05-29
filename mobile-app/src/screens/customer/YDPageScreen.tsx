@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, useColorScheme, Modal, TextInput
 } from 'react-native';
-import { X, Heart, ArrowLeft, Clock, Settings, BarChart3, MessageCircle, Phone, Users, Plus, Star, Truck, ShoppingCart, Info } from 'lucide-react-native';
+import { X, Heart, ArrowLeft, Clock, Settings, BarChart3, MessageCircle, Phone, Users, Plus, Star, Truck, ShoppingCart, Info, CreditCard, LogOut, Copy, Check } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
@@ -31,18 +31,20 @@ export default function YDPageScreen({ navigation }: any) {
   
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'messages' | 'analytics'>('overview');
-  const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedMilkman, setSelectedMilkman] = useState<any>(null);
+  const [showChat, setShowChat] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [groupMode, setGroupMode] = useState<'join' | 'create'>('create');
+  const [groupName, setGroupName] = useState("");
   const [groupCode, setGroupCode] = useState("");
-  const [groupPassword, setGroupPassword] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+  const [discontinuing, setDiscontinuing] = useState(false);
 
-  // Service request modal state
+  // Service request modal state — products + time only (milkman sets price later)
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMilkman, setRequestMilkman] = useState<any>(null);
-  const [reqProducts, setReqProducts] = useState<Record<string, number>>({});
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState("");
   const [requestNotes, setRequestNotes] = useState("");
 
@@ -56,19 +58,12 @@ export default function YDPageScreen({ navigation }: any) {
     queryKey: ['/api/milkmen'], enabled: !!user,
   });
 
-  const removeMilkmanMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest({ url: '/api/customers/unassign-yd', method: 'POST' });
-    },
-    onSuccess: () => {
-      Alert.alert(t('dairymanRemoved'), t('dairymanRemoved'));
-      queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
-      setActiveTab('overview');
-    },
-    onError: (e: any) => Alert.alert(t('error'), e.message),
+  // The household group the customer belongs to (or null).
+  const { data: myGroup } = useQuery<any>({
+    queryKey: ['/api/groups/mine'], enabled: !!user,
   });
 
-  // Send a new service request to a milkman
+  // Send a new service request to a milkman (products + time only).
   const createRequestMutation = useMutation({
     mutationFn: async (body: any) => {
       const res = await apiRequest({ url: '/api/service-requests', method: 'POST', body });
@@ -77,12 +72,25 @@ export default function YDPageScreen({ navigation }: any) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/service-requests/customer'] });
       setShowRequestModal(false);
-      setReqProducts({});
+      setSelectedProducts([]);
       setSelectedSlot("");
       setRequestNotes("");
-      Alert.alert('Request Sent', 'Your service request was sent. The dairyman will respond shortly.');
+      Alert.alert('Request Sent', 'Your service request was sent. The dairyman will set a price and respond shortly.');
     },
     onError: (e: any) => Alert.alert(t('error'), e.message || 'Failed to send request'),
+  });
+
+  // Create a new household group for a milkman.
+  const createGroupMutation = useMutation({
+    mutationFn: async (body: any) => apiRequest({ url: '/api/groups', method: 'POST', body }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/groups/mine'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
+      setShowGroupModal(false);
+      setGroupName("");
+      Alert.alert('Group Created', 'Your household group is ready. Share the code with family members to let them join.');
+    },
+    onError: (e: any) => Alert.alert(t('error'), e.message || 'Failed to create group'),
   });
 
   // Real-time: refresh when the dairyman responds to a request.
@@ -91,6 +99,10 @@ export default function YDPageScreen({ navigation }: any) {
     const handler = (data: any) => {
       if (data.type === 'service_request_update') {
         queryClient.invalidateQueries({ queryKey: ['/api/service-requests/customer'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
+      }
+      if (data.type === 'group_discontinued') {
+        queryClient.invalidateQueries({ queryKey: ['/api/groups/mine'] });
         queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
       }
     };
@@ -112,22 +124,27 @@ export default function YDPageScreen({ navigation }: any) {
 
   const openRequestModal = (m: any) => {
     setRequestMilkman(m);
-    setReqProducts({});
+    setSelectedProducts([]);
     setRequestNotes("");
     const slots = getDeliverySlots(m);
     setSelectedSlot(slots[0] || "");
     setShowRequestModal(true);
   };
 
+  const toggleProduct = (name: string) => {
+    setSelectedProducts((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
+
   const handleSendRequest = () => {
     if (!requestMilkman) return;
     const items: any[] = Array.isArray(requestMilkman.dairyItems) ? requestMilkman.dairyItems : [];
-    const services = Object.entries(reqProducts)
-      .filter(([, q]) => (q as number) > 0)
-      .map(([name, q]) => {
-        const item = items.find((i: any) => i.name === name);
-        return { name, unit: item?.unit || 'liter', quantity: q, price: parseFloat(item?.price || 0) };
-      });
+    // Products + time only — no quantity, no price. Milkman decides price later.
+    const services = selectedProducts.map((name) => {
+      const item = items.find((i: any) => i.name === name);
+      return { name, unit: item?.unit || 'liter' };
+    });
     if (services.length === 0) {
       Alert.alert('Select Products', 'Please select at least one product.');
       return;
@@ -140,36 +157,101 @@ export default function YDPageScreen({ navigation }: any) {
     createRequestMutation.mutate({ milkmanId: requestMilkman.id, services, customerNotes: notes });
   };
 
-  const handleJoinGroup = async () => {
-    if (!groupCode || !groupPassword) {
-      Alert.alert(t('error'), t('fillRequired'));
+  // Create a household group for the currently-assigned (or chosen) milkman.
+  const handleCreateGroup = () => {
+    if (!groupName.trim()) {
+      Alert.alert('Group Name', 'Please enter a name for your group.');
       return;
     }
+    const milkmanId = customerProfile?.assignedMilkmanId || requestMilkman?.id;
+    if (!milkmanId) {
+      Alert.alert('Select a Dairyman', 'Get assigned to a dairyman first, then create a group.');
+      return;
+    }
+    createGroupMutation.mutate({ name: groupName.trim(), milkmanId });
+  };
 
+  // Join an existing household group by its share code.
+  const handleJoinGroup = async () => {
+    if (!groupCode.trim()) {
+      Alert.alert(t('error'), 'Please enter a group code.');
+      return;
+    }
     setIsJoining(true);
     try {
-      const milkmanIdMatch = groupCode.match(/^MILK(\d+)GRP$/);
-      if (!milkmanIdMatch) throw new Error("Invalid format: MILK{number}GRP");
-
-      const milkmanId = parseInt(milkmanIdMatch[1]);
-      const milkman = milkmen?.find((m: any) => m.id === milkmanId);
-      if (!milkman) throw new Error("Milkman not found");
-
-      const expectedPassword = `${milkman.businessName?.replace(/\s+/g, '').toLowerCase()}123`;
-      if (groupPassword !== expectedPassword) throw new Error("Invalid password");
-
-      await apiRequest({ url: "/api/customers/assign-yd", method: "PATCH", body: { milkmanId } });
-      Alert.alert("Success", "Successfully joined group!");
+      await apiRequest({ url: "/api/groups/join", method: "POST", body: { chatCode: groupCode.trim().toUpperCase() } });
+      Alert.alert("Success", "You've joined the household group!");
       queryClient.invalidateQueries({ queryKey: ["/api/customers/profile"] });
-      
+      queryClient.invalidateQueries({ queryKey: ["/api/groups/mine"] });
       setGroupCode("");
-      setGroupPassword("");
-      setShowJoinGroupModal(false);
+      setShowGroupModal(false);
     } catch (e: any) {
-      Alert.alert("Error", e.message);
+      Alert.alert("Error", e.message || 'Could not join group');
     } finally {
       setIsJoining(false);
     }
+  };
+
+  // Settle outstanding bill, then discontinue (unassign / delete group).
+  const handleDiscontinue = async () => {
+    setDiscontinuing(true);
+    try {
+      if (myGroup?.id) {
+        // Group: any member settles the combined bill, then group is deleted.
+        const billRes = await apiRequest({ url: `/api/groups/${myGroup.id}/bill`, method: 'GET' });
+        const bill: any = await billRes.json();
+        const amount = parseFloat(bill?.totalAmount || '0');
+        if (bill?.id && amount > 0) {
+          setShowSettingsModal(false);
+          navigation.navigate('Checkout', {
+            amount, orderId: `BILL_${bill.id}`, description: 'Final group settlement',
+            paymentType: 'consolidated', groupId: myGroup.id, unassignAfter: true,
+          });
+        } else {
+          await apiRequest({ url: `/api/groups/${myGroup.id}/discontinue`, method: 'POST' });
+          finishDiscontinue();
+        }
+      } else {
+        // Individual: settle final bill, then unassign.
+        const finRes = await apiRequest({ url: '/api/customers/finalize-bill', method: 'POST' });
+        const res: any = await finRes.json();
+        const amount = parseFloat(res?.amount || '0');
+        if (res?.bill?.id && amount > 0) {
+          setShowSettingsModal(false);
+          navigation.navigate('Checkout', {
+            amount, orderId: `BILL_${res.bill.id}`, description: 'Final settlement',
+            paymentType: 'single', unassignAfter: true,
+          });
+        } else {
+          await apiRequest({ url: '/api/customers/unassign-yd', method: 'POST' });
+          finishDiscontinue();
+        }
+      }
+    } catch (e: any) {
+      Alert.alert(t('error'), e.message || 'Could not discontinue');
+    } finally {
+      setDiscontinuing(false);
+    }
+  };
+
+  const finishDiscontinue = () => {
+    setShowSettingsModal(false);
+    queryClient.invalidateQueries({ queryKey: ['/api/customers/profile'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/groups/mine'] });
+    Alert.alert('Service Discontinued', 'You have been unassigned from this dairyman.');
+  };
+
+  const confirmDiscontinue = () => {
+    Alert.alert(
+      myGroup?.id ? 'Discontinue Group' : 'Unassign Dairyman',
+      myGroup?.id
+        ? 'This will settle the outstanding group bill, delete the group, and unassign the dairyman for ALL members. Continue?'
+        : 'This will settle any outstanding bill and then unassign your dairyman. Continue?',
+      [
+        { text: t('cancel'), style: 'cancel' },
+        { text: 'Continue', style: 'destructive', onPress: handleDiscontinue },
+      ]
+    );
   };
 
   if (profileLoading) {
@@ -234,11 +316,11 @@ export default function YDPageScreen({ navigation }: any) {
 
       {yourDairyman ? (
         <View style={styles.mainContainer}>
-          {/* Main Dairyman Card - Clickable to open chat */}
+          {/* Assigned dairyman — single button that opens the chat to place orders */}
           <TouchableOpacity
             style={[styles.premiumCard]}
             activeOpacity={0.9}
-            onPress={() => setActiveTab('messages')}
+            onPress={() => setShowChat(true)}
           >
             <View style={styles.cardHeader}>
               <View style={[styles.avatarContainer, { backgroundColor: isDark ? '#1E40AF40' : '#DBEAFE' }]}>
@@ -254,122 +336,106 @@ export default function YDPageScreen({ navigation }: any) {
                   {yourDairyman.businessName}
                 </Text>
                 <Text style={styles.tapToChatHint}>
-                  {t('clickToChatAndOrders') || "Click to chat and place daily orders"}
+                  {t('clickToChatAndOrders') || "Tap to chat & place daily orders"}
                 </Text>
               </View>
-              <View style={styles.headerActions}>
-                <TouchableOpacity
-                  style={styles.headerIconBtn}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    setShowDetailsModal(true);
-                  }}
-                >
-                  <Settings size={20} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.headerIconBtn}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    setActiveTab('analytics');
-                  }}
-                >
-                  <BarChart3 size={20} color={colors.primary} />
-                </TouchableOpacity>
-                <MessageCircle size={24} color={colors.primary} />
-              </View>
+              <MessageCircle size={28} color={colors.primary} />
             </View>
           </TouchableOpacity>
 
-          {/* Additional Actions Section */}
-          <View style={[styles.sectionContainer, { marginTop: 24 }]}>
-            <Text style={[styles.sectionTitle, { color: textColor }]}>
-              {t('additionalActions') || "Additional Actions"}
-            </Text>
-            <View style={styles.actionsGrid}>
-              <TouchableOpacity
-                style={[styles.bigActionBtn, { borderColor }]}
-                onPress={() => Linking.openURL(`tel:${yourDairyman.phone}`)}
-              >
-                <Phone size={22} color={textColor} />
-                <Text style={[styles.bigActionText, { color: textColor }]}>
-                  {t('callDairyman') || "Call Dairyman"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.bigActionBtn, { borderColor }]}
-                onPress={() => setShowJoinGroupModal(true)}
-              >
-                <Users size={22} color={textColor} />
-                <Text style={[styles.bigActionText, { color: textColor }]}>
-                  {t('joinGroup') || "Join Group"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+          {/* Settings + Pay Bills */}
+          <View style={styles.assignedActionsRow}>
+            <TouchableOpacity
+              style={[styles.assignedActionBtn, { borderColor, backgroundColor: surfaceColor }]}
+              onPress={() => setShowSettingsModal(true)}
+            >
+              <Settings size={20} color={textColor} />
+              <Text style={[styles.assignedActionText, { color: textColor }]}>Settings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.assignedActionBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+              onPress={() => navigation.navigate('Bills')}
+            >
+              <CreditCard size={20} color="#FFFFFF" />
+              <Text style={[styles.assignedActionText, { color: '#FFFFFF' }]}>Pay Bills</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Discover More Section */}
-          <View style={[styles.sectionContainer, { marginTop: 24 }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: textColor }]}>
-                {t('discoverMore')}
-              </Text>
-              <TouchableOpacity onPress={() => Alert.alert("Search", "Browse more milkmen in your city.")}>
-                <Plus size={20} color={colors.primary} />
+          {/* Household group banner / create-join entry */}
+          {myGroup?.id ? (
+            <View style={[styles.groupBanner, { backgroundColor: isDark ? '#064E3B30' : '#ECFDF5', borderColor: isDark ? '#065F46' : '#A7F3D0' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Users size={18} color="#10B981" />
+                <Text style={[styles.groupBannerTitle, { color: textColor }]}>{myGroup.chatName}</Text>
+                <View style={[styles.groupCountPill, { backgroundColor: isDark ? '#065F46' : '#D1FAE5' }]}>
+                  <Text style={styles.groupCountText}>{myGroup.memberCount || myGroup.members?.length || 1} members</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.groupCodeRow}
+                onPress={() => Alert.alert('Group Code', `Share this code with family members so they can join:\n\n${myGroup.chatCode}`)}
+              >
+                <Text style={[styles.groupCodeLabel, { color: textMuted }]}>Share code:</Text>
+                <Text style={[styles.groupCodeValue, { color: colors.primary }]}>{myGroup.chatCode}</Text>
+                <Copy size={14} color={colors.primary} />
               </TouchableOpacity>
             </View>
-          </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.bigActionBtn, { borderColor, marginTop: 16 }]}
+              onPress={() => { setGroupMode('create'); setShowGroupModal(true); }}
+            >
+              <Users size={22} color={textColor} />
+              <Text style={[styles.bigActionText, { color: textColor }]}>Create / Join household group</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Call dairyman */}
+          <TouchableOpacity
+            style={[styles.bigActionBtn, { borderColor, marginTop: 12 }]}
+            onPress={() => Linking.openURL(`tel:${yourDairyman.phone}`)}
+          >
+            <Phone size={22} color={textColor} />
+            <Text style={[styles.bigActionText, { color: textColor }]}>{t('callDairyman') || "Call Dairyman"}</Text>
+          </TouchableOpacity>
         </View>
       ) : (
-        <View style={styles.emptyState}>
-          <Heart size={48} color={colors.primary} style={{ marginBottom: 16 }} />
-          <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noDoodhwalaAssigned')}</Text>
-          <Text style={[styles.emptySubtitle, { color: textMuted }]}>{t('joinGroupDesc')}</Text>
-          <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: colors.primary }]} onPress={() => setShowJoinGroupModal(true)}>
-            <Text style={styles.mainActionBtnText}>{t('joinNow')}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        <>
+          <View style={styles.emptyState}>
+            <Heart size={48} color={colors.primary} style={{ marginBottom: 16 }} />
+            <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noDoodhwalaAssigned')}</Text>
+            <Text style={[styles.emptySubtitle, { color: textMuted }]}>Join a household group with a code, or pick a dairyman below to get started.</Text>
+            <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: colors.primary }]} onPress={() => { setGroupMode('join'); setShowGroupModal(true); }}>
+              <Text style={styles.mainActionBtnText}>Join with Code</Text>
+            </TouchableOpacity>
+          </View>
 
-      {unassignedMilkmen.length > 0 && (
-        <View style={{ marginTop: 8 }}>
-          {unassignedMilkmen.map((m: any) => (
-            <View key={m.id} style={[styles.milkmanCard, { backgroundColor: surfaceColor, borderColor }]}>
-              <View style={styles.milkmanTop}>
-                <View style={[styles.milkmanAvatarSmall, { backgroundColor: isDark ? '#4B5563' : '#F3E8FF' }]}>
-                  <Truck size={18} color="#9333EA" />
+          {unassignedMilkmen.length > 0 && (
+            <View style={{ marginTop: 8 }}>
+              {unassignedMilkmen.map((m: any) => (
+                <View key={m.id} style={[styles.milkmanCard, { backgroundColor: surfaceColor, borderColor }]}>
+                  <View style={styles.milkmanTop}>
+                    <View style={[styles.milkmanAvatarSmall, { backgroundColor: isDark ? '#4B5563' : '#F3E8FF' }]}>
+                      <Truck size={18} color="#9333EA" />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[styles.milkmanTitle, { color: textColor }]}>{m.businessName}</Text>
+                      <Text style={{ color: textMuted, fontSize: 13 }}>
+                        <Star size={12} color="#EAB308" fill="#EAB308" /> {m.rating || "4.5"}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.smallRequestBtn, { backgroundColor: colors.primary }]}
+                      onPress={() => openRequestModal(m)}
+                    >
+                      <Text style={styles.smallRequestBtnText}>Select</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[styles.milkmanTitle, { color: textColor }]}>{m.businessName}</Text>
-                  <Text style={{ color: textMuted, fontSize: 13 }}>
-                    <Star size={12} color="#EAB308" fill="#EAB308" /> {m.rating || "4.5"} • ₹{m.pricePerLiter}/L
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.smallRequestBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => openRequestModal(m)}
-                >
-                  <Text style={styles.smallRequestBtnText}>Select</Text>
-                </TouchableOpacity>
-              </View>
+              ))}
             </View>
-          ))}
-        </View>
-      )}
-
-      {yourDairyman && (
-        <TouchableOpacity
-          style={{ marginTop: 32, alignSelf: 'center' }}
-          onPress={() => {
-            Alert.alert(t('removeDairyman'), t('removeDairymanDesc'), [
-              { text: t('cancel'), style: 'cancel' },
-              { text: t('decline'), style: 'destructive', onPress: () => removeMilkmanMutation.mutate() }
-            ]);
-          }}
-        >
-          <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '600', fontFamily }}>{t('unassignDairyman')}</Text>
-        </TouchableOpacity>
+          )}
+        </>
       )}
     </ScrollView>
   );
@@ -388,81 +454,134 @@ export default function YDPageScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs directly integrated as in web app */}
-      <View style={[styles.tabBar, { borderBottomColor: borderColor, backgroundColor: surfaceColor }]}>
-        <TouchableOpacity style={[styles.tabItem, activeTab === 'overview' && styles.activeTabItem]} onPress={() => setActiveTab('overview')}>
-          <Info size={18} color={activeTab === 'overview' ? colors.primary : textMuted} />
-          <Text style={[styles.tabItemText, { color: activeTab === 'overview' ? colors.primary : textMuted }]}>{t('summary')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tabItem, activeTab === 'messages' && styles.activeTabItem]} onPress={() => setActiveTab('messages')}>
-          <MessageCircle size={18} color={activeTab === 'messages' ? colors.primary : textMuted} />
-          <Text style={[styles.tabItemText, { color: activeTab === 'messages' ? colors.primary : textMuted }]}>{t('messages')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tabItem, activeTab === 'analytics' && styles.activeTabItem]} onPress={() => setActiveTab('analytics')}>
-          <BarChart3 size={18} color={activeTab === 'analytics' ? colors.primary : textMuted} />
-          <Text style={[styles.tabItemText, { color: activeTab === 'analytics' ? colors.primary : textMuted }]}>{t('analytics')}</Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={{ flex: 1 }}>
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'messages' && (
-          yourDairyman ? (
+        {showChat && yourDairyman ? (
+          <View style={{ flex: 1 }}>
+            <View style={[styles.chatHeader, { borderBottomColor: borderColor, backgroundColor: surfaceColor }]}>
+              <TouchableOpacity onPress={() => setShowChat(false)} style={styles.chatBackBtn}>
+                <ArrowLeft size={22} color={textColor} />
+              </TouchableOpacity>
+              <Text style={[styles.chatHeaderTitle, { color: textColor }]} numberOfLines={1}>
+                {yourDairyman.businessName}
+              </Text>
+              <View style={{ width: 22 }} />
+            </View>
             <ChatComponent customerId={customerProfile?.id} milkmanId={assignedMilkmanId} embedded={true} navigation={navigation} />
-          ) : (
-            <View style={styles.centered}><Text style={{ color: textMuted, fontFamily }}>{t('assignToChat')}</Text></View>
-          )
-        )}
-        {activeTab === 'analytics' && (
-          yourDairyman ? (
-            <AnalyticsComponent milkman={yourDairyman} />
-          ) : (
-            <View style={styles.centered}><Text style={{ color: textMuted, fontFamily }}>{t('assignForAnalytics')}</Text></View>
-          )
+          </View>
+        ) : (
+          renderOverview()
         )}
       </View>
 
-      {/* Join Group Modal */}
-      <Modal visible={showJoinGroupModal} animationType="slide" transparent={true} onRequestClose={() => setShowJoinGroupModal(false)}>
+      {/* Group Modal (Create / Join) */}
+      <Modal visible={showGroupModal} animationType="slide" transparent={true} onRequestClose={() => setShowGroupModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor }]}>
             <View style={styles.modalTopRow}>
-              <Text style={[styles.modalTitleSmall, { color: textColor }]}>{t('joinGroup')}</Text>
-              <TouchableOpacity onPress={() => setShowJoinGroupModal(false)}><X size={24} color={textColor} /></TouchableOpacity>
+              <Text style={[styles.modalTitleSmall, { color: textColor }]}>Household Group</Text>
+              <TouchableOpacity onPress={() => setShowGroupModal(false)}><X size={24} color={textColor} /></TouchableOpacity>
+            </View>
+
+            {/* Create / Join toggle */}
+            <View style={[styles.segmentRow, { borderColor }]}>
+              <TouchableOpacity
+                style={[styles.segmentBtn, groupMode === 'create' && { backgroundColor: colors.primary }]}
+                onPress={() => setGroupMode('create')}
+              >
+                <Text style={[styles.segmentText, { color: groupMode === 'create' ? '#FFF' : textColor }]}>Create</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segmentBtn, groupMode === 'join' && { backgroundColor: colors.primary }]}
+                onPress={() => setGroupMode('join')}
+              >
+                <Text style={[styles.segmentText, { color: groupMode === 'join' ? '#FFF' : textColor }]}>Join</Text>
+              </TouchableOpacity>
+            </View>
+
+            {groupMode === 'create' ? (
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: textColor }]}>Group Name</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily }]}
+                  placeholder="e.g. Sharma Family" placeholderTextColor={textMuted}
+                  value={groupName} onChangeText={setGroupName}
+                />
+                <Text style={{ color: textMuted, fontSize: 12, marginTop: 8, fontFamily }}>
+                  Creates a shared group for {customerProfile?.assignedMilkmanId ? 'your dairyman' : 'the dairyman you select'}. All members order into one chat and share one monthly bill.
+                </Text>
+                <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]} onPress={handleCreateGroup} disabled={createGroupMutation.isPending}>
+                  {createGroupMutation.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalSubmitBtnText}>Create Group</Text>}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: textColor }]}>Group Code</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily }]}
+                  placeholder="e.g. GRP7QX" placeholderTextColor={textMuted}
+                  value={groupCode} onChangeText={setGroupCode} autoCapitalize="characters"
+                />
+                <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]} onPress={handleJoinGroup} disabled={isJoining}>
+                  {isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalSubmitBtnText}>Join Group</Text>}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Settings Modal (details + analytics + discontinue) */}
+      <Modal visible={showSettingsModal} animationType="slide" transparent={true} onRequestClose={() => setShowSettingsModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor }]}>
+            <View style={styles.modalTopRow}>
+              <Text style={[styles.modalTitleSmall, { color: textColor }]}>Settings</Text>
+              <TouchableOpacity onPress={() => setShowSettingsModal(false)}><X size={24} color={textColor} /></TouchableOpacity>
             </View>
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: textColor }]}>{t('groupCode')}</Text>
-              <TextInput style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily }]} placeholder="e.g. MILK1GRP" placeholderTextColor={textMuted} value={groupCode} onChangeText={setGroupCode} autoCapitalize="characters" />
-              <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>{t('password')}</Text>
-              <TextInput style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily }]} placeholder="e.g. businessname123" placeholderTextColor={textMuted} value={groupPassword} onChangeText={setGroupPassword} secureTextEntry />
+              <View style={styles.infoRow}><Text style={styles.infoLabel}>{t('business')}</Text><Text style={[styles.infoValue, { color: textColor }]}>{yourDairyman?.businessName}</Text></View>
+              <View style={styles.infoRow}><Text style={styles.infoLabel}>{t('contact')}</Text><Text style={[styles.infoValue, { color: textColor }]}>{yourDairyman?.contactName}</Text></View>
+              <View style={styles.infoRow}><Text style={styles.infoLabel}>{t('time')}</Text><Text style={[styles.infoValue, { color: textColor }]}>{yourDairyman?.deliveryTimeStart} - {yourDairyman?.deliveryTimeEnd}</Text></View>
+              <View style={[styles.infoRow, { borderBottomWidth: 0 }]}><Text style={styles.infoLabel}>{t('address')}</Text><Text style={[styles.infoValue, { color: textColor, textAlign: 'right', flex: 1, marginLeft: 20 }]}>{yourDairyman?.address}</Text></View>
             </View>
-            <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]} onPress={handleJoinGroup} disabled={isJoining}>
-              {isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalSubmitBtnText}>{t('joinNow')}</Text>}
+
+            <TouchableOpacity
+              style={[styles.bigActionBtn, { borderColor, marginTop: 4 }]}
+              onPress={() => { setShowSettingsModal(false); setShowAnalyticsModal(true); }}
+            >
+              <BarChart3 size={20} color={textColor} />
+              <Text style={[styles.bigActionText, { color: textColor }]}>{t('analytics') || 'Analytics'}</Text>
+            </TouchableOpacity>
+
+            {/* Mandatory: discontinue / unassign */}
+            <TouchableOpacity
+              style={[styles.discontinueBtn]}
+              onPress={confirmDiscontinue}
+              disabled={discontinuing}
+            >
+              {discontinuing ? <ActivityIndicator color="#EF4444" /> : (
+                <>
+                  <LogOut size={18} color="#EF4444" />
+                  <Text style={styles.discontinueText}>{myGroup?.id ? 'Discontinue Group' : 'Unassign Dairyman'}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Details Modal */}
-      <Modal visible={showDetailsModal} animationType="fade" transparent={true} onRequestClose={() => setShowDetailsModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor }]}>
-            <View style={styles.modalTopRow}>
-              <Text style={[styles.modalTitleSmall, { color: textColor }]}>{t('dairymanDetails')}</Text>
-              <TouchableOpacity onPress={() => setShowDetailsModal(false)}><X size={24} color={textColor} /></TouchableOpacity>
-            </View>
-            <View style={styles.inputContainer}>
-              <View style={styles.infoRow}><Text style={styles.infoLabel}>{t('business')}</Text><Text style={[styles.infoValue, { color: textColor }]}>{selectedMilkman?.businessName || yourDairyman?.businessName}</Text></View>
-              <View style={styles.infoRow}><Text style={styles.infoLabel}>{t('contact')}</Text><Text style={[styles.infoValue, { color: textColor }]}>{selectedMilkman?.contactName || yourDairyman?.contactName}</Text></View>
-              <View style={styles.infoRow}><Text style={styles.infoLabel}>{t('pricePerLiterShort')}</Text><Text style={[styles.infoValue, { color: textColor }]}>₹{selectedMilkman?.pricePerLiter || yourDairyman?.pricePerLiter}</Text></View>
-              <View style={styles.infoRow}><Text style={styles.infoLabel}>{t('time')}</Text><Text style={[styles.infoValue, { color: textColor }]}>{selectedMilkman?.deliveryTimeStart || yourDairyman?.deliveryTimeStart} - {selectedMilkman?.deliveryTimeEnd || yourDairyman?.deliveryTimeEnd}</Text></View>
-              <View style={[styles.infoRow, { borderBottomWidth: 0 }]}><Text style={styles.infoLabel}>{t('address')}</Text><Text style={[styles.infoValue, { color: textColor, textAlign: 'right', flex: 1, marginLeft: 20 }]}>{selectedMilkman?.address || yourDairyman?.address}</Text></View>
-            </View>
-            <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: textColor }]} onPress={() => setShowDetailsModal(false)}>
-              <Text style={[styles.modalSubmitBtnText, { color: surfaceColor }]}>{t('close')}</Text>
+      {/* Analytics Modal */}
+      <Modal visible={showAnalyticsModal} animationType="slide" transparent={false} onRequestClose={() => setShowAnalyticsModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+          <View style={[styles.chatHeader, { borderBottomColor: borderColor, backgroundColor: surfaceColor }]}>
+            <TouchableOpacity onPress={() => setShowAnalyticsModal(false)} style={styles.chatBackBtn}>
+              <ArrowLeft size={22} color={textColor} />
             </TouchableOpacity>
+            <Text style={[styles.chatHeaderTitle, { color: textColor }]}>{t('analytics') || 'Analytics'}</Text>
+            <View style={{ width: 22 }} />
           </View>
-        </View>
+          {yourDairyman && <AnalyticsComponent milkman={yourDairyman} />}
+        </SafeAreaView>
       </Modal>
 
       {/* Service Request Modal */}
@@ -478,32 +597,28 @@ export default function YDPageScreen({ navigation }: any) {
 
             <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
               <Text style={[styles.inputLabel, { color: textColor }]}>Select Products</Text>
+              <Text style={{ color: textMuted, fontSize: 12, fontFamily, marginBottom: 8 }}>
+                Pick the products you want. Your dairyman will set the price after accepting.
+              </Text>
               {(Array.isArray(requestMilkman?.dairyItems) ? requestMilkman.dairyItems : [])
                 .filter((i: any) => i.isAvailable !== false)
                 .map((item: any, idx: number) => {
-                  const qty = reqProducts[item.name] || 0;
+                  const selected = selectedProducts.includes(item.name);
                   return (
-                    <View key={idx} style={[styles.reqProductRow, { borderColor }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.reqProductName, { color: textColor }]}>{item.name}</Text>
-                        <Text style={{ color: textMuted, fontSize: 12, fontFamily }}>₹{item.price}/{item.unit}</Text>
+                    <TouchableOpacity
+                      key={idx}
+                      style={[styles.reqProductRow, { borderColor }]}
+                      onPress={() => toggleProduct(item.name)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.reqProductName, { color: textColor, flex: 1 }]}>{item.name}</Text>
+                      <View style={[
+                        styles.checkBox,
+                        { borderColor: selected ? colors.primary : borderColor, backgroundColor: selected ? colors.primary : 'transparent' },
+                      ]}>
+                        {selected && <Check size={16} color="#FFFFFF" />}
                       </View>
-                      <View style={styles.reqQtyRow}>
-                        <TouchableOpacity
-                          style={[styles.reqQtyBtn, { borderColor }]}
-                          onPress={() => setReqProducts(p => ({ ...p, [item.name]: Math.max(0, (p[item.name] || 0) - 1) }))}
-                        >
-                          <Text style={[styles.reqQtyBtnText, { color: textColor }]}>−</Text>
-                        </TouchableOpacity>
-                        <Text style={[styles.reqQtyVal, { color: textColor }]}>{qty}</Text>
-                        <TouchableOpacity
-                          style={[styles.reqQtyBtn, { borderColor }]}
-                          onPress={() => setReqProducts(p => ({ ...p, [item.name]: (p[item.name] || 0) + 1 }))}
-                        >
-                          <Text style={[styles.reqQtyBtnText, { color: textColor }]}>+</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               {(!requestMilkman?.dairyItems || requestMilkman.dairyItems.length === 0) && (
@@ -708,4 +823,33 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   reqSlotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   reqSlotChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   reqSlotText: { fontSize: 13, fontWeight: '600', fontFamily },
+  checkBox: { width: 26, height: 26, borderRadius: 6, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
+
+  // Assigned layout
+  assignedActionsRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  assignedActionBtn: { flex: 1, height: 52, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  assignedActionText: { fontSize: 15, fontWeight: '700', fontFamily: fontFamilyBold },
+
+  // Group banner
+  groupBanner: { marginTop: 16, padding: 14, borderRadius: 12, borderWidth: 1 },
+  groupBannerTitle: { fontSize: 15, fontWeight: '700', marginLeft: 8, fontFamily: fontFamilyBold },
+  groupCountPill: { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  groupCountText: { fontSize: 11, fontWeight: '700', color: '#059669' },
+  groupCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  groupCodeLabel: { fontSize: 13, fontFamily },
+  groupCodeValue: { fontSize: 15, fontWeight: '800', letterSpacing: 1, fontFamily: fontFamilyBold },
+
+  // Chat / analytics full-screen header
+  chatHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  chatBackBtn: { padding: 4 },
+  chatHeaderTitle: { fontSize: 16, fontWeight: '700', flex: 1, textAlign: 'center', fontFamily: fontFamilyBold },
+
+  // Group modal segment
+  segmentRow: { flexDirection: 'row', borderWidth: 1, borderRadius: 10, padding: 4, marginBottom: 16, gap: 4 },
+  segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  segmentText: { fontSize: 14, fontWeight: '700', fontFamily: fontFamilyBold },
+
+  // Discontinue
+  discontinueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: 'transparent', marginTop: 16 },
+  discontinueText: { color: '#EF4444', fontSize: 15, fontWeight: '700', fontFamily: fontFamilyBold },
 });

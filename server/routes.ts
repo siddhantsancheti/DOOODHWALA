@@ -15,6 +15,7 @@ import deliveryRoutes from "./deliveryRoutes";
 import subscriptionRoutes from "./subscriptionRoutes";
 import customerPricingRoutes from "./customerPricingRoutes";
 import notificationRoutes from "./notificationRoutes";
+import groupRoutes from "./groupRoutes";
 
 import { authenticateToken, authorizeRole } from "./middleware/auth";
 import userRoutes from "./userRoutes";
@@ -39,6 +40,7 @@ export function registerRoutes(app: Express): Server {
     app.use("/api/locations", authenticateToken, locationRoutes);
     app.use("/api/customer-pricings", authenticateToken, customerPricingRoutes);
     app.use("/api/notifications", authenticateToken, notificationRoutes);
+    app.use("/api/groups", authenticateToken, groupRoutes);
 
     // Admin Routes
     app.use("/api/admin", authenticateToken, authorizeRole(['admin']), adminRoutes);

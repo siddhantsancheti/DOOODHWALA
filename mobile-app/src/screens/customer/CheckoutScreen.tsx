@@ -24,6 +24,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
   const orderId = route.params?.orderId || `ORDER_${Date.now()}`;
   const paymentType = route.params?.paymentType || 'single';
   const groupId = route.params?.groupId || null;
+  const unassignAfter = route.params?.unassignAfter || false;
   const [isProcessing, setIsProcessing] = useState(false);
   const [tab, setTab] = useState<'cod' | 'razorpay' | 'stripe'>('cod');
 
@@ -85,9 +86,26 @@ export default function CheckoutScreen({ route, navigation }: any) {
       });
 
       if (verifyResp?.success) {
-        Alert.alert('Payment Successful! 🎉', `₹${amount} paid successfully via Razorpay.`, [
-          { text: 'OK', onPress: () => navigation.navigate('CustomerHome') },
-        ]);
+        // If this payment was the final settlement before discontinuing,
+        // unassign the dairyman (or delete the group) now that the bill is paid.
+        if (unassignAfter) {
+          try {
+            if (groupId) {
+              await apiRequest({ url: `/api/groups/${groupId}/discontinue`, method: 'POST' });
+            } else {
+              await apiRequest({ url: '/api/customers/unassign-yd', method: 'POST' });
+            }
+          } catch (err) {
+            console.warn('Unassign after payment failed:', err);
+          }
+          Alert.alert('Service Discontinued', `Bill of ₹${amount} paid. You have been unassigned from this dairyman.`, [
+            { text: 'OK', onPress: () => navigation.navigate('CustomerHome') },
+          ]);
+        } else {
+          Alert.alert('Payment Successful! 🎉', `₹${amount} paid successfully via Razorpay.`, [
+            { text: 'OK', onPress: () => navigation.navigate('CustomerHome') },
+          ]);
+        }
       } else {
         throw new Error('Payment verification failed. Please contact support.');
       }
