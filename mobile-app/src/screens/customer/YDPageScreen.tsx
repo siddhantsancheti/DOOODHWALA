@@ -254,6 +254,12 @@ export default function YDPageScreen({ navigation }: any) {
     );
   };
 
+  // Pending service requests — declared with the other hooks (BEFORE any early
+  // return) so React's hook order stays stable across loading/loaded renders.
+  const { data: serviceRequests = [] } = useQuery<any[]>({
+    queryKey: ['/api/service-requests/customer'], enabled: !!user,
+  });
+
   if (profileLoading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
@@ -266,11 +272,6 @@ export default function YDPageScreen({ navigation }: any) {
   const yourDairyman = (milkmen && Array.isArray(milkmen))
     ? milkmen.find((m: any) => m.id === assignedMilkmanId) || null
     : null;
-
-  // Check for pending service requests
-  const { data: serviceRequests = [] } = useQuery<any[]>({
-    queryKey: ['/api/service-requests/customer'], enabled: !!user,
-  });
 
   const pendingRequest = !assignedMilkmanId && serviceRequests.length > 0 && serviceRequests[0].status === 'pending'
     ? serviceRequests[0]

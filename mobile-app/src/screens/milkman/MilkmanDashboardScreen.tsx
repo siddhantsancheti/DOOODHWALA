@@ -610,19 +610,12 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                 </View>
               )}
             </TouchableOpacity>
-            {/* Settings */}
+            {/* Settings (contains Language + Logout) */}
             <TouchableOpacity
               style={[styles.headerIconBtn, { backgroundColor: surfaceColor, borderColor }]}
               onPress={() => setShowSettingsDropdown(true)}
             >
               <Settings size={20} color={showSettingsDropdown ? colors.primary : textMuted} />
-            </TouchableOpacity>
-            {/* Logout */}
-            <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#FEE2E2', borderColor: '#FCA5A5' }]}
-              onPress={confirmLogout}
-            >
-              <LogOut size={20} color="#DC2626" />
             </TouchableOpacity>
           </View>
         </View>
@@ -1013,19 +1006,8 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
 
         {/* Route Map Section */}
         <View style={[styles.card, { backgroundColor: surfaceColor, borderColor, marginTop: 8 }]}>
-           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+           <View style={{ marginBottom: 16 }}>
              <Text style={[styles.sectionTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('routeMap')}</Text>
-             <TouchableOpacity 
-                style={styles.langBtn} 
-                onPress={() => {
-                  const newLang = language === 'English' ? 'Hindi' : language === 'Hindi' ? 'Marathi' : 'English';
-                  setLanguage(newLang);
-                }}
-              >
-                <Text style={{ color: '#2563EB', fontWeight: '700', fontSize: 12, fontFamily: fontFamilyBold }}>
-                  {language === 'English' ? 'EN' : language === 'Hindi' ? 'HI' : 'MR'}
-                </Text>
-              </TouchableOpacity>
            </View>
            <View style={styles.routePreview}>
              {customers?.slice(0, 3).map((c: any, idx: number) => (
