@@ -66,6 +66,8 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   const { data: history = [], isLoading: isHistoryLoading } = useQuery<any[]>({
     queryKey: [`/api/chat/group/${milkmanId}`],
     enabled: !!milkmanId,
+    // Poll as a fallback so messages still arrive even if the WebSocket drops.
+    refetchInterval: 4000,
   });
 
   const { data: customerSubscriptions = [], refetch: refetchSubscriptions } = useQuery<any[]>({

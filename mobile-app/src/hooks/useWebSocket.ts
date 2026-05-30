@@ -41,74 +41,95 @@ export function useWebSocket() {
     const host = API_BASE_URL.replace('https://', '').replace('http://', '').replace('/api', '');
     const protocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
     const wsUrl = `${protocol}://${host}/ws`;
-    
-    console.log(`Connecting to WebSocket: ${wsUrl}`);
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
 
-    ws.onopen = async () => {
-      console.log('WebSocket connected');
-      setIsConnected(true);
+    let unmounted = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
 
-      // Server verifies the JWT — authenticate with the token, not a raw userId.
-      const token =
-        (await SecureStore.getItemAsync('token')) ||
-        (await SecureStore.getItemAsync('accessToken'));
+    const connect = () => {
+      if (unmounted) return;
+      console.log(`Connecting to WebSocket: ${wsUrl}`);
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-      if (!token) {
-        console.warn('WebSocket: no auth token available, closing connection');
-        ws.close();
-        return;
-      }
+      ws.onopen = async () => {
+        console.log('WebSocket connected');
+        attempts = 0;
+        setIsConnected(true);
 
-      ws.send(JSON.stringify({
-        type: 'authenticate',
-        token,
-        userType: user.userType || 'customer',
-      }));
-    };
+        // Server verifies the JWT — authenticate with the token, not a raw userId.
+        const token =
+          (await SecureStore.getItemAsync('token')) ||
+          (await SecureStore.getItemAsync('accessToken'));
 
-    ws.onmessage = (event) => {
-      try {
-        const data: WebSocketMessage = JSON.parse(event.data);
-        console.log('WebSocket message received:', data);
-        
-        if (data.type === 'new_message' && data.message) {
-          setMessages(prev => [...prev, data.message!]);
-        } else if (data.type === 'message_sent' && data.message) {
-          setMessages(prev => [...prev, data.message!]);
-        } else if (data.type === 'order_accepted' && data.messageId) {
-          setMessages(prev => prev.map(msg => 
-            msg.id === data.messageId ? { ...msg, isAccepted: true } : msg
-          ));
+        if (!token) {
+          console.warn('WebSocket: no auth token available, closing connection');
+          ws.close();
+          return;
         }
-        
-        messageHandlersRef.current.forEach(handler => {
-          try {
-            handler(data);
-          } catch (error) {
-            console.error('Error in WebSocket message handler:', error);
+
+        ws.send(JSON.stringify({
+          type: 'authenticate',
+          token,
+          userType: user.userType || 'customer',
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data: WebSocketMessage = JSON.parse(event.data);
+
+          if (data.type === 'new_message' && data.message) {
+            setMessages(prev => [...prev, data.message!]);
+          } else if (data.type === 'message_sent' && data.message) {
+            setMessages(prev => [...prev, data.message!]);
+          } else if (data.type === 'order_accepted' && data.messageId) {
+            setMessages(prev => prev.map(msg =>
+              msg.id === data.messageId ? { ...msg, isAccepted: true } : msg
+            ));
           }
-        });
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
+
+          messageHandlersRef.current.forEach(handler => {
+            try {
+              handler(data);
+            } catch (error) {
+              console.error('Error in WebSocket message handler:', error);
+            }
+          });
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
+        }
+      };
+
+      const scheduleReconnect = () => {
+        if (unmounted) return;
+        setIsConnected(false);
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        // Exponential backoff capped at 10s so a dropped socket auto-recovers
+        // (network blip, app resume, Render idle) and real-time keeps working.
+        const delay = Math.min(1000 * 2 ** attempts, 10000);
+        attempts += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected — will reconnect');
+        scheduleReconnect();
+      };
+
+      ws.onerror = () => {
+        try { ws.close(); } catch {}
+      };
     };
 
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setIsConnected(false);
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setIsConnected(false);
-    };
+    connect();
 
     return () => {
-      ws.close();
+      unmounted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try { wsRef.current?.close(); } catch {}
     };
-  }, [user]);
+  }, [user?.id]);
 
   const sendMessage = (customerId: number, milkmanId: number, message: string, senderType: 'customer' | 'milkman') => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

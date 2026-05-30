@@ -74,6 +74,8 @@ export default function ChatScreen({ route, navigation }: any) {
   const { data: history = [], isLoading: isHistoryLoading } = useQuery<any[]>({
     queryKey: [`/api/chat/group/${milkmanId}`],
     enabled: !!milkmanId,
+    // Poll as a fallback so messages still arrive even if the WebSocket drops.
+    refetchInterval: 4000,
   });
 
   // Current Bill

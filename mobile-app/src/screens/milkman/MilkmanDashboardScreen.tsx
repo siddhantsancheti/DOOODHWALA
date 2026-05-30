@@ -971,7 +971,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
             <TouchableOpacity 
               key={c.id} 
               style={[styles.listCard, { backgroundColor: surfaceColor, borderColor }]} 
-              onPress={() => navigation.navigate('Chat', { customerId: c.id, milkmanId: user?.id })}
+              onPress={() => navigation.navigate('Chat', { customerId: c.id, milkmanId: milkmanProfile?.id })}
               activeOpacity={0.8}
             >
               <View style={styles.listCardLeft}>
@@ -1468,7 +1468,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                     style={{ padding: 8 }}
                     onPress={() => {
                       setShowCustomersModal(false);
-                      navigation.navigate('Chat', { customerId: c.id, milkmanId: user?.id });
+                      navigation.navigate('Chat', { customerId: c.id, milkmanId: milkmanProfile?.id });
                     }}
                   >
                     <MessageSquare size={22} color="#2563EB" />
