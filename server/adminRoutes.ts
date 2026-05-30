@@ -66,14 +66,19 @@ router.get("/users", async (req, res) => {
         // Names are stored on the customer/milkman profile, not on the user row.
         // Resolve a display name for each user so the admin table isn't all "N/A".
         const custRows = await db.select({ userId: customers.userId, name: customers.name }).from(customers);
-        const milkRows = await db.select({ userId: milkmen.userId, name: milkmen.contactName }).from(milkmen);
+        const milkRows = await db.select({ userId: milkmen.userId, id: milkmen.id, name: milkmen.contactName }).from(milkmen);
         const nameByUser = new Map<string, string>();
+        const milkmanIdByUser = new Map<string, number>();
         for (const c of custRows) if (c.userId && c.name) nameByUser.set(c.userId, c.name);
-        for (const m of milkRows) if (m.userId && m.name) nameByUser.set(m.userId, m.name);
+        for (const m of milkRows) {
+            if (m.userId && m.name) nameByUser.set(m.userId, m.name);
+            if (m.userId) milkmanIdByUser.set(m.userId, m.id);
+        }
 
         const enriched = allUsers.map((u) => ({
             ...u,
             name: nameByUser.get(u.id) || [u.firstName, u.lastName].filter(Boolean).join(" ") || null,
+            milkmanId: milkmanIdByUser.get(u.id) ?? null,
         }));
         res.json(enriched);
     } catch (error: any) {

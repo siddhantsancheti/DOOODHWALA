@@ -45,6 +45,7 @@ interface User {
   id: string;
   phone: string;
   name?: string;
+  milkmanId?: number | null;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -456,14 +457,24 @@ export default function AdminDashboard() {
                     {users.map((user) => (
                       <TableRow
                         key={user.id}
-                        onClick={user.userType === 'customer' ? () => openCustomerDetails(user.id) : undefined}
-                        className={user.userType === 'customer' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                        onClick={
+                          user.userType === 'customer'
+                            ? () => openCustomerDetails(user.id)
+                            : user.userType === 'milkman' && user.milkmanId
+                              ? () => openMilkmanDetails(user.milkmanId as number)
+                              : undefined
+                        }
+                        className={
+                          (user.userType === 'customer' || (user.userType === 'milkman' && user.milkmanId))
+                            ? 'cursor-pointer hover:bg-muted/50'
+                            : ''
+                        }
                       >
                         <TableCell>
                           {user.name
                             || ([user.firstName, user.lastName].filter(Boolean).join(' '))
                             || 'N/A'}
-                          {user.userType === 'customer' && (
+                          {(user.userType === 'customer' || (user.userType === 'milkman' && user.milkmanId)) && (
                             <span className="ml-2 text-xs text-blue-600">(view)</span>
                           )}
                         </TableCell>
