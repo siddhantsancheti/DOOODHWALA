@@ -1,4 +1,5 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getMessaging, type Message } from 'firebase-admin/messaging';
 import path from 'path';
 import fs from 'fs';
 
@@ -29,11 +30,11 @@ try {
     }
 
     if (serviceAccount) {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
+        if (getApps().length === 0) {
+            initializeApp({ credential: cert(serviceAccount) });
+        }
         isFcmInitialized = true;
-        console.log('[FCM] Firebase Admin initialized successfully.');
+        console.log('[FCM] Firebase Admin initialized successfully for project:', serviceAccount.project_id);
     } else {
         console.warn('[FCM] No Firebase credentials found. Set FIREBASE_SERVICE_ACCOUNT env var on Railway. Push notifications will be disabled.');
     }
@@ -67,7 +68,7 @@ export async function sendPushNotification(
     }
 
     try {
-        const message: admin.messaging.Message = {
+        const message: Message = {
             token,
             notification: {
                 title,
@@ -89,7 +90,7 @@ export async function sendPushNotification(
             }
         };
 
-        const response = await admin.messaging().send(message);
+        const response = await getMessaging().send(message);
         console.log(`[FCM] Successfully sent message to ${token.substring(0, 10)}... Response:`, response);
         return true;
     } catch (error) {
