@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "./db";
-import { users, milkmen, customers, orders, payments, bills } from "@shared/schema";
-import { count, eq, sql, desc, sum } from "drizzle-orm";
+import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats } from "@shared/schema";
+import { count, eq, sql, desc, sum, and } from "drizzle-orm";
 import { BillingService } from "./services/billingService";
 
 const router = Router();
@@ -76,6 +76,67 @@ router.get("/users", async (req, res) => {
             name: nameByUser.get(u.id) || [u.firstName, u.lastName].filter(Boolean).join(" ") || null,
         }));
         res.json(enriched);
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
+// GET /api/admin/customers/:userId/details — drill-down for one customer
+router.get("/customers/:userId/details", async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const [customer] = await db.select().from(customers).where(eq(customers.userId, userId)).limit(1);
+        if (!customer) return res.status(404).json({ success: false, message: "Customer profile not found" });
+
+        let assignedMilkman: any = null;
+        if (customer.assignedMilkmanId) {
+            [assignedMilkman] = await db.select().from(milkmen).where(eq(milkmen.id, customer.assignedMilkmanId)).limit(1);
+        }
+
+        // Total orders = order messages this customer placed in chat.
+        const [{ c: chatOrders }] = await db
+            .select({ c: count() })
+            .from(chatMessages)
+            .where(and(eq(chatMessages.customerId, customer.id), eq(chatMessages.messageType, "order")));
+        // Plus any rows in the orders table.
+        const [{ c: tableOrders }] = await db
+            .select({ c: count() })
+            .from(orders)
+            .where(eq(orders.customerId, customer.id));
+
+        res.json({
+            customer,
+            assignedMilkman,
+            totalOrders: Number(chatOrders || 0) + Number(tableOrders || 0),
+        });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
+// GET /api/admin/milkmen/:id/details — drill-down for one milkman
+router.get("/milkmen/:id/details", async (req, res) => {
+    try {
+        const milkmanId = parseInt(req.params.id);
+        const [milkman] = await db.select().from(milkmen).where(eq(milkmen.id, milkmanId)).limit(1);
+        if (!milkman) return res.status(404).json({ success: false, message: "Milkman not found" });
+
+        // Total customers assigned to this milkman.
+        const [{ c: totalCustomers }] = await db
+            .select({ c: count() })
+            .from(customers)
+            .where(eq(customers.assignedMilkmanId, milkmanId));
+        // Active household groups for this milkman.
+        const [{ c: totalGroups }] = await db
+            .select({ c: count() })
+            .from(familyChats)
+            .where(and(eq(familyChats.milkmanId, milkmanId), eq(familyChats.isActive, true)));
+
+        res.json({
+            milkman, // includes bank details + full profile
+            totalCustomers: Number(totalCustomers || 0),
+            totalGroups: Number(totalGroups || 0),
+        });
     } catch (error: any) {
         res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
     }

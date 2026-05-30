@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -97,6 +98,39 @@ export default function AdminDashboard() {
   // Local draft input per milkman row for the commission % field, keyed by id
   const [commissionDrafts, setCommissionDrafts] = useState<Record<number, string>>({});
   const [savingCommission, setSavingCommission] = useState<Record<number, boolean>>({});
+
+  // Drill-down detail dialogs
+  const [customerDetail, setCustomerDetail] = useState<any | null>(null);
+  const [milkmanDetail, setMilkmanDetail] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openCustomerDetails = async (userId: string) => {
+    setDetailLoading(true);
+    setCustomerDetail({});
+    try {
+      const res = await apiRequest(`/api/admin/customers/${userId}/details`, 'GET');
+      setCustomerDetail(await res.json());
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Could not load customer", variant: "destructive" });
+      setCustomerDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const openMilkmanDetails = async (id: number) => {
+    setDetailLoading(true);
+    setMilkmanDetail({});
+    try {
+      const res = await apiRequest(`/api/admin/milkmen/${id}/details`, 'GET');
+      setMilkmanDetail(await res.json());
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Could not load milkman", variant: "destructive" });
+      setMilkmanDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
   const { toast } = useToast();
 
   useEffect(() => {
@@ -420,11 +454,18 @@ export default function AdminDashboard() {
                   </TableHeader>
                   <TableBody>
                     {users.map((user) => (
-                      <TableRow key={user.id}>
+                      <TableRow
+                        key={user.id}
+                        onClick={user.userType === 'customer' ? () => openCustomerDetails(user.id) : undefined}
+                        className={user.userType === 'customer' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                      >
                         <TableCell>
                           {user.name
                             || ([user.firstName, user.lastName].filter(Boolean).join(' '))
                             || 'N/A'}
+                          {user.userType === 'customer' && (
+                            <span className="ml-2 text-xs text-blue-600">(view)</span>
+                          )}
                         </TableCell>
                         <TableCell className="flex items-center gap-2">
                           <Phone className="h-4 w-4" />
@@ -486,7 +527,13 @@ export default function AdminDashboard() {
                     {milkmen.map((milkman) => (
                       <TableRow key={milkman.id}>
                         <TableCell className="font-medium">
-                          {milkman.businessName}
+                          <button
+                            type="button"
+                            onClick={() => openMilkmanDetails(milkman.id)}
+                            className="text-blue-600 hover:underline text-left font-medium"
+                          >
+                            {milkman.businessName}
+                          </button>
                         </TableCell>
                         <TableCell>
                           <div>
@@ -826,6 +873,71 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Customer detail dialog */}
+      <Dialog open={!!customerDetail} onOpenChange={(o) => !o && setCustomerDetail(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Customer Details</DialogTitle>
+            <DialogDescription>Assigned dairyman, address and order history.</DialogDescription>
+          </DialogHeader>
+          {detailLoading ? (
+            <div className="py-8 text-center text-gray-500">Loading…</div>
+          ) : customerDetail?.customer ? (
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Name</span><span className="font-medium">{customerDetail.customer.name || 'N/A'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Phone</span><span className="font-medium">{customerDetail.customer.phone || 'N/A'}</span></div>
+              <div className="flex justify-between gap-4"><span className="text-gray-500">Address</span><span className="font-medium text-right">{customerDetail.customer.address || 'N/A'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Assigned Dairyman</span><span className="font-medium">{customerDetail.assignedMilkman ? `${customerDetail.assignedMilkman.businessName} (${customerDetail.assignedMilkman.contactName})` : 'None'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Total Orders Placed</span><span className="font-medium">{customerDetail.totalOrders}</span></div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-gray-500">No customer profile found.</div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Milkman detail dialog */}
+      <Dialog open={!!milkmanDetail} onOpenChange={(o) => !o && setMilkmanDetail(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dairyman Details</DialogTitle>
+            <DialogDescription>Customers, groups, bank details and profile.</DialogDescription>
+          </DialogHeader>
+          {detailLoading ? (
+            <div className="py-8 text-center text-gray-500">Loading…</div>
+          ) : milkmanDetail?.milkman ? (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border p-3 text-center"><div className="text-2xl font-bold">{milkmanDetail.totalCustomers}</div><div className="text-xs text-gray-500">Total Customers</div></div>
+                <div className="rounded-lg border p-3 text-center"><div className="text-2xl font-bold">{milkmanDetail.totalGroups}</div><div className="text-xs text-gray-500">Household Groups</div></div>
+              </div>
+
+              <div>
+                <div className="font-semibold mb-1">Profile</div>
+                <div className="flex justify-between"><span className="text-gray-500">Business</span><span className="font-medium">{milkmanDetail.milkman.businessName}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Contact</span><span className="font-medium">{milkmanDetail.milkman.contactName}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Phone</span><span className="font-medium">{milkmanDetail.milkman.phone}</span></div>
+                <div className="flex justify-between gap-4"><span className="text-gray-500">Address</span><span className="font-medium text-right">{milkmanDetail.milkman.address}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Price / Litre</span><span className="font-medium">₹{milkmanDetail.milkman.pricePerLiter}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Delivery Time</span><span className="font-medium">{milkmanDetail.milkman.deliveryTimeStart} - {milkmanDetail.milkman.deliveryTimeEnd}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Commission</span><span className="font-medium">{milkmanDetail.milkman.commissionPercentage != null ? `${milkmanDetail.milkman.commissionPercentage}%` : '—'}</span></div>
+              </div>
+
+              <div>
+                <div className="font-semibold mb-1">Bank Details (to send money)</div>
+                <div className="flex justify-between"><span className="text-gray-500">Account Holder</span><span className="font-medium">{milkmanDetail.milkman.bankAccountHolderName || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Account No.</span><span className="font-medium">{milkmanDetail.milkman.bankAccountNumber || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">IFSC</span><span className="font-medium">{milkmanDetail.milkman.bankIfscCode || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Bank</span><span className="font-medium">{milkmanDetail.milkman.bankName || '—'}{milkmanDetail.milkman.bankBranch ? `, ${milkmanDetail.milkman.bankBranch}` : ''}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">UPI ID</span><span className="font-medium">{milkmanDetail.milkman.upiId || '—'}</span></div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-gray-500">No dairyman found.</div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
