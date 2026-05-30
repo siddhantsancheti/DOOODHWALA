@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "./db";
-import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats } from "@shared/schema";
-import { count, eq, sql, desc, sum, and } from "drizzle-orm";
+import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications } from "@shared/schema";
+import { count, eq, sql, desc, sum, and, inArray, or } from "drizzle-orm";
 import { BillingService } from "./services/billingService";
 
 const router = Router();
@@ -144,6 +144,86 @@ router.get("/milkmen/:id/details", async (req, res) => {
         });
     } catch (error: any) {
         res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
+// DELETE /api/admin/users/:id — permanently remove a user and all their data.
+// Deletes dependent rows (customer/milkman profiles, orders, bills, chats,
+// service requests, etc.) in FK-safe order, then the user row.
+router.delete("/users/:id", async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        const custRows = await db.select({ id: customers.id }).from(customers).where(eq(customers.userId, userId));
+        const milkRows = await db.select({ id: milkmen.id }).from(milkmen).where(eq(milkmen.userId, userId));
+        const custIds = custRows.map((c) => c.id);
+        const milkIds = milkRows.map((m) => m.id);
+
+        // Helper: build an OR over (customerId in custIds) / (milkmanId in milkIds)
+        const byCustOrMilk = (custCol: any, milkCol: any) => {
+            const conds: any[] = [];
+            if (custIds.length) conds.push(inArray(custCol, custIds));
+            if (milkIds.length) conds.push(inArray(milkCol, milkIds));
+            return conds.length ? or(...conds) : null;
+        };
+
+        // 1. Chat messages (by sender, customer, or milkman)
+        await db.delete(chatMessages).where(
+            or(
+                eq(chatMessages.senderId, userId),
+                ...(custIds.length ? [inArray(chatMessages.customerId, custIds)] : []),
+                ...(milkIds.length ? [inArray(chatMessages.milkmanId, milkIds)] : []),
+            )
+        );
+        // 2. Service requests, reviews, custom pricing, orders, payments
+        const srWhere = byCustOrMilk(serviceRequests.customerId, serviceRequests.milkmanId);
+        if (srWhere) await db.delete(serviceRequests).where(srWhere);
+        const revWhere = byCustOrMilk(reviews.customerId, reviews.milkmanId);
+        if (revWhere) await db.delete(reviews).where(revWhere);
+        const cpWhere = byCustOrMilk(customerPricings.customerId, customerPricings.milkmanId);
+        if (cpWhere) await db.delete(customerPricings).where(cpWhere);
+        await db.delete(orders).where(
+            or(
+                eq(orders.orderedBy, userId),
+                ...(custIds.length ? [inArray(orders.customerId, custIds)] : []),
+                ...(milkIds.length ? [inArray(orders.milkmanId, milkIds)] : []),
+            )
+        );
+        await db.delete(payments).where(
+            or(
+                eq(payments.userId, userId),
+                ...(custIds.length ? [inArray(payments.customerId, custIds)] : []),
+                ...(milkIds.length ? [inArray(payments.milkmanId, milkIds)] : []),
+            )
+        );
+        const billWhere = byCustOrMilk(bills.customerId, bills.milkmanId);
+        if (billWhere) await db.delete(bills).where(billWhere);
+        // 3. Locations, notifications, family chat memberships, family chats
+        await db.delete(locations).where(
+            or(
+                eq(locations.userId, userId),
+                ...(milkIds.length ? [inArray(locations.milkmanId, milkIds)] : []),
+            )
+        );
+        await db.delete(notifications).where(eq(notifications.userId, userId));
+        await db.delete(familyChatMembers).where(eq(familyChatMembers.userId, userId));
+        await db.delete(familyChats).where(
+            or(
+                eq(familyChats.createdBy, userId),
+                ...(milkIds.length ? [inArray(familyChats.milkmanId, milkIds)] : []),
+            )
+        );
+        // 4. Profiles, then the user
+        if (custIds.length) await db.delete(customers).where(eq(customers.userId, userId));
+        if (milkIds.length) await db.delete(milkmen).where(eq(milkmen.userId, userId));
+        await db.delete(users).where(eq(users.id, userId));
+
+        res.json({ success: true, message: "User and all related data deleted" });
+    } catch (error: any) {
+        console.error("Delete user error:", error);
+        res.status(500).json({ success: false, message: "Failed to delete user", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
     }
 });
 

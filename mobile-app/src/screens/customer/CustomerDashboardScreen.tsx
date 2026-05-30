@@ -71,7 +71,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
       
       {/* Top Navbar */}
       <View style={[styles.topNav, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>

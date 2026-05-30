@@ -41,11 +41,12 @@ export default function CheckoutScreen({ route, navigation }: any) {
     setIsProcessing(true);
     try {
       // Step 1: Create Razorpay order on our server
-      const resp: any = await apiRequest({
+      const createRes = await apiRequest({
         url: '/api/payments/razorpay/create-order',
         method: 'POST',
         body: { amount, orderId, description, paymentType, groupId },
       });
+      const resp: any = await createRes.json();
 
       const { razorpayOrderId, key } = resp;
 
@@ -73,7 +74,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
       const paymentData = await RazorpayCheckout.open(options);
 
       // Step 3: Verify payment signature on server
-      const verifyResp: any = await apiRequest({
+      const verifyRes = await apiRequest({
         url: '/api/payments/razorpay/verify',
         method: 'POST',
         body: {
@@ -84,6 +85,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
           amount,
         },
       });
+      const verifyResp: any = await verifyRes.json();
 
       if (verifyResp?.success) {
         // If this payment was the final settlement before discontinuing,
@@ -124,7 +126,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
   const handleCODOrder = async () => {
     setIsProcessing(true);
     try {
-      const resp: any = await apiRequest({
+      const codRes = await apiRequest({
         url: '/api/payments/cod/create-order', method: 'POST',
         body: {
           amount, orderId,
@@ -138,7 +140,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
           groupId,
         },
       });
-      // @ts-ignore
+      const resp: any = await codRes.json();
       if (resp.success) {
         if (resp.codOTP && resp.otpSent) {
            Alert.alert('Payment OTP Generated', `Your COD OTP is: ${resp.codOTP}. This has been sent to you via SMS and YD Chat. Present this to your milkman when paying cash.`);

@@ -270,7 +270,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const borderColor = colors.border;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
       {/* HEADER */}
       <View style={[styles.header, { backgroundColor: '#16A34A' }]}>
         <View style={styles.headerTop}>

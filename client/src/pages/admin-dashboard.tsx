@@ -100,6 +100,22 @@ export default function AdminDashboard() {
   const [commissionDrafts, setCommissionDrafts] = useState<Record<number, string>>({});
   const [savingCommission, setSavingCommission] = useState<Record<number, boolean>>({});
 
+  const [deletingUser, setDeletingUser] = useState<Record<string, boolean>>({});
+
+  const deleteUser = async (userId: string, label: string) => {
+    if (!window.confirm(`Permanently delete "${label}" and ALL their data (orders, bills, chats)? This cannot be undone.`)) return;
+    setDeletingUser((d) => ({ ...d, [userId]: true }));
+    try {
+      await apiRequest(`/api/admin/users/${userId}`, 'DELETE');
+      toast({ title: 'User deleted', description: 'The user and all related data were removed.' });
+      await fetchDashboardData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to delete user', variant: 'destructive' });
+    } finally {
+      setDeletingUser((d) => ({ ...d, [userId]: false }));
+    }
+  };
+
   // Drill-down detail dialogs
   const [customerDetail, setCustomerDetail] = useState<any | null>(null);
   const [milkmanDetail, setMilkmanDetail] = useState<any | null>(null);
@@ -451,6 +467,7 @@ export default function AdminDashboard() {
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Joined</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -505,6 +522,18 @@ export default function AdminDashboard() {
                             <Calendar className="h-4 w-4" />
                             {new Date(user.createdAt).toLocaleDateString()}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {user.userType !== 'admin' && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={!!deletingUser[user.id]}
+                              onClick={(e) => { e.stopPropagation(); deleteUser(user.id, user.name || user.phone); }}
+                            >
+                              {deletingUser[user.id] ? 'Deleting…' : 'Delete'}
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
