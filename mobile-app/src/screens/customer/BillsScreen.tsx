@@ -8,13 +8,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import { Receipt, CreditCard, Clock, CheckCircle, ArrowLeft, Calendar, Download, Calculator } from 'lucide-react-native';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
-import { useColorScheme } from 'react-native';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export default function BillsScreen({ navigation }: any) {
   const { user } = useAuth();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTranslation();
 
   const { data: bills, isLoading: billsLoading } = useQuery<any[]>({
     queryKey: ['/api/bills/list'],

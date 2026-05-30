@@ -13,6 +13,7 @@ import {
 } from 'lucide-react-native';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 // ─── Mapbox native import (works on iOS & Android, not in web browser) ────────
 let MapboxGL: any = null;
@@ -61,9 +62,7 @@ function formatETA(seconds: number): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function TrackingScreen({ navigation }: any) {
-  const colorScheme = useColorScheme() || 'light';
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const isDark = colorScheme === 'dark';
+  const { colors, isDark } = useTranslation();
 
   const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
   const textColor    = isDark ? '#F9FAFB' : '#111827';

@@ -72,6 +72,7 @@ export default function LoginScreen({ navigation }: any) {
   // Map common Firebase auth error codes to friendly messages.
   const firebaseErrorMessage = (error: any): string => {
     switch (error?.code) {
+      case 'auth/network-request-failed': return 'Check your internet connection and try again.';
       case 'auth/invalid-phone-number': return t('invalidPhone') || 'Invalid phone number.';
       case 'auth/too-many-requests': return 'Too many attempts. Please try again later.';
       case 'auth/invalid-verification-code': return t('checkOtp') || 'Incorrect code. Please check and try again.';

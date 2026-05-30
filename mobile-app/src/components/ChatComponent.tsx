@@ -29,10 +29,7 @@ const getDateLabel = (date: Date) => {
 
 export default function ChatComponent({ customerId, milkmanId, embedded = false, navigation }: { customerId: any, milkmanId: any, embedded?: boolean, navigation?: any }) {
   const { user } = useAuth();
-  const { t, language } = useTranslation();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const isDark = colorScheme === 'dark';
+  const { t, language, colors, isDark } = useTranslation();
 
   const [message, setMessage] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("");

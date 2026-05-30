@@ -23,9 +23,6 @@ interface DashboardProps {
 
 export default function CustomerDashboardScreen({ navigation }: DashboardProps) {
   const { user } = useAuth();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = colorScheme === 'dark' ? darkColors : lightColors;
-  const isDark = colorScheme === 'dark';
 
   const { data: profile, isLoading: profileLoading } = useQuery<any>({
     queryKey: ['/api/customers/profile'], enabled: !!user,
@@ -34,7 +31,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [showLanguageSubmenu, setShowLanguageSubmenu] = useState(false);
   const { logout } = useAuth();
-  const { t, language, setLanguage, fontFamily, fontFamilyBold, colors: themeColors, isDark: themeIsDark, themeMode, setThemeMode } = useTranslation();
+  const { t, language, setLanguage, fontFamily, fontFamilyBold, colors, isDark, themeMode, setThemeMode } = useTranslation();
 
   if (profileLoading) {
     return (

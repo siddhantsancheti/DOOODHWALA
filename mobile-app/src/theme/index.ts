@@ -129,16 +129,14 @@ export const darkColors = {
 // Default export for backward compatibility
 export const colors = lightColors;
 
-// ─── useTheme hook — returns correct colors + fonts for dark mode ───
-import { useColorScheme } from 'react-native';
-
+// ─── useTheme hook — returns correct colors + fonts for the active theme ───
+// Reads the app-wide theme (light/dark/system) from LanguageContext so manual
+// theme changes propagate everywhere. Uses a lazy require to avoid a circular
+// import (LanguageContext imports the color palettes from this module).
 export function useTheme() {
-  const colorScheme = useColorScheme() || 'light';
-  const isDark = colorScheme === 'dark';
-  return {
-    colors: isDark ? darkColors : lightColors,
-    isDark,
-  };
+  const { useTranslation } = require('../contexts/LanguageContext') as typeof import('../contexts/LanguageContext');
+  const { colors, isDark } = useTranslation();
+  return { colors, isDark };
 }
 
 // ─── Typography ────────────────────────────────────────────────

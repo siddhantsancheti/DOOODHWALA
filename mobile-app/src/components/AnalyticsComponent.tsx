@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, useColorScheme, ScrollView, TouchableOpacity } from 'react-native';
 import { BarChart3, TrendingUp, Clock, Star, Package, ChevronLeft, ChevronRight, PieChart, Table } from 'lucide-react-native';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
 
 export default function AnalyticsComponent({ milkman }: { milkman: any }) {
-  const colorScheme = useColorScheme() || 'light';
-  const isDark = colorScheme === 'dark';
+  const { isDark } = useTranslation();
   const textColor = isDark ? '#F9FAFB' : '#111827';
   const textMuted = isDark ? '#9CA3AF' : '#6B7280';
   const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
