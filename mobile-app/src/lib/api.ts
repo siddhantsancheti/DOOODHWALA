@@ -86,6 +86,34 @@ export class AuthAPI {
         }
     }
 
+    // Exchange a verified Firebase phone-auth ID token for our app JWT.
+    async firebaseLogin(idToken: string): Promise<APIResponse> {
+        try {
+            const response = await fetch(buildApiUrl('/api/auth/firebase-login'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ idToken }),
+            });
+
+            const data = await safeJson(response);
+
+            if (!response.ok) {
+                throw new Error(data.message || "Login failed");
+            }
+
+            return {
+                success: true,
+                data: { accessToken: data.accessToken, user: data.user },
+                message: data.message || "Login successful",
+            };
+        } catch (error: any) {
+            if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+                throw new Error("Cannot reach server. Is the server running?");
+            }
+            throw new Error(error.message || "Login failed");
+        }
+    }
+
     async logout(): Promise<APIResponse> {
         try {
             await SecureStore.deleteItemAsync('token');

@@ -15,6 +15,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Phone, ArrowRight, RotateCcw, Loader2, Globe, Check } from 'lucide-react-native';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { useAuth } from '../hooks/useAuth';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
@@ -23,12 +24,15 @@ import { Language } from '../lib/translations';
 const logo = require('../../assets/logo.png');
 
 export default function LoginScreen({ navigation }: any) {
-  const { sendOtp, login, isOtpLoading, isLoginLoading } = useAuth();
+  const { firebaseLogin } = useAuth();
   const { t, language, setLanguage, fontFamily, fontFamilyBold, colors, isDark } = useTranslation();
-  
+
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [otpFocused, setOtpFocused] = useState(false);
@@ -65,52 +69,71 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  // Map common Firebase auth error codes to friendly messages.
+  const firebaseErrorMessage = (error: any): string => {
+    switch (error?.code) {
+      case 'auth/invalid-phone-number': return t('invalidPhone') || 'Invalid phone number.';
+      case 'auth/too-many-requests': return 'Too many attempts. Please try again later.';
+      case 'auth/invalid-verification-code': return t('checkOtp') || 'Incorrect code. Please check and try again.';
+      case 'auth/session-expired': return 'Code expired. Please request a new one.';
+      case 'auth/quota-exceeded': return 'SMS limit reached. Please try again later.';
+      default: return error?.message || t('waitTryAgain') || 'Something went wrong.';
+    }
+  };
+
   const handleSendOTP = async () => {
     if (phone.length < 10) {
       showAlert(t('invalidPhone'), t('phone10Digits'));
       return;
     }
+    setIsOtpLoading(true);
     try {
       const e164Phone = `+91${phone}`;
-      const data = await sendOtp({ phone: e164Phone });
-      if (data.success) {
-        setStep('otp');
-        setResendTimer(60);
-      } else {
-        showAlert(t('failedSendOtp'), data.message || t('waitTryAgain'));
-      }
+      const conf = await auth().signInWithPhoneNumber(e164Phone);
+      setConfirmation(conf);
+      setStep('otp');
+      setResendTimer(60);
     } catch (error: any) {
-      showAlert(t('error'), error.message || t('waitTryAgain'));
+      showAlert(t('failedSendOtp') || 'Failed to send OTP', firebaseErrorMessage(error));
+    } finally {
+      setIsOtpLoading(false);
     }
   };
 
   const handleVerifyOTP = async () => {
+    if (!confirmation) {
+      showAlert(t('error'), t('waitTryAgain') || 'Please request a new code.');
+      return;
+    }
+    setIsLoginLoading(true);
     try {
-      const e164Phone = `+91${phone}`;
-      const data = await login({ phone: e164Phone, otp });
-      if (data.success) {
-        // AppNavigator handles navigation automatically
-      } else {
-        showAlert(t('invalidOtp'), data.message || t('checkOtp'));
-      }
+      // Confirm the OTP with Firebase, then exchange the verified ID token
+      // for our app JWT via the backend.
+      const credential = await confirmation.confirm(otp);
+      const idToken = await credential?.user.getIdToken();
+      if (!idToken) throw new Error(t('verificationFailed') || 'Verification failed');
+      await firebaseLogin({ idToken });
+      // AppNavigator handles navigation automatically once the JWT is stored.
     } catch (error: any) {
-      showAlert(t('error'), error.message || t('verificationFailed'));
+      showAlert(t('invalidOtp') || 'Invalid OTP', firebaseErrorMessage(error));
+    } finally {
+      setIsLoginLoading(false);
     }
   };
 
   const handleResendOTP = async () => {
+    setIsOtpLoading(true);
     try {
       const e164Phone = `+91${phone}`;
-      const data = await sendOtp({ phone: e164Phone });
-      if (data.success) {
-        setResendTimer(60);
-        setOtp('');
-        showAlert(t('otpResent'), t('newCodeSent'));
-      } else {
-        showAlert(t('failedResend'), data.message || t('waitTryAgain'));
-      }
+      const conf = await auth().signInWithPhoneNumber(e164Phone, true);
+      setConfirmation(conf);
+      setResendTimer(60);
+      setOtp('');
+      showAlert(t('otpResent'), t('newCodeSent'));
     } catch (error: any) {
-      showAlert(t('error'), error.message || t('waitTryAgain'));
+      showAlert(t('failedResend') || 'Failed to resend', firebaseErrorMessage(error));
+    } finally {
+      setIsOtpLoading(false);
     }
   };
 

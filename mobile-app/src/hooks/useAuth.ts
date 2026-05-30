@@ -98,6 +98,29 @@ export function useAuth() {
         },
     });
 
+    // Firebase phone-auth: exchange a verified Firebase ID token for our JWT.
+    const firebaseLoginMutation = useMutation({
+        mutationFn: async ({ idToken }: { idToken: string }) => {
+            return await authAPI.firebaseLogin(idToken);
+        },
+        onSuccess: async (data: any) => {
+            if (data.success) {
+                const tokenToSet =
+                    data.data?.accessToken ||
+                    data.data?.token ||
+                    data.accessToken ||
+                    data.token ||
+                    null;
+                if (tokenToSet) {
+                    await SecureStore.setItemAsync('token', tokenToSet);
+                    await SecureStore.setItemAsync('accessToken', tokenToSet);
+                    setHasToken(true);
+                    queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                }
+            }
+        },
+    });
+
     const logout = async () => {
         try {
             await authAPI.logout();
@@ -115,10 +138,11 @@ export function useAuth() {
         isAuthenticated: !!user,
         login: loginMutation.mutateAsync,
         sendOtp: sendOtpMutation.mutateAsync,
+        firebaseLogin: firebaseLoginMutation.mutateAsync,
         logout,
         loginError: loginMutation.error,
         otpError: sendOtpMutation.error,
-        isLoginLoading: loginMutation.isPending,
+        isLoginLoading: loginMutation.isPending || firebaseLoginMutation.isPending,
         isOtpLoading: sendOtpMutation.isPending,
     };
 }
