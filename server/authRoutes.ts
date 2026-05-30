@@ -13,7 +13,8 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 import { OTPService } from "./services/otpService";
 // Importing fcmService initializes the firebase-admin app (side effect) so we
 // can verify Firebase ID tokens for phone-auth login below.
-import * as admin from "firebase-admin";
+import { getApps } from "firebase-admin/app";
+import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import "./services/fcmService";
 
 // Shared: find-or-create a user for a verified phone number and return our JWT.
@@ -61,11 +62,16 @@ router.post("/firebase-login", async (req, res) => {
         const { idToken } = req.body;
         if (!idToken) return res.status(400).json({ message: "idToken is required" });
 
-        let decoded: admin.auth.DecodedIdToken;
+        if (getApps().length === 0) {
+            console.error("[Auth] Firebase Admin not initialized — check FIREBASE_SERVICE_ACCOUNT on the server.");
+            return res.status(500).json({ message: "Server auth not configured (Firebase Admin not initialized)." });
+        }
+
+        let decoded: DecodedIdToken;
         try {
-            decoded = await admin.auth().verifyIdToken(idToken);
+            decoded = await getAuth().verifyIdToken(idToken);
         } catch (err: any) {
-            console.error("[Auth] Firebase token verify failed:", err?.message);
+            console.error("[Auth] Firebase token verify failed:", err?.code, err?.message);
             return res.status(401).json({ message: "Invalid or expired Firebase token" });
         }
 
