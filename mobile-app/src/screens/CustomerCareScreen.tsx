@@ -10,7 +10,7 @@ export default function CustomerCareScreen() {
   const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
 
   const handleCall = useCallback(async () => {
-    const phoneNumber = 'tel:+911234567890'; // Placeholder
+    const phoneNumber = 'tel:+918087906174'; // Placeholder
     const supported = await Linking.canOpenURL(phoneNumber);
     if (supported) {
       await Linking.openURL(phoneNumber);
@@ -31,8 +31,8 @@ export default function CustomerCareScreen() {
 
   const handleWhatsApp = useCallback(async () => {
     const message = encodeURIComponent(t('whatsappPlaceholderMsg'));
-    const whatsappUrl = `whatsapp://send?phone=+911234567890&text=${message}`;
-    const webUrl = `https://wa.me/911234567890?text=${message}`;
+    const whatsappUrl = `whatsapp://send?phone=+918087906174&text=${message}`;
+    const webUrl = `https://wa.me/918087906174?text=${message}`;
     
     try {
       const supported = await Linking.canOpenURL(whatsappUrl);

@@ -140,8 +140,8 @@ export default function ProfileScreen({ navigation }: any) {
               editValue={editData.name}
               onEdit={(v: string) => setEditData({...editData, name: v})}
             />
-            <InfoRow label="First Name" value={user?.firstName || 'Not provided'} />
-            <InfoRow label="Last Name" value={user?.lastName || 'Not provided'} />
+            <InfoRow label="First Name" value={user?.firstName || (profile?.name || '').trim().split(/\s+/).filter(Boolean)[0] || 'Not provided'} />
+            <InfoRow label="Last Name" value={user?.lastName || (profile?.name || '').trim().split(/\s+/).filter(Boolean).slice(1).join(' ') || 'Not provided'} />
             <InfoRow label="User ID" value={user?.id ? String(user.id) : ''} isMono />
             <InfoRow label="Account Created" value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Not available'} />
           </View>

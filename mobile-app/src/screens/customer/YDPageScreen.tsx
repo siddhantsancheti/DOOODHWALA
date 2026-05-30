@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, useColorScheme, Modal, TextInput
 } from 'react-native';
-import { X, Heart, ArrowLeft, Clock, Settings, BarChart3, MessageCircle, Phone, Users, Plus, Star, Truck, ShoppingCart, Info, CreditCard, LogOut, Copy, Check } from 'lucide-react-native';
+import { X, Heart, ArrowLeft, Clock, Settings, BarChart3, MessageCircle, Phone, Users, Plus, Star, Truck, ShoppingCart, Info, CreditCard, LogOut, Copy, Check, Search } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
@@ -46,6 +46,7 @@ export default function YDPageScreen({ navigation }: any) {
   const [requestMilkman, setRequestMilkman] = useState<any>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [milkmanSearch, setMilkmanSearch] = useState("");
   const [requestNotes, setRequestNotes] = useState("");
 
   const scrollRef = useRef<ScrollView>(null);
@@ -293,6 +294,16 @@ export default function YDPageScreen({ navigation }: any) {
       })
     : [];
 
+  // When the customer types a search query, match by business or contact name
+  // across ALL milkmen (not just same-city), so search can find anyone.
+  const q = milkmanSearch.trim().toLowerCase();
+  const filteredMilkmen = q
+    ? ((milkmen && Array.isArray(milkmen)) ? milkmen : []).filter((m: any) =>
+        m.id !== assignedMilkmanId &&
+        ((m.businessName || '').toLowerCase().includes(q) || (m.contactName || '').toLowerCase().includes(q))
+      )
+    : unassignedMilkmen;
+
   const surfaceColor = colors.card;
   const textColor = colors.foreground;
   const textMuted = colors.mutedForeground;
@@ -411,15 +422,34 @@ export default function YDPageScreen({ navigation }: any) {
           <View style={styles.emptyState}>
             <Heart size={48} color={colors.primary} style={{ marginBottom: 16 }} />
             <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noDoodhwalaAssigned')}</Text>
-            <Text style={[styles.emptySubtitle, { color: textMuted }]}>Join a household group with a code, or pick a dairyman below to get started.</Text>
-            <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: colors.primary }]} onPress={() => { setGroupMode('join'); setShowGroupModal(true); }}>
-              <Text style={styles.mainActionBtnText}>Join with Code</Text>
-            </TouchableOpacity>
+            <Text style={[styles.emptySubtitle, { color: textMuted }]}>Search for a dairyman, join a household group with a code, or pick a dairyman below.</Text>
+
+            {/* Search bar (left) + Join with Code button (right) */}
+            <View style={styles.searchRow}>
+              <View style={[styles.searchBox, { borderColor, backgroundColor: surfaceColor }]}>
+                <Search size={18} color={textMuted} />
+                <TextInput
+                  style={[styles.searchInput, { color: textColor, fontFamily }]}
+                  placeholder="Search dairyman..."
+                  placeholderTextColor={textMuted}
+                  value={milkmanSearch}
+                  onChangeText={setMilkmanSearch}
+                />
+                {milkmanSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setMilkmanSearch("")}>
+                    <X size={16} color={textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity style={[styles.joinCodeBtn, { backgroundColor: colors.primary }]} onPress={() => { setGroupMode('join'); setShowGroupModal(true); }}>
+                <Text style={styles.joinCodeBtnText}>Join with Code</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {unassignedMilkmen.length > 0 && (
+          {filteredMilkmen.length > 0 ? (
             <View style={{ marginTop: 8 }}>
-              {unassignedMilkmen.map((m: any) => (
+              {filteredMilkmen.map((m: any) => (
                 <View key={m.id} style={[styles.milkmanCard, { backgroundColor: surfaceColor, borderColor }]}>
                   <View style={styles.milkmanTop}>
                     <View style={[styles.milkmanAvatarSmall, { backgroundColor: isDark ? '#4B5563' : '#F3E8FF' }]}>
@@ -441,6 +471,10 @@ export default function YDPageScreen({ navigation }: any) {
                 </View>
               ))}
             </View>
+          ) : (
+            <Text style={{ color: textMuted, fontSize: 14, textAlign: 'center', marginTop: 24, fontFamily }}>
+              {q ? `No dairyman found for "${milkmanSearch}".` : 'No dairymen available in your area yet.'}
+            </Text>
           )}
         </>
       )}
@@ -834,6 +868,11 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   },
   reqQtyBtnText: { fontSize: 18, fontWeight: '700' },
   reqQtyVal: { fontSize: 15, fontWeight: '700', minWidth: 20, textAlign: 'center', fontFamily: fontFamilyBold },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20, width: '100%' },
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 46, borderWidth: 1, borderRadius: 23, paddingHorizontal: 14 },
+  searchInput: { flex: 1, fontSize: 14, padding: 0 },
+  joinCodeBtn: { height: 46, paddingHorizontal: 18, borderRadius: 23, justifyContent: 'center', alignItems: 'center' },
+  joinCodeBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, fontFamily: fontFamilyBold },
   reqSlotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   reqSlotChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   reqSlotText: { fontSize: 13, fontWeight: '600', fontFamily },

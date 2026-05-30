@@ -38,7 +38,7 @@ const { width } = Dimensions.get('window');
 
 export default function MilkmanDashboardScreen({ navigation }: any) {
   const { user } = useAuth();
-  const { t, language, setLanguage, fontFamily, fontFamilyBold, colors, isDark } = useTranslation();
+  const { t, language, setLanguage, fontFamily, fontFamilyBold, colors, isDark, themeMode, setThemeMode } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const styles = useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
@@ -661,11 +661,11 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                   <Text style={[styles.dropdownLabel, { color: textColor, fontFamily: fontFamilyBold }]}>{t('settings')}</Text>
                   <View style={[styles.dropdownSeparator, { backgroundColor: borderColor }]} />
                   
-                  <TouchableOpacity 
-                    style={styles.dropdownItem} 
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
                     onPress={() => {
-                      Alert.alert(t('info'), t('themeFollowsSystem'));
-                      setShowSettingsDropdown(false);
+                      const next = themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'system' : 'light';
+                      setThemeMode(next);
                     }}
                   >
                     {isDark ? (
@@ -674,7 +674,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                       <Moon size={18} color={textMuted} style={styles.dropdownIcon} />
                     )}
                     <Text style={[styles.dropdownItemText, { color: textColor, fontFamily }]}>
-                      {isDark ? t('lightMode') : t('darkMode')}
+                      {themeMode === 'light' ? 'Theme: Light' : themeMode === 'dark' ? 'Theme: Dark' : 'Theme: System'}
                     </Text>
                   </TouchableOpacity>
 

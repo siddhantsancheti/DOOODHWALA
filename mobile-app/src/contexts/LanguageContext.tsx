@@ -4,6 +4,8 @@ import { translations, Language } from '../lib/translations';
 import { lightColors, darkColors } from '../theme';
 import { useColorScheme } from 'react-native';
 
+type ThemeMode = 'light' | 'dark' | 'system';
+
 interface LanguageContextProps {
   language: Language;
   setLanguage: (lang: Language) => Promise<void>;
@@ -12,6 +14,8 @@ interface LanguageContextProps {
   fontFamilyBold: string;
   colors: typeof lightColors;
   isDark: boolean;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => Promise<void>;
 }
 
 const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
@@ -19,21 +23,31 @@ const LanguageContext = createContext<LanguageContextProps | undefined>(undefine
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLangState] = useState<Language>('English');
   const systemColorScheme = useColorScheme();
-  const isDark = systemColorScheme === 'dark';
+  const [themeMode, setThemeState] = useState<ThemeMode>('system');
+
+  // Resolve the effective theme: explicit light/dark wins, else follow system.
+  const isDark = themeMode === 'dark' ? true : themeMode === 'light' ? false : systemColorScheme === 'dark';
 
   useEffect(() => {
-    const loadLanguage = async () => {
+    const load = async () => {
       const savedLang = await AsyncStorage.getItem('user-language');
-      if (savedLang) {
-        setLangState(savedLang as Language);
+      if (savedLang) setLangState(savedLang as Language);
+      const savedTheme = await AsyncStorage.getItem('user-theme');
+      if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
+        setThemeState(savedTheme);
       }
     };
-    loadLanguage();
+    load();
   }, []);
 
   const setLanguage = async (lang: Language) => {
     setLangState(lang);
     await AsyncStorage.setItem('user-language', lang);
+  };
+
+  const setThemeMode = async (mode: ThemeMode) => {
+    setThemeState(mode);
+    await AsyncStorage.setItem('user-theme', mode);
   };
 
   const t = (key: string) => {
@@ -74,10 +88,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       language, 
       setLanguage, 
       t, 
-      fontFamily, 
-      fontFamilyBold, 
-      colors, 
-      isDark 
+      fontFamily,
+      fontFamilyBold,
+      colors,
+      isDark,
+      themeMode,
+      setThemeMode,
     }}>
       {children}
     </LanguageContext.Provider>

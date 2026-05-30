@@ -34,7 +34,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [showLanguageSubmenu, setShowLanguageSubmenu] = useState(false);
   const { logout } = useAuth();
-  const { t, language, setLanguage, fontFamily, fontFamilyBold, colors: themeColors, isDark: themeIsDark } = useTranslation();
+  const { t, language, setLanguage, fontFamily, fontFamilyBold, colors: themeColors, isDark: themeIsDark, themeMode, setThemeMode } = useTranslation();
 
   if (profileLoading) {
     return (
@@ -131,14 +131,12 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
                 <Text style={[styles.dropdownLabel, { color: textColor, fontFamily: fontFamilyBold }]}>{t('settings')}</Text>
                 <View style={[styles.dropdownSeparator, { backgroundColor: borderColor }]} />
                 
-                {/* Theme Toggle */}
-                <TouchableOpacity 
-                  style={styles.dropdownItem} 
+                {/* Theme Toggle — cycles Light → Dark → System */}
+                <TouchableOpacity
+                  style={styles.dropdownItem}
                   onPress={() => {
-                    // Logic for manual theme toggle would go here if implemented globally
-                    // For now, we follow system theme, but we show the UI parity
-                    Alert.alert("Info", "Theme follows your system settings.");
-                    setShowSettingsDropdown(false);
+                    const next = themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'system' : 'light';
+                    setThemeMode(next);
                   }}
                 >
                   {isDark ? (
@@ -147,7 +145,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
                     <Moon size={18} color={textMuted} style={styles.dropdownIcon} />
                   )}
                   <Text style={[styles.dropdownItemText, { color: textColor, fontFamily }]}>
-                    {isDark ? t('lightMode') : t('darkMode')}
+                    {themeMode === 'light' ? 'Theme: Light' : themeMode === 'dark' ? 'Theme: Dark' : 'Theme: System'}
                   </Text>
                 </TouchableOpacity>
 
