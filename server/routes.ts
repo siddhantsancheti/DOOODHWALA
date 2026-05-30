@@ -16,6 +16,7 @@ import subscriptionRoutes from "./subscriptionRoutes";
 import customerPricingRoutes from "./customerPricingRoutes";
 import notificationRoutes from "./notificationRoutes";
 import groupRoutes from "./groupRoutes";
+import legalRoutes from "./legalPages";
 
 import { authenticateToken, authorizeRole } from "./middleware/auth";
 import userRoutes from "./userRoutes";
@@ -58,6 +59,10 @@ export function registerRoutes(app: Express): Server {
     app.use("/api/products", authenticateToken, productRoutes);
 
     // Add other API routes here as needed
+
+    // Public legal pages (Privacy Policy / Terms) — required for Play Store +
+    // Firebase brand verification. Registered before the SPA catch-all.
+    app.use("/", legalRoutes);
 
     const httpServer = createServer(app);
     setupWebSocket(httpServer);
