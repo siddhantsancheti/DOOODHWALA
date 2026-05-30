@@ -45,7 +45,7 @@ export default function YDPageScreen({ navigation }: any) {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMilkman, setRequestMilkman] = useState<any>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState("");
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [requestNotes, setRequestNotes] = useState("");
 
   const scrollRef = useRef<ScrollView>(null);
@@ -73,7 +73,7 @@ export default function YDPageScreen({ navigation }: any) {
       queryClient.invalidateQueries({ queryKey: ['/api/service-requests/customer'] });
       setShowRequestModal(false);
       setSelectedProducts([]);
-      setSelectedSlot("");
+      setSelectedSlots([]);
       setRequestNotes("");
       Alert.alert('Request Sent', 'Your service request was sent. The dairyman will set a price and respond shortly.');
     },
@@ -127,13 +127,19 @@ export default function YDPageScreen({ navigation }: any) {
     setSelectedProducts([]);
     setRequestNotes("");
     const slots = getDeliverySlots(m);
-    setSelectedSlot(slots[0] || "");
+    setSelectedSlots(slots[0] ? [slots[0]] : []);
     setShowRequestModal(true);
   };
 
   const toggleProduct = (name: string) => {
     setSelectedProducts((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
+
+  const toggleSlot = (slot: string) => {
+    setSelectedSlots((prev) =>
+      prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot]
     );
   };
 
@@ -149,11 +155,11 @@ export default function YDPageScreen({ navigation }: any) {
       Alert.alert('Select Products', 'Please select at least one product.');
       return;
     }
-    if (!selectedSlot) {
-      Alert.alert('Delivery Time', 'Please choose a delivery time.');
+    if (selectedSlots.length === 0) {
+      Alert.alert('Delivery Time', 'Please choose at least one delivery time.');
       return;
     }
-    const notes = `Preferred delivery: ${selectedSlot}${requestNotes ? `\n${requestNotes}` : ''}`;
+    const notes = `Preferred delivery: ${selectedSlots.join(', ')}${requestNotes ? `\n${requestNotes}` : ''}`;
     createRequestMutation.mutate({ milkmanId: requestMilkman.id, services, customerNotes: notes });
   };
 
@@ -629,20 +635,27 @@ export default function YDPageScreen({ navigation }: any) {
               )}
 
               <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>Delivery Time</Text>
+              <Text style={{ color: textMuted, fontSize: 12, fontFamily, marginBottom: 8 }}>
+                Select one or more — e.g. both morning and evening.
+              </Text>
               <View style={styles.reqSlotRow}>
-                {getDeliverySlots(requestMilkman).map((slot, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.reqSlotChip,
-                      { borderColor },
-                      selectedSlot === slot && { backgroundColor: colors.primary, borderColor: colors.primary },
-                    ]}
-                    onPress={() => setSelectedSlot(slot)}
-                  >
-                    <Text style={[styles.reqSlotText, { color: selectedSlot === slot ? '#FFFFFF' : textColor }]}>{slot}</Text>
-                  </TouchableOpacity>
-                ))}
+                {getDeliverySlots(requestMilkman).map((slot, idx) => {
+                  const isSel = selectedSlots.includes(slot);
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.reqSlotChip,
+                        { borderColor, flexDirection: 'row', alignItems: 'center', gap: 6 },
+                        isSel && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      ]}
+                      onPress={() => toggleSlot(slot)}
+                    >
+                      {isSel && <Check size={14} color="#FFFFFF" />}
+                      <Text style={[styles.reqSlotText, { color: isSel ? '#FFFFFF' : textColor }]}>{slot}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>Notes (optional)</Text>
