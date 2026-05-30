@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import { MapPin, Camera } from 'lucide-react-native';
+import { MapPin, Camera, User, Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
@@ -98,6 +98,40 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
     }
   };
 
+  // Build a single address string from the structured fields.
+  const buildAddressString = () =>
+    [formData.houseNumber, formData.buildingName, formData.streetName, formData.area,
+     formData.landmark, formData.city, formData.state, formData.pincode, 'India']
+      .filter((p) => p && p.trim()).join(', ');
+
+  // ── Locate the typed address on the map (geocode → lat/lng) ────────────────
+  // Used when GPS auto-capture didn't work but the user has typed their address.
+  const geocodeFromAddress = async () => {
+    const query = buildAddressString();
+    if (!formData.area && !formData.city && !formData.pincode) {
+      Alert.alert('Enter address first', 'Please fill in your area, city and pincode, then tap to locate.');
+      return;
+    }
+    setIsLocating(true);
+    try {
+      const results = await Location.geocodeAsync(query);
+      if (results && results.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: results[0].latitude.toString(),
+          longitude: results[0].longitude.toString(),
+        }));
+        setLocationAutoCapture('captured');
+      } else {
+        Alert.alert('Address not found', 'Could not pinpoint that address. Add more detail (area, city, pincode) and try again.');
+      }
+    } catch (error) {
+      Alert.alert(t('error'), 'Could not look up the address. Please check your connection and try again.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setSubmitAttempted(true);
     if (!formData.name || !formData.email || !formData.streetName || !formData.area || !formData.city || !formData.pincode) {
@@ -122,6 +156,20 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
 
     setIsSubmitting(true);
     try {
+      // If GPS didn't capture coordinates, derive them from the typed address so
+      // the customer still appears on the map / delivery route.
+      let lat = formData.latitude;
+      let lng = formData.longitude;
+      if (!lat || !lng) {
+        try {
+          const results = await Location.geocodeAsync(fullAddress);
+          if (results && results.length > 0) {
+            lat = results[0].latitude.toString();
+            lng = results[0].longitude.toString();
+          }
+        } catch { /* best-effort — submit without coords if geocoding fails */ }
+      }
+
       const body: any = {
         name: formData.name,
         email: formData.email,
@@ -135,10 +183,10 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
         state: formData.state,
         pincode: formData.pincode,
       };
-      // Only include coordinates if captured
-      if (formData.latitude && formData.longitude) {
-        body.latitude = formData.latitude;
-        body.longitude = formData.longitude;
+      // Only include coordinates if captured or geocoded
+      if (lat && lng) {
+        body.latitude = lat;
+        body.longitude = lng;
       }
       const res = await apiRequest({
         url: '/api/customers/profile',
@@ -174,8 +222,8 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
         >
           {/* Profile Photo Area */}
           <View style={styles.photoContainer}>
-            <View style={styles.photoCircle}>
-              <Image source={logo} style={styles.photoImage} resizeMode="contain" />
+            <View style={[styles.photoCircle, { backgroundColor: isDark ? '#1F2937' : '#EEF2FF', borderRadius: 80 }]}>
+              <User size={72} color={colors.primary} />
             </View>
             <TouchableOpacity style={styles.cameraBtn} activeOpacity={0.8} onPress={() => Alert.alert('Coming Soon', 'Profile picture upload is currently under development.')}>
               <Camera size={20} color="#FFFFFF" />
@@ -206,7 +254,7 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
                 style={styles.cardIconGradient}
               >
                 <View style={styles.cardIconInner}>
-                  <Image source={logo} style={styles.cardIconImage} resizeMode="contain" />
+                  <User size={36} color="#FFFFFF" />
                 </View>
               </LinearGradient>
             </View>
@@ -406,8 +454,27 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
               </TouchableOpacity>
               {locationAutoCapture === 'failed' && (
                 <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 4, fontFamily }}>
-                  Could not auto-detect — tap above to try manually.
+                  Could not auto-detect — use the button below to locate from your address.
                 </Text>
+              )}
+
+              {/* Locate from typed address (fallback when GPS isn't available) */}
+              {!formData.latitude && (
+                <TouchableOpacity
+                  style={[styles.locationBtn, { marginTop: 10, borderStyle: 'solid', borderColor: colors.primary }]}
+                  onPress={geocodeFromAddress}
+                  disabled={isLocating}
+                  activeOpacity={0.7}
+                >
+                  {isLocating ? (
+                    <ActivityIndicator color={colors.primary} style={{ marginRight: 8 }} />
+                  ) : (
+                    <Search size={18} color={colors.primary} style={{ marginRight: 8 }} />
+                  )}
+                  <Text style={[styles.locationBtnText, { color: colors.primary }]}>
+                    Locate from typed address
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
 
