@@ -62,7 +62,20 @@ router.get("/stats", async (req, res) => {
 router.get("/users", async (req, res) => {
     try {
         const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
-        res.json(allUsers);
+
+        // Names are stored on the customer/milkman profile, not on the user row.
+        // Resolve a display name for each user so the admin table isn't all "N/A".
+        const custRows = await db.select({ userId: customers.userId, name: customers.name }).from(customers);
+        const milkRows = await db.select({ userId: milkmen.userId, name: milkmen.contactName }).from(milkmen);
+        const nameByUser = new Map<string, string>();
+        for (const c of custRows) if (c.userId && c.name) nameByUser.set(c.userId, c.name);
+        for (const m of milkRows) if (m.userId && m.name) nameByUser.set(m.userId, m.name);
+
+        const enriched = allUsers.map((u) => ({
+            ...u,
+            name: nameByUser.get(u.id) || [u.firstName, u.lastName].filter(Boolean).join(" ") || null,
+        }));
+        res.json(enriched);
     } catch (error: any) {
         res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
     }

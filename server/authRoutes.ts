@@ -30,12 +30,23 @@ async function issueSessionForPhone(phone: string, res: any) {
         const digits = phone.replace(/\D/g, "").slice(-6);
         const suffix = Math.random().toString(36).slice(2, 6);
         const username = `user_${digits}_${suffix}`;
+        // Phone is verified by Firebase/OTP at this point → mark the user verified.
         [user] = await db
             .insert(users)
-            .values({ id: userId, phone, username, userType: isAdmin ? "admin" : null })
+            .values({ id: userId, phone, username, userType: isAdmin ? "admin" : null, isVerified: true })
             .returning();
-    } else if (isAdmin && user.userType !== "admin") {
-        [user] = await db.update(users).set({ userType: "admin" }).where(eq(users.id, user.id)).returning();
+    } else if ((isAdmin && user.userType !== "admin") || !user.isVerified) {
+        // Promote to admin if needed and/or flip the verified flag now that the
+        // phone has been verified via OTP.
+        [user] = await db
+            .update(users)
+            .set({
+                userType: isAdmin ? "admin" : user.userType,
+                isVerified: true,
+                lastActiveAt: new Date(),
+            })
+            .where(eq(users.id, user.id))
+            .returning();
     }
 
     const token = jwt.sign({ id: user.id, phone: user.phone }, JWT_SECRET!, { expiresIn: "30d" });

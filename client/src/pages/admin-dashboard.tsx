@@ -43,6 +43,7 @@ interface DashboardStats {
 interface User {
   id: string;
   phone: string;
+  name?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -421,10 +422,9 @@ export default function AdminDashboard() {
                     {users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>
-                          {user.firstName && user.lastName
-                            ? `${user.firstName} ${user.lastName}`
-                            : 'N/A'
-                          }
+                          {user.name
+                            || ([user.firstName, user.lastName].filter(Boolean).join(' '))
+                            || 'N/A'}
                         </TableCell>
                         <TableCell className="flex items-center gap-2">
                           <Phone className="h-4 w-4" />
