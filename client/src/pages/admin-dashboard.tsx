@@ -494,6 +494,9 @@ export default function AdminDashboard() {
                           {(user.userType === 'customer' || (user.userType === 'milkman' && user.milkmanId)) && (
                             <span className="ml-2 text-xs text-blue-600">(view)</span>
                           )}
+                          {user.userType === 'milkman' && !user.milkmanId && (
+                            <span className="ml-2 text-xs text-amber-600">(profile incomplete)</span>
+                          )}
                         </TableCell>
                         <TableCell className="flex items-center gap-2">
                           <Phone className="h-4 w-4" />
