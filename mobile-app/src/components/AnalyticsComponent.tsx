@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions, useColorScheme, ScrollView, TouchableOpacity } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { BarChart3, TrendingUp, Clock, Star, Package, ChevronLeft, ChevronRight, PieChart, Table } from 'lucide-react-native';
 import { useTranslation } from '../contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
+const PALETTE = ['#3B82F6', '#10B981', '#F59E0B', '#A855F7', '#EF4444', '#06B6D4'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function AnalyticsComponent({ milkman }: { milkman: any }) {
   const { isDark } = useTranslation();
@@ -14,24 +17,79 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
 
   const [activeView, setActiveView] = useState<'charts' | 'table'>('charts');
 
-  // Multi-product mock data for parity
-  const monthlyData = [
-    { date: '01 Apr', day: 'Mon', qty: 2.0, amount: 110, product: 'Fresh Milk' },
-    { date: '02 Apr', day: 'Tue', qty: 1.5, amount: 90, product: 'Buffalo Milk' },
-    { date: '03 Apr', day: 'Wed', qty: 2.5, amount: 140, product: 'Fresh Milk' },
-    { date: '04 Apr', day: 'Thu', qty: 2.0, amount: 110, product: 'Fresh Milk' },
-    { date: '05 Apr', day: 'Fri', qty: 3.0, amount: 180, product: 'Buffalo Milk' },
-    { date: '06 Apr', day: 'Sat', qty: 1.0, amount: 55, product: 'Curd' },
-    { date: '07 Apr', day: 'Sun', qty: 2.0, amount: 110, product: 'Fresh Milk' },
-  ];
+  // ── Real data: this customer's orders for the current month ──────────────
+  const { data: customerProfile } = useQuery<any>({ queryKey: ['/api/customers/profile'] });
+  const { data: history = [] } = useQuery<any[]>({
+    queryKey: [`/api/chat/group/${milkman?.id}`],
+    enabled: !!milkman?.id,
+  });
 
-  const productBreakdown = [
-    { name: 'Fresh Milk', percent: 65, color: '#3B82F6' },
-    { name: 'Buffalo Milk', percent: 25, color: '#10B981' },
-    { name: 'Curd', percent: 10, color: '#F59E0B' },
-  ];
+  const monthLabel = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  const maxQty = Math.max(...monthlyData.map(d => d.qty));
+  const { monthlyData, productBreakdown, monthlyTotal, totalQty } = useMemo(() => {
+    const now = new Date();
+    const myId = customerProfile?.id;
+    const orders = (Array.isArray(history) ? history : []).filter((m: any) =>
+      m.messageType === 'order' &&
+      m.senderType === 'customer' &&
+      (myId == null || m.customerId === myId) &&
+      (() => { const d = new Date(m.createdAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })()
+    );
+
+    // Per-weekday quantity
+    const byDay: Record<string, { qty: number; amount: number }> = {};
+    DAYS.forEach((d) => (byDay[d] = { qty: 0, amount: 0 }));
+    const rows: { date: string; day: string; qty: number; amount: number; product: string }[] = [];
+    const productQty: Record<string, number> = {};
+    let total = 0;
+    let qtyTotal = 0;
+
+    orders.forEach((o: any) => {
+      const d = new Date(o.createdAt);
+      const dayKey = DAYS[d.getDay()];
+      const amt = parseFloat(o.orderTotal || '0') || 0;
+      const qty = parseFloat(o.orderQuantity || '0') || (Array.isArray(o.orderItems) ? o.orderItems.reduce((s: number, it: any) => s + (parseFloat(it.quantity) || 0), 0) : 0);
+      byDay[dayKey].qty += qty;
+      byDay[dayKey].amount += amt;
+      total += amt;
+      qtyTotal += qty;
+      (Array.isArray(o.orderItems) ? o.orderItems : []).forEach((it: any) => {
+        productQty[it.product] = (productQty[it.product] || 0) + (parseFloat(it.quantity) || 0);
+      });
+      rows.push({
+        date: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+        day: dayKey,
+        qty,
+        amount: amt,
+        product: o.orderProduct || (Array.isArray(o.orderItems) ? o.orderItems.map((i: any) => i.product).join(', ') : 'Order'),
+      });
+    });
+
+    const md = DAYS.slice(1).concat(DAYS[0]).map((day) => ({ date: day, day, qty: byDay[day].qty, amount: byDay[day].amount, product: '' }));
+    const totalProductQty = Object.values(productQty).reduce((s, v) => s + v, 0) || 1;
+    const pb = Object.entries(productQty)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, q], i) => ({ name, percent: Math.round((q / totalProductQty) * 100), color: PALETTE[i % PALETTE.length] }));
+
+    return { monthlyData: rows.length ? md : md, productBreakdown: pb, monthlyTotal: total, totalQty: qtyTotal };
+  }, [history, customerProfile]);
+
+  const hasData = totalQty > 0 || monthlyTotal > 0;
+  const maxQty = Math.max(0.001, ...monthlyData.map((d) => d.qty));
+  const tableRows = useMemo(() => {
+    const now = new Date();
+    const myId = customerProfile?.id;
+    return (Array.isArray(history) ? history : [])
+      .filter((m: any) => m.messageType === 'order' && m.senderType === 'customer' && (myId == null || m.customerId === myId))
+      .filter((m: any) => { const d = new Date(m.createdAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); })
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((o: any) => ({
+        date: new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+        product: o.orderProduct || (Array.isArray(o.orderItems) ? o.orderItems.map((i: any) => i.product).join(', ') : 'Order'),
+        qty: parseFloat(o.orderQuantity || '0') || 0,
+        amount: parseFloat(o.orderTotal || '0') || 0,
+      }));
+  }, [history, customerProfile]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -61,10 +119,17 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
           </View>
           
           <View style={styles.monthSelector}>
-            <TouchableOpacity><ChevronLeft size={20} color={textMuted} /></TouchableOpacity>
-            <Text style={[styles.monthText, { color: textColor }]}>April 2026</Text>
-            <TouchableOpacity><ChevronRight size={20} color={textMuted} /></TouchableOpacity>
+            <Text style={[styles.monthText, { color: textColor }]}>{monthLabel}</Text>
           </View>
+
+          {!hasData && (
+            <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+              <Package size={40} color={textMuted} />
+              <Text style={{ color: textMuted, marginTop: 12, fontSize: 14, textAlign: 'center' }}>
+                No orders this month yet.{'\n'}Place orders in the chat and your stats will appear here.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.chartContainer}>
             {monthlyData.map((item, index) => (
@@ -84,16 +149,17 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
 
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: surfaceColor, borderColor }]}>
-               <Text style={[styles.statValue, { color: textColor }]}>₹845.00</Text>
+               <Text style={[styles.statValue, { color: textColor }]}>₹{monthlyTotal.toFixed(2)}</Text>
                <Text style={[styles.statLabel, { color: textMuted }]}>Monthly Total</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: surfaceColor, borderColor }]}>
-               <Text style={[styles.statValue, { color: textColor }]}>14.5 L</Text>
+               <Text style={[styles.statValue, { color: textColor }]}>{totalQty.toFixed(1)} L</Text>
                <Text style={[styles.statLabel, { color: textMuted }]}>Total Quantity</Text>
             </View>
           </View>
 
           {/* Product Breakdown */}
+          {productBreakdown.length > 0 && (
           <View style={[styles.breakdownCard, { backgroundColor: surfaceColor, borderColor }]}>
             <View style={styles.breakdownHeader}>
               <PieChart size={20} color="#6366F1" />
@@ -116,6 +182,7 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
               ))}
             </View>
           </View>
+          )}
         </View>
       ) : (
         <View style={styles.content}>
@@ -127,14 +194,19 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
               <Text style={[styles.headerCell, { flex: 1, color: textMuted, textAlign: 'right' }]}>Qty</Text>
               <Text style={[styles.headerCell, { flex: 1.2, color: textMuted, textAlign: 'right' }]}>Amount</Text>
             </View>
-            {monthlyData.map((row, idx) => (
-              <View key={idx} style={[styles.tableRow, idx < monthlyData.length - 1 && { borderBottomColor: borderColor }]}>
+            {tableRows.map((row, idx) => (
+              <View key={idx} style={[styles.tableRow, idx < tableRows.length - 1 && { borderBottomColor: borderColor }]}>
                 <Text style={[styles.cellText, { flex: 1.5, color: textColor }]}>{row.date}</Text>
                 <Text style={[styles.cellText, { flex: 2, color: textColor }]} numberOfLines={1}>{row.product}</Text>
                 <Text style={[styles.cellText, { flex: 1, color: textColor, textAlign: 'right' }]}>{row.qty}</Text>
                 <Text style={[styles.cellText, { flex: 1.2, color: '#2563EB', textAlign: 'right', fontWeight: 'bold' }]}>₹{row.amount}</Text>
               </View>
             ))}
+            {tableRows.length === 0 && (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: textMuted, fontSize: 13 }}>No orders this month yet.</Text>
+              </View>
+            )}
           </View>
         </View>
       )}

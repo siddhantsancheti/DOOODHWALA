@@ -32,6 +32,7 @@ export default function YDPageScreen({ navigation }: any) {
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
   const [showChat, setShowChat] = useState(false);
+  const [showChatInfo, setShowChatInfo] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
@@ -483,17 +484,19 @@ export default function YDPageScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Top Nav matching web-clean style */}
-      <View style={[styles.topNav, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
-        <View style={styles.navLeft}>
-          <Heart size={20} color="#DC2626" />
-          <Text style={[styles.navTitle, { color: textColor }]}>{t('yourDoodhwala')}</Text>
+      {/* Top Nav — hidden while in chat so there's a single clean header */}
+      {!showChat && (
+        <View style={[styles.topNav, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
+          <View style={styles.navLeft}>
+            <Heart size={20} color="#DC2626" />
+            <Text style={[styles.navTitle, { color: textColor }]}>{t('yourDoodhwala')}</Text>
+          </View>
+          <TouchableOpacity style={styles.dashboardBtn} onPress={() => navigation.navigate('CustomerHome')}>
+            <ArrowLeft size={14} color={textMuted} />
+            <Text style={[styles.dashboardBtnText, { color: textMuted }]}>{t('dashboard')}</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.dashboardBtn} onPress={() => navigation.navigate('CustomerHome')}>
-          <ArrowLeft size={14} color={textMuted} />
-          <Text style={[styles.dashboardBtnText, { color: textMuted }]}>{t('dashboard')}</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       <View style={{ flex: 1 }}>
         {showChat && yourDairyman ? (
@@ -502,10 +505,25 @@ export default function YDPageScreen({ navigation }: any) {
               <TouchableOpacity onPress={() => setShowChat(false)} style={styles.chatBackBtn}>
                 <ArrowLeft size={22} color={textColor} />
               </TouchableOpacity>
-              <Text style={[styles.chatHeaderTitle, { color: textColor }]} numberOfLines={1}>
-                {yourDairyman.businessName}
-              </Text>
-              <View style={{ width: 22 }} />
+              {/* Tap the header (WhatsApp-style) to open group info + share code */}
+              <TouchableOpacity style={styles.chatHeaderCenter} onPress={() => setShowChatInfo(true)} activeOpacity={0.7}>
+                <View style={[styles.chatHeaderAvatar, { backgroundColor: isDark ? '#1E40AF40' : '#DBEAFE' }]}>
+                  <Text style={{ color: colors.primary, fontWeight: '700', fontFamily: fontFamilyBold }}>
+                    {(yourDairyman.businessName || 'D').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.chatHeaderTitle2, { color: textColor }]} numberOfLines={1}>
+                    {yourDairyman.businessName}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: textMuted, fontFamily }} numberOfLines={1}>
+                    {myGroup?.id ? `Group • ${myGroup.memberCount || myGroup.members?.length || 1} members` : 'Tap for info & group code'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowChatInfo(true)} style={styles.chatBackBtn}>
+                <Info size={20} color={textMuted} />
+              </TouchableOpacity>
             </View>
             <ChatComponent customerId={customerProfile?.id} milkmanId={assignedMilkmanId} embedded={true} navigation={navigation} />
           </View>
@@ -513,6 +531,65 @@ export default function YDPageScreen({ navigation }: any) {
           renderOverview()
         )}
       </View>
+
+      {/* Chat Info Modal — dairyman details + household group code */}
+      <Modal visible={showChatInfo} animationType="slide" transparent={true} onRequestClose={() => setShowChatInfo(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor }]}>
+            <View style={styles.modalTopRow}>
+              <Text style={[styles.modalTitleSmall, { color: textColor }]}>Chat Info</Text>
+              <TouchableOpacity onPress={() => setShowChatInfo(false)}><X size={24} color={textColor} /></TouchableOpacity>
+            </View>
+
+            {/* Dairyman header */}
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <View style={[styles.chatHeaderAvatar, { backgroundColor: isDark ? '#1E40AF40' : '#DBEAFE', width: 64, height: 64, borderRadius: 32 }]}>
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 24, fontFamily: fontFamilyBold }}>
+                  {(yourDairyman?.businessName || 'D').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={[styles.modalTitleSmall, { color: textColor, marginTop: 8 }]}>{yourDairyman?.businessName}</Text>
+              <Text style={{ color: textMuted, fontSize: 13, fontFamily }}>{yourDairyman?.contactName}</Text>
+            </View>
+
+            {myGroup?.id ? (
+              <>
+                {/* Group code to share with family members */}
+                <View style={[styles.groupBanner, { backgroundColor: isDark ? '#064E3B30' : '#ECFDF5', borderColor: isDark ? '#065F46' : '#A7F3D0', marginTop: 0 }]}>
+                  <Text style={{ color: textColor, fontWeight: '700', fontFamily: fontFamilyBold }}>{myGroup.chatName}</Text>
+                  <Text style={{ color: textMuted, fontSize: 12, marginTop: 4, fontFamily }}>Share this code so family members can join the group:</Text>
+                  <TouchableOpacity
+                    style={styles.groupCodeRow}
+                    onPress={() => Alert.alert('Group Code', `Share this code with family members:\n\n${myGroup.chatCode}`)}
+                  >
+                    <Text style={[styles.groupCodeValue, { color: colors.primary }]}>{myGroup.chatCode}</Text>
+                    <Copy size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ color: textMuted, fontSize: 12, marginTop: 12, fontFamily }}>
+                  Members ({myGroup.memberCount || myGroup.members?.length || 1})
+                </Text>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={[styles.bigActionBtn, { borderColor, marginTop: 4 }]}
+                onPress={() => { setShowChatInfo(false); setGroupMode('create'); setShowGroupModal(true); }}
+              >
+                <Users size={20} color={textColor} />
+                <Text style={[styles.bigActionText, { color: textColor }]}>Create a household group</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.bigActionBtn, { borderColor, marginTop: 12 }]}
+              onPress={() => yourDairyman?.phone && Linking.openURL(`tel:${yourDairyman.phone}`)}
+            >
+              <Phone size={20} color={textColor} />
+              <Text style={[styles.bigActionText, { color: textColor }]}>Call Dairyman</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Group Modal (Create / Join) */}
       <Modal visible={showGroupModal} animationType="slide" transparent={true} onRequestClose={() => setShowGroupModal(false)}>
@@ -893,9 +970,12 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   groupCodeValue: { fontSize: 15, fontWeight: '800', letterSpacing: 1, fontFamily: fontFamilyBold },
 
   // Chat / analytics full-screen header
-  chatHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, gap: 8 },
   chatBackBtn: { padding: 4 },
   chatHeaderTitle: { fontSize: 16, fontWeight: '700', flex: 1, textAlign: 'center', fontFamily: fontFamilyBold },
+  chatHeaderCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  chatHeaderAvatar: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  chatHeaderTitle2: { fontSize: 15, fontWeight: '700', fontFamily: fontFamilyBold },
 
   // Group modal segment
   segmentRow: { flexDirection: 'row', borderWidth: 1, borderRadius: 10, padding: 4, marginBottom: 16, gap: 4 },

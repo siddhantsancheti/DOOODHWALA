@@ -40,11 +40,16 @@ export class BillingService {
             const amount = msg.orderTotal ? parseFloat(msg.orderTotal) : 0;
             customerOrders[msg.customerId].total += amount;
 
-            // Add item details
+            // Derive quantity: prefer orderQuantity, else sum the multi-product
+            // orderItems (so the bill never shows "0 L" when there were orders).
+            const items = Array.isArray(msg.orderItems) ? (msg.orderItems as any[]) : [];
+            const qty = parseFloat(msg.orderQuantity?.toString() || "0")
+                || items.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
+
             customerOrders[msg.customerId].items.push({
-                product: msg.orderProduct || "Order",
-                quantity: msg.orderQuantity,
-                price: amount / (parseFloat(msg.orderQuantity?.toString() || "1") || 1), // Approximate unit price
+                product: msg.orderProduct || items.map((i) => i.product).join(", ") || "Order",
+                quantity: qty,
+                price: qty > 0 ? amount / qty : amount,
                 amount: amount
             });
         });
@@ -151,10 +156,13 @@ export class BillingService {
             if (!belongs) continue;
             const amount = msg.orderTotal ? parseFloat(msg.orderTotal) : 0;
             total += amount;
+            const oi = Array.isArray(msg.orderItems) ? (msg.orderItems as any[]) : [];
+            const qty = parseFloat(msg.orderQuantity?.toString() || "0")
+                || oi.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
             items.push({
-                product: msg.orderProduct || "Order",
-                quantity: msg.orderQuantity,
-                price: amount / (parseFloat(msg.orderQuantity?.toString() || "1") || 1),
+                product: msg.orderProduct || oi.map((i) => i.product).join(", ") || "Order",
+                quantity: qty,
+                price: qty > 0 ? amount / qty : amount,
                 amount,
                 customerId: msg.customerId,
             });
