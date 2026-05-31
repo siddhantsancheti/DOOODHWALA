@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import { MapPin, Truck, Clock, CreditCard } from 'lucide-react-native';
+import { MapPin, Truck, Clock, CreditCard, Plus, X } from 'lucide-react-native';
 import { useTranslation } from '../contexts/LanguageContext';
 
 export default function MilkmanProfileSetupScreen({ navigation }: any) {
@@ -127,9 +127,9 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
     
     const fullAddress = addressParts.join(', ');
 
-    // Filter active products and slots
-    const activeProducts = dairyItems.filter(item => item.price && parseFloat(item.price) > 0);
-    const activeSlots = deliverySlots.filter(slot => slot.isActive);
+    // Filter active products (named + priced) and active slots (named + timed)
+    const activeProducts = dairyItems.filter(item => item.name && item.name.trim() && item.price && parseFloat(item.price) > 0);
+    const activeSlots = deliverySlots.filter(slot => slot.isActive && slot.name && slot.name.trim() && slot.startTime && slot.endTime);
 
     if (activeSlots.length === 0) {
       Alert.alert('Delivery Slots', 'Please enable at least one delivery slot.');
@@ -370,10 +370,20 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
             
             {dairyItems.map((item, index) => (
               <View key={index} style={styles.productRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.productName}>{item.name}</Text>
-                  <Text style={styles.productUnit}>{item.unit}</Text>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <TextInput
+                    style={styles.productNameInput}
+                    placeholder={t('productNamePlaceholder') || 'e.g. Cow Milk'}
+                    value={item.name}
+                    onChangeText={(val) => {
+                      const newItems = [...dairyItems];
+                      newItems[index].name = val;
+                      setDairyItems(newItems);
+                    }}
+                  />
+                  <Text style={styles.productUnit}>per litre</Text>
                 </View>
+                <Text style={{ color: colors.mutedForeground, marginRight: 4, fontFamily }}>₹</Text>
                 <TextInput
                   style={styles.priceInput}
                   placeholder="0"
@@ -385,8 +395,20 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
                     setDairyItems(newItems);
                   }}
                 />
+                {dairyItems.length > 1 && (
+                  <TouchableOpacity style={{ marginLeft: 8, padding: 4 }} onPress={() => setDairyItems(dairyItems.filter((_, i) => i !== index))}>
+                    <X size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
+            <TouchableOpacity
+              style={styles.addRowBtn}
+              onPress={() => setDairyItems([...dairyItems, { name: '', unit: 'per litre', price: '', isCustom: true }])}
+            >
+              <Plus size={18} color="#2563EB" />
+              <Text style={styles.addRowText}>{t('addNewProduct') || 'Add Product'}</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Delivery Slots Section */}
@@ -396,25 +418,50 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
               <Text style={styles.sectionTitle}>{t('deliverySlots')}</Text>
             </View>
             {deliverySlots.map((slot, index) => (
-              <View key={slot.id} style={styles.slotRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.slotName}>{slot.name}</Text>
-                  <Text style={styles.slotTime}>{slot.startTime} - {slot.endTime}</Text>
+              <View key={slot.id} style={styles.slotRowEdit}>
+                <TextInput
+                  style={styles.slotNameInput}
+                  placeholder="Slot name (e.g. Morning)"
+                  value={slot.name}
+                  onChangeText={(val) => { const n = [...deliverySlots]; n[index].name = val; setDeliverySlots(n); }}
+                />
+                <View style={styles.slotTimeRow}>
+                  <TextInput
+                    style={styles.timeInput}
+                    placeholder="06:00"
+                    value={slot.startTime}
+                    onChangeText={(val) => { const n = [...deliverySlots]; n[index].startTime = val; setDeliverySlots(n); }}
+                  />
+                  <Text style={{ color: colors.mutedForeground }}>—</Text>
+                  <TextInput
+                    style={styles.timeInput}
+                    placeholder="09:00"
+                    value={slot.endTime}
+                    onChangeText={(val) => { const n = [...deliverySlots]; n[index].endTime = val; setDeliverySlots(n); }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => { const n = [...deliverySlots]; n[index].isActive = !n[index].isActive; setDeliverySlots(n); }}
+                    style={[styles.toggleBtn, slot.isActive && styles.toggleBtnActive]}
+                  >
+                    <Text style={[styles.toggleBtnText, slot.isActive && styles.toggleBtnTextActive]}>
+                      {slot.isActive ? t('activeLabel') : t('disabledLabel')}
+                    </Text>
+                  </TouchableOpacity>
+                  {deliverySlots.length > 1 && (
+                    <TouchableOpacity style={{ padding: 4 }} onPress={() => setDeliverySlots(deliverySlots.filter((_, i) => i !== index))}>
+                      <X size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <TouchableOpacity 
-                  onPress={() => {
-                    const newSlots = [...deliverySlots];
-                    newSlots[index].isActive = !newSlots[index].isActive;
-                    setDeliverySlots(newSlots);
-                  }}
-                  style={[styles.toggleBtn, slot.isActive && styles.toggleBtnActive]}
-                >
-                  <Text style={[styles.toggleBtnText, slot.isActive && styles.toggleBtnTextActive]}>
-                    {slot.isActive ? t('activeLabel') : t('disabledLabel')}
-                  </Text>
-                </TouchableOpacity>
               </View>
             ))}
+            <TouchableOpacity
+              style={styles.addRowBtn}
+              onPress={() => setDeliverySlots([...deliverySlots, { id: String(Date.now()), name: '', startTime: '10:00', endTime: '12:00', isActive: true }])}
+            >
+              <Plus size={18} color="#2563EB" />
+              <Text style={styles.addRowText}>Add Delivery Slot</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Bank Details Section */}
@@ -514,6 +561,26 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     fontFamily: fontFamilyBold,
   },
   required: { color: colors.destructive },
+  productNameInput: {
+    fontSize: 16, fontWeight: '600', color: colors.foreground, fontFamily: fontFamilyBold,
+    borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#E5E7EB', paddingVertical: 2,
+  },
+  addRowBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 10, marginTop: 10, borderRadius: 8,
+    borderWidth: 1, borderStyle: 'dashed', borderColor: '#2563EB',
+  },
+  addRowText: { color: '#2563EB', fontWeight: '700', fontSize: 14, fontFamily: fontFamilyBold },
+  slotRowEdit: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#F3F4F6' },
+  slotNameInput: {
+    fontSize: 15, fontWeight: '600', color: colors.foreground, fontFamily: fontFamilyBold,
+    borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#E5E7EB', paddingVertical: 2,
+  },
+  slotTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  timeInput: {
+    width: 64, height: 36, borderWidth: 1, borderColor: isDark ? '#374151' : '#E5E7EB',
+    borderRadius: 8, textAlign: 'center', fontSize: 14, color: colors.foreground, fontFamily,
+  },
   inputRow: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 8,
     backgroundColor: colors.surfaceSecondary || (isDark ? '#374151' : '#F9FAFB'), height: 48,

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Modal, Dimensions, useColorScheme, Platform, TextInput, Linking, Switch
+  ActivityIndicator, Alert, Modal, Dimensions, useColorScheme, Platform, TextInput, Linking, Switch, StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -158,6 +158,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   const { data: serviceRequests = [], isLoading: isSrLoading } = useQuery<any[]>({
     queryKey: ['/api/service-requests/milkman'],
     enabled: !!milkmanProfile,
+    refetchInterval: 12000, // live: new enrollment requests appear automatically
   });
   const pendingRequestsCount = serviceRequests.filter((r: any) => r.status === 'pending').length;
 
@@ -309,6 +310,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   const { data: codPayments = [], refetch: refetchCODPayments } = useQuery<any[]>({
     queryKey: ["/api/payments/cod/pending", milkmanProfile?.id],
     enabled: !!milkmanProfile?.id,
+    refetchInterval: 12000, // live: pending cash payments appear automatically
   });
 
   const { data: milkmanBills = [] } = useQuery<any[]>({
@@ -913,6 +915,26 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
 
+          {/* Accept Payment (COD) — enter customer's OTP to confirm cash payment */}
+          <TouchableOpacity
+             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]}
+             onPress={() => setShowCODModal(true)}
+             activeOpacity={0.8}
+          >
+            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#DCFCE7' }]}>
+              <Banknote size={20} color="#16A34A" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>{codPayments.length}</Text>
+              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('codVerification')}</Text>
+            </View>
+            {codPayments.length > 0 && (
+              <View style={{ backgroundColor: '#16A34A', minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: fontFamilyBold }}>{codPayments.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           <TouchableOpacity
              style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]}
              onPress={() => setShowInventoryModal(true)}
@@ -1053,7 +1075,7 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
               >
                 <MapboxGL.Camera
                   ref={milkmanMapCamRef}
-                  zoomLevel={13}
+                  zoomLevel={16}
                   centerCoordinate={myCoord || [78.9629, 20.5937]}
                   animationMode="flyTo"
                   animationDuration={800}
@@ -2027,7 +2049,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
 
   // Full Screen Modals
   modalWrapper: { flex: 1 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: Platform.OS === 'ios' ? 44 : 16, borderBottomWidth: 1 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight || 24) + 14, borderBottomWidth: 1 },
   modalTitle: { fontSize: 20, fontWeight: '700', fontFamily: fontFamilyBold },
   closeBtn: { padding: 4 },
   modalContent: { padding: 16 },

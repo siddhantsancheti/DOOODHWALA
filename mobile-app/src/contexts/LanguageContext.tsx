@@ -51,7 +51,9 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const t = (key: string) => {
-    return translations[language][key] || key;
+    // Fall back to English (then the raw key) so a missing translation never
+    // surfaces as a raw camelCase key in the UI.
+    return translations[language][key] || translations['English'][key] || key;
   };
 
   // Dynamic Font Selection
