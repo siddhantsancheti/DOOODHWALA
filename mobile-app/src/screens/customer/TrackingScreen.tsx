@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Linking, Share, useColorScheme, Animated,
+  ActivityIndicator, Alert, Linking, Share, useColorScheme, Animated, Vibration,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -51,6 +51,11 @@ function haversineDistanceMetres(a: number[], b: number[]): number {
   return R * c;
 }
 
+function formatDistance(metres: number): string {
+  if (metres < 1000) return `${Math.round(metres)} m`;
+  return `${(metres / 1000).toFixed(1)} km`;
+}
+
 function formatETA(seconds: number): string {
   if (seconds < 60) return 'Under 1 min';
   const m = Math.round(seconds / 60);
@@ -77,11 +82,20 @@ export default function TrackingScreen({ navigation }: any) {
   const { data: orders, isLoading: ordersLoading } = useQuery<any>({
     queryKey: ['/api/orders/customer'],
     enabled: !!customerProfile,
+    // Poll so the status flips to "out for delivery" live when the milkman starts.
+    refetchInterval: 15000,
   });
 
   const { data: milkmanProfile } = useQuery<any>({
     queryKey: [`/api/milkmen/${customerProfile?.assignedMilkmanId || 0}`],
     enabled: !!customerProfile?.assignedMilkmanId,
+  });
+
+  // The customer's position in the milkman's delivery route.
+  const { data: queue } = useQuery<any>({
+    queryKey: ['/api/delivery/queue'],
+    enabled: !!customerProfile?.assignedMilkmanId,
+    refetchInterval: 15000,
   });
 
   // ── Map State ────────────────────────────────────────────────────────────────
@@ -114,6 +128,38 @@ export default function TrackingScreen({ navigation }: any) {
   const isDelivered = Array.isArray(orders)
     ? orders.some(o => o.status === 'delivered' && new Date(o.updatedAt) > new Date(Date.now() - 2 * 60 * 60 * 1000))
     : false;
+
+  // Live tracking (map/route) only once the milkman is actually out for delivery.
+  const isOutForDelivery = activeOrder?.status === 'out_for_delivery';
+
+  // Distance remaining + "arriving now" detection.
+  const distanceM = (milkmanCoord && customerCoord)
+    ? haversineDistanceMetres(milkmanCoord, customerCoord)
+    : null;
+  const isArriving = distanceM !== null && distanceM <= 150 && !isDelivered;
+
+  // Buzz once when the milkman is arriving.
+  const arrivedBuzzed = useRef(false);
+  useEffect(() => {
+    if (isArriving && !arrivedBuzzed.current) {
+      arrivedBuzzed.current = true;
+      try { Vibration.vibrate(400); } catch {}
+    }
+    if (!isArriving) arrivedBuzzed.current = false;
+  }, [isArriving]);
+
+  // Re-frame the map to show both the milkman and home.
+  const recenter = () => {
+    if (cameraRef.current && milkmanCoord && customerCoord) {
+      const minLng = Math.min(milkmanCoord[0], customerCoord[0]);
+      const minLat = Math.min(milkmanCoord[1], customerCoord[1]);
+      const maxLng = Math.max(milkmanCoord[0], customerCoord[0]);
+      const maxLat = Math.max(milkmanCoord[1], customerCoord[1]);
+      cameraRef.current.fitBounds([minLng, minLat], [maxLng, maxLat], 60, 800);
+    } else if (cameraRef.current && (milkmanCoord || customerCoord)) {
+      cameraRef.current.setCamera({ centerCoordinate: (milkmanCoord || customerCoord)!, zoomLevel: 15, animationDuration: 600 });
+    }
+  };
 
   // ── Step 1: Geocode customer address ─────────────────────────────────────────
   useEffect(() => {
@@ -344,10 +390,24 @@ export default function TrackingScreen({ navigation }: any) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
+        {/* ── ARRIVING NOW banner ──────────────────────────────────────────── */}
+        {isArriving && (
+          <View style={styles.arrivingBanner}>
+            <Truck size={20} color="#fff" />
+            <Text style={styles.arrivingText}>Arriving now — please be ready! 🥛</Text>
+          </View>
+        )}
+
         {/* ── STATUS BADGE ─────────────────────────────────────────────────── */}
         <View style={[styles.statusBanner, { backgroundColor: sc.bg }]}>
           <sc.icon size={20} color={sc.color} />
           <Text style={[styles.statusBannerText, { color: sc.color }]}>{sc.label}</Text>
+          {milkmanCoord && distanceM !== null && deliveryStatus !== 'delivered' && (
+            <View style={styles.etaChip}>
+              <MapPin size={13} color={sc.color} />
+              <Text style={[styles.etaChipText, { color: sc.color }]}>{formatDistance(distanceM)}</Text>
+            </View>
+          )}
           {milkmanCoord && etaSeconds !== null && deliveryStatus !== 'delivered' && (
             <View style={styles.etaChip}>
               <Clock size={13} color={sc.color} />
@@ -355,6 +415,21 @@ export default function TrackingScreen({ navigation }: any) {
             </View>
           )}
         </View>
+
+        {/* ── STOPS-AWAY (position in milkman's route) ──────────────────────── */}
+        {deliveryStatus !== 'delivered' && queue?.yourStop && (queue.totalStops > 1) && (
+          <View style={[styles.stopsCard, { backgroundColor: surfaceColor, borderColor }]}>
+            <Route size={16} color="#2563EB" />
+            <Text style={[styles.stopsText, { color: textColor }]}>
+              You're stop <Text style={{ fontWeight: '800' }}>#{queue.yourStop}</Text> of {queue.totalStops}
+              {typeof queue.stopsAhead === 'number'
+                ? (queue.stopsAhead === 0
+                    ? ' · you’re next!'
+                    : ` · ~${queue.stopsAhead} stop${queue.stopsAhead === 1 ? '' : 's'} ahead of you`)
+                : ''}
+            </Text>
+          </View>
+        )}
 
         {/* ── MAP ──────────────────────────────────────────────────────────── */}
         <View style={[styles.mapCard, { backgroundColor: surfaceColor, borderColor }]}>
@@ -370,10 +445,18 @@ export default function TrackingScreen({ navigation }: any) {
           </View>
 
           <View style={styles.mapWrap}>
-            {MapboxGL ? (
+            {!isOutForDelivery ? (
+              <View style={[styles.mapUnavailable, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                <Clock size={40} color="#D97706" />
+                <Text style={[styles.mapUnavailableTitle, { color: textColor }]}>Tracking starts soon</Text>
+                <Text style={{ color: textMuted, fontSize: 12, textAlign: 'center', marginTop: 4, paddingHorizontal: 24 }}>
+                  Live route appears once your milkman begins today's deliveries.
+                </Text>
+              </View>
+            ) : MapboxGL ? (
               <MapboxGL.MapView
                 style={{ flex: 1 }}
-                styleURL="mapbox://styles/mapbox/streets-v12"
+                styleURL={isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12'}
                 logoEnabled={false}
                 attributionEnabled={false}
                 compassEnabled
@@ -489,6 +572,13 @@ export default function TrackingScreen({ navigation }: any) {
                   Ensure you are running on a real device or emulator
                 </Text>
               </View>
+            )}
+
+            {/* Recenter / fit-route button */}
+            {isOutForDelivery && MapboxGL && (milkmanCoord || customerCoord) && (
+              <TouchableOpacity style={styles.recenterBtn} onPress={recenter} activeOpacity={0.85}>
+                <Navigation size={20} color="#2563EB" />
+              </TouchableOpacity>
             )}
           </View>
 
@@ -674,6 +764,17 @@ const styles = StyleSheet.create({
   emptyDesc:      { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 28 },
   placeOrderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 10 },
   placeOrderBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  // Arriving banner
+  arrivingBanner:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 14, borderRadius: 12, marginBottom: 12, backgroundColor: '#16A34A' },
+  arrivingText:    { color: '#fff', fontSize: 15, fontWeight: '800' },
+
+  // Stops-away card
+  stopsCard:       { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  stopsText:       { fontSize: 13, flex: 1 },
+
+  // Recenter button (floats over map)
+  recenterBtn:     { position: 'absolute', right: 12, bottom: 12, width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
 
   // Status banner
   statusBanner:    { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12, marginBottom: 16 },

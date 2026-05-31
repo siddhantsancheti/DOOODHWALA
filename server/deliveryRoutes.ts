@@ -1,8 +1,9 @@
 
 import { Router } from "express";
 import { db } from "./db";
-import { customers, orders, users, milkmen, locations } from "@shared/schema";
-import { eq, and, asc, gt, desc, sql } from "drizzle-orm";
+import { customers, orders, users, milkmen, locations, chatMessages } from "@shared/schema";
+import { eq, and, asc, gt, gte, desc, sql } from "drizzle-orm";
+import { type AuthRequest } from "./middleware/auth";
 import jwt from "jsonwebtoken";
 import { sendPushNotification } from "./services/fcmService";
 import { broadcastLocationUpdate } from "./websocket";
@@ -14,6 +15,55 @@ if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 // Use server token if available, fall back to public token
 const MAPBOX_TOKEN = process.env.MAPBOX_SECRET_TOKEN
     || process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+// GET /api/delivery/queue — the caller's position in their milkman's route.
+// Returns their stop number, total stops, and how many stops are still ahead
+// of them today (undelivered customers with a lower routeOrder).
+router.get("/queue", async (req: AuthRequest, res) => {
+    try {
+        const [customer] = await db.select().from(customers).where(eq(customers.userId, req.user!.id)).limit(1);
+        if (!customer || !customer.assignedMilkmanId) {
+            return res.json({ yourStop: null, totalStops: 0, stopsAhead: null });
+        }
+        const milkmanId = customer.assignedMilkmanId;
+
+        const route = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.assignedMilkmanId, milkmanId))
+            .orderBy(asc(customers.routeOrder));
+
+        const totalStops = route.length;
+        const myIndex = route.findIndex((c) => c.id === customer.id);
+        const yourStop = myIndex >= 0 ? myIndex + 1 : null;
+
+        // Customers already delivered today (so we don't count them as "ahead").
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const deliveredRows = await db
+            .select({ customerId: chatMessages.customerId })
+            .from(chatMessages)
+            .where(
+                and(
+                    eq(chatMessages.milkmanId, milkmanId),
+                    eq(chatMessages.messageType, "order"),
+                    eq(chatMessages.isDeliveryConfirmed, true),
+                    gte(chatMessages.createdAt, todayStart),
+                ),
+            );
+        const deliveredSet = new Set(deliveredRows.map((d) => d.customerId));
+
+        const myOrder = customer.routeOrder ?? 0;
+        const stopsAhead = route.filter(
+            (c) => (c.routeOrder ?? 0) < myOrder && !deliveredSet.has(c.id),
+        ).length;
+
+        res.json({ yourStop, totalStops, stopsAhead });
+    } catch (error) {
+        console.error("Queue position error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
 // POST /api/delivery/complete
 // Marks current delivery as complete and notifies the next customer
