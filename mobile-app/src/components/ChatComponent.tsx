@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Dimensions,
-  Modal, FlatList, useColorScheme
+  Modal, FlatList, useColorScheme, Image, Linking
 } from 'react-native';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
@@ -11,10 +11,11 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import {
   Send, Package, MessageSquare, Clock, Check, User, Truck, X, Plus, Minus,
   IndianRupee, Receipt, Share, Camera, File, MapPin, BarChart3, Settings, CheckCheck, Mic, ShoppingCart,
-  ArrowLeft, Calculator, RefreshCw, Pause, Play, Trash2, Calendar, ChevronDown, ChevronUp, Bell, Info
+  ArrowLeft, Calculator, RefreshCw, Pause, Play, Trash2, Calendar, ChevronDown, ChevronUp, Bell, Info, FileText
 } from 'lucide-react-native';
 import { lightColors, darkColors } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
+import { uploadChatMedia, pickFromCamera, pickFromGallery, pickDocument } from '../lib/chatMedia';
 
 const { width } = Dimensions.get('window');
 
@@ -146,6 +147,34 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       Alert.alert(t('presetSaved') || "Preset Saved", t('presetSavedDesc') || "Your quick order preset has been saved.");
     },
   });
+
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // Pick (camera/gallery/document) → upload → send as a chat message.
+  const doShareMedia = async (kind: 'camera' | 'gallery' | 'document') => {
+    try {
+      const media = kind === 'camera' ? await pickFromCamera()
+        : kind === 'gallery' ? await pickFromGallery()
+        : await pickDocument();
+      if (!media) return;
+      setUploadingMedia(true);
+      const url = await uploadChatMedia(media);
+      sendMessageMutation.mutate({ customerId, milkmanId, message: url, messageType: media.kind, senderType: user?.userType });
+    } catch {
+      Alert.alert(t('error') || 'Error', 'Could not share the file. Please try again.');
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  const openAttachMenu = () => {
+    Alert.alert(t('share') || 'Share', undefined, [
+      { text: '📷 Camera', onPress: () => doShareMedia('camera') },
+      { text: '🖼️ Gallery', onPress: () => doShareMedia('gallery') },
+      { text: '📄 Document', onPress: () => doShareMedia('document') },
+      { text: t('cancel') || 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   const handleSendOrder = () => {
     if (!orderQuantity || !selectedProduct) {
@@ -310,6 +339,17 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
                         </TouchableOpacity>
                       )}
                     </View>
+                  ) : msg.messageType === 'image' ? (
+                    <TouchableOpacity activeOpacity={0.9} onPress={() => Linking.openURL(msg.message)}>
+                      <Image source={{ uri: msg.message }} style={{ width: 200, height: 200, borderRadius: 10 }} resizeMode="cover" />
+                    </TouchableOpacity>
+                  ) : msg.messageType === 'file' ? (
+                    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }} onPress={() => Linking.openURL(msg.message)}>
+                      <FileText size={20} color={isMe ? '#FFFFFF' : colors.primary} />
+                      <Text style={[{ flex: 1, textDecorationLine: 'underline' }, isMe ? styles.myMsgText : { color: textColor }]} numberOfLines={1}>
+                        {decodeURIComponent((msg.message.split('/').pop() || 'file').split('?')[0].replace(/^\d+-\d+-/, ''))}
+                      </Text>
+                    </TouchableOpacity>
                   ) : (
                     <Text style={[styles.msgText, isMe ? styles.myMsgText : { color: textColor }]}>{msg.message}</Text>
                   )}
@@ -518,7 +558,10 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
             <TouchableOpacity onPress={() => setShowNumpad(true)} style={styles.modeReturnBtn}>
               <Calculator size={20} color={textMuted} />
             </TouchableOpacity>
-            <TextInput 
+            <TouchableOpacity onPress={openAttachMenu} style={styles.modeReturnBtn} disabled={uploadingMedia}>
+              {uploadingMedia ? <ActivityIndicator size="small" color={textMuted} /> : <Plus size={22} color={textMuted} />}
+            </TouchableOpacity>
+            <TextInput
               style={[styles.textInput, { backgroundColor: isDark ? '#374151' : '#F3F4F6', color: textColor }]} 
               placeholder="Type a message..." 
               placeholderTextColor={textMuted} 

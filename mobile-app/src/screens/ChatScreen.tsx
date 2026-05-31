@@ -13,11 +13,13 @@ import {
   ArrowLeft, Send, Package, MessageSquare,
   Clock, Check, User, Truck, X, Plus, Minus,
   MoreVertical, Phone, ShoppingCart, Users,
-  IndianRupee, Receipt, Share, Camera, File, MapPin, BarChart3, Settings, CheckCheck, Mic, FileText
+  IndianRupee, Receipt, Share, Camera, File, MapPin, BarChart3, Settings, CheckCheck, Mic, FileText,
+  Image as ImageIcon, Download
 } from 'lucide-react-native';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Language } from '../lib/translations';
+import { uploadChatMedia, pickFromCamera, pickFromGallery, pickDocument, getLocationLink } from '../lib/chatMedia';
 
 const { width, height } = Dimensions.get('window');
 
@@ -225,6 +227,49 @@ export default function ChatScreen({ route, navigation }: any) {
     setMessage("");
   };
 
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // Pick (camera/gallery/document) → upload to Firebase Storage → send as a chat message.
+  const handleShareMedia = async (kind: 'camera' | 'gallery' | 'document') => {
+    setShowShareMenu(false);
+    try {
+      const media = kind === 'camera' ? await pickFromCamera()
+        : kind === 'gallery' ? await pickFromGallery()
+        : await pickDocument();
+      if (!media) return;
+      setUploadingMedia(true);
+      const url = await uploadChatMedia(media);
+      sendMessageMutation.mutate({
+        customerId,
+        milkmanId,
+        message: url,
+        messageType: media.kind, // 'image' | 'file'
+        senderType: user?.userType,
+      });
+    } catch (e: any) {
+      Alert.alert(t('error') || 'Error', 'Could not share the file. Please try again.');
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  const handleShareLocation = async () => {
+    setShowShareMenu(false);
+    try {
+      const link = await getLocationLink();
+      if (!link) return;
+      sendMessageMutation.mutate({
+        customerId,
+        milkmanId,
+        message: `📍 My location: ${link}`,
+        messageType: 'text',
+        senderType: user?.userType,
+      });
+    } catch {
+      Alert.alert(t('error') || 'Error', 'Could not get your location.');
+    }
+  };
+
   const handleSendText = () => {
     if (!message.trim()) return;
     sendMessageMutation.mutate({
@@ -348,6 +393,8 @@ export default function ChatScreen({ route, navigation }: any) {
 
             const isOrder = msg.messageType === 'order';
             const isBill = msg.messageType === 'bill';
+            const isImage = msg.messageType === 'image';
+            const isFile = msg.messageType === 'file';
 
             return (
               <View key={msg.id || idx}>
@@ -383,8 +430,31 @@ export default function ChatScreen({ route, navigation }: any) {
                       </View>
                     )}
 
-                    {/* Content */}
-                    {!isBill && (
+                    {/* Image attachment */}
+                    {isImage && (
+                      <TouchableOpacity activeOpacity={0.9} onPress={() => Linking.openURL(msg.message)}>
+                        <Image source={{ uri: msg.message }} style={{ width: 200, height: 200, borderRadius: 10, marginBottom: 4 }} resizeMode="cover" />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* File attachment */}
+                    {isFile && (
+                      <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}
+                        onPress={() => Linking.openURL(msg.message)}
+                      >
+                        <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : (isDark ? '#374151' : '#E5E7EB'), justifyContent: 'center', alignItems: 'center' }}>
+                          <FileText size={18} color={isMe ? '#FFFFFF' : '#3B82F6'} />
+                        </View>
+                        <Text style={[{ flex: 1, fontSize: 14, textDecorationLine: 'underline' }, isMe ? { color: '#FFFFFF' } : { color: textColor }]} numberOfLines={1}>
+                          {decodeURIComponent((msg.message.split('/').pop() || 'file').split('?')[0].replace(/^\d+-\d+-/, ''))}
+                        </Text>
+                        <Download size={16} color={isMe ? '#FFFFFF' : textMuted} />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Text content */}
+                    {!isBill && !isImage && !isFile && (
                        <Text style={[styles.msgText, isMe ? styles.myMsgText : { color: textColor }]}>
                          {msg.message}
                        </Text>
@@ -534,8 +604,8 @@ export default function ChatScreen({ route, navigation }: any) {
              </View>
           ) : (
             <View style={styles.inputBar}>
-              <TouchableOpacity style={styles.attachBtn} onPress={() => setShowShareMenu(true)}>
-                <Plus size={24} color={textMuted} />
+              <TouchableOpacity style={styles.attachBtn} onPress={() => setShowShareMenu(true)} disabled={uploadingMedia}>
+                {uploadingMedia ? <ActivityIndicator size="small" color={textMuted} /> : <Plus size={24} color={textMuted} />}
               </TouchableOpacity>
               <TextInput 
                 style={[styles.textInput, { backgroundColor: isDark ? '#374151' : '#F3F4F6', color: textColor }]}
@@ -598,21 +668,21 @@ export default function ChatScreen({ route, navigation }: any) {
         <TouchableOpacity style={styles.overlayClose} onPress={() => setShowShareMenu(false)} activeOpacity={1}>
           <View style={[styles.shareMenu, { backgroundColor: surfaceColor }]}>
             <View style={styles.shareGrid}>
-              <TouchableOpacity style={styles.shareItem} onPress={() => setShowShareMenu(false)}>
+              <TouchableOpacity style={styles.shareItem} onPress={() => handleShareMedia('camera')}>
                 <View style={[styles.shareIconBox, { backgroundColor: '#A855F7' }]}><Camera size={24} color="#FFF" /></View>
                 <Text style={[styles.shareText, { color: textColor }]}>{t('camera')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.shareItem} onPress={() => setShowShareMenu(false)}>
+              <TouchableOpacity style={styles.shareItem} onPress={() => handleShareMedia('gallery')}>
+                <View style={[styles.shareIconBox, { backgroundColor: '#EC4899' }]}><ImageIcon size={24} color="#FFF" /></View>
+                <Text style={[styles.shareText, { color: textColor }]}>{t('gallery') || 'Gallery'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.shareItem} onPress={() => handleShareMedia('document')}>
                 <View style={[styles.shareIconBox, { backgroundColor: '#3B82F6' }]}><File size={24} color="#FFF" /></View>
                 <Text style={[styles.shareText, { color: textColor }]}>{t('document')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.shareItem} onPress={() => setShowShareMenu(false)}>
+              <TouchableOpacity style={styles.shareItem} onPress={handleShareLocation}>
                 <View style={[styles.shareIconBox, { backgroundColor: '#EF4444' }]}><MapPin size={24} color="#FFF" /></View>
                 <Text style={[styles.shareText, { color: textColor }]}>{t('location')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.shareItem} onPress={() => setShowShareMenu(false)}>
-                <View style={[styles.shareIconBox, { backgroundColor: '#10B981' }]}><User size={24} color="#FFF" /></View>
-                <Text style={[styles.shareText, { color: textColor }]}>{t('contact')}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,13 +1,47 @@
 import { Router } from "express";
+import multer from "multer";
+import { getStorage } from "firebase-admin/storage";
 import { db } from "./db";
 import { chatMessages, users, orders, milkmen, products, notifications, customers } from "@shared/schema";
 import { eq, or, and, asc, desc, gt } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
+import "./services/fcmService"; // ensure firebase-admin is initialized for Storage
 import { nudgeCustomerToOrder } from "./services/routeNotify";
 import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
+
+// Firebase Storage bucket for chat media (photos, documents, voice).
+const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || "dooodhwala-7dce6.firebasestorage.app";
+const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+// POST /api/chat/upload — upload a chat attachment to Firebase Storage and
+// return a long-lived signed URL. Server-side upload bypasses Storage rules.
+router.post("/upload", memUpload.single("file"), async (req: AuthRequest, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ message: "No file provided" });
+
+        const bucket = getStorage().bucket(STORAGE_BUCKET);
+        const safeName = (req.file.originalname || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `chat/${Date.now()}-${Math.round(Math.random() * 1e9)}-${safeName}`;
+        const fileRef = bucket.file(path);
+
+        await fileRef.save(req.file.buffer, {
+            contentType: req.file.mimetype,
+            resumable: false,
+            metadata: { contentType: req.file.mimetype },
+        });
+
+        // Long-lived signed read URL (works regardless of bucket access rules).
+        const [url] = await fileRef.getSignedUrl({ action: "read", expires: "03-09-2491" });
+
+        res.json({ url, name: req.file.originalname, mimeType: req.file.mimetype, size: req.file.size });
+    } catch (error: any) {
+        console.error("Chat upload error:", error?.message || error);
+        res.status(500).json({ message: "Upload failed", error: process.env.NODE_ENV === "development" ? error?.message : undefined });
+    }
+});
 
 // GET /api/chat/group/:milkmanId
 router.get("/group/:milkmanId", async (req, res) => {
