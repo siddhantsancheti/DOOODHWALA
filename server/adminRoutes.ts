@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "./db";
-import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications } from "@shared/schema";
+import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications, products, subscriptions, adTracking } from "@shared/schema";
 import { count, eq, sql, desc, sum, and, inArray, or } from "drizzle-orm";
 import { BillingService } from "./services/billingService";
 
@@ -200,7 +200,14 @@ router.delete("/users/:id", async (req, res) => {
         );
         const billWhere = byCustOrMilk(bills.customerId, bills.milkmanId);
         if (billWhere) await db.delete(bills).where(billWhere);
-        // 3. Locations, notifications, family chat memberships, family chats
+        // Detach bills this user paid on someone else's (group) bill.
+        await db.update(bills).set({ paidBy: null }).where(eq(bills.paidBy, userId));
+
+        // 3. Products (milkman's catalog), subscriptions, ad tracking, locations, notifications
+        if (milkIds.length) await db.delete(products).where(inArray(products.milkmanId, milkIds));
+        const subWhere = byCustOrMilk(subscriptions.customerId, subscriptions.milkmanId);
+        if (subWhere) await db.delete(subscriptions).where(subWhere);
+        await db.delete(adTracking).where(eq(adTracking.userId, userId));
         await db.delete(locations).where(
             or(
                 eq(locations.userId, userId),
@@ -208,14 +215,28 @@ router.delete("/users/:id", async (req, res) => {
             )
         );
         await db.delete(notifications).where(eq(notifications.userId, userId));
-        await db.delete(familyChatMembers).where(eq(familyChatMembers.userId, userId));
-        await db.delete(familyChats).where(
-            or(
+
+        // 4. Family chats: remove the chats' members (any user) then the chats.
+        const chatRows = await db
+            .select({ id: familyChats.id })
+            .from(familyChats)
+            .where(or(
                 eq(familyChats.createdBy, userId),
                 ...(milkIds.length ? [inArray(familyChats.milkmanId, milkIds)] : []),
-            )
-        );
-        // 4. Profiles, then the user
+            ));
+        const chatIds = chatRows.map((c) => c.id);
+        await db.delete(familyChatMembers).where(or(
+            eq(familyChatMembers.userId, userId),
+            ...(chatIds.length ? [inArray(familyChatMembers.chatId, chatIds)] : []),
+        ));
+        if (chatIds.length) await db.delete(familyChats).where(inArray(familyChats.id, chatIds));
+
+        // 5. Detach OTHER customers still assigned to the milkman being deleted.
+        if (milkIds.length) {
+            await db.update(customers).set({ assignedMilkmanId: null }).where(inArray(customers.assignedMilkmanId, milkIds));
+        }
+
+        // 6. Profiles, then the user
         if (custIds.length) await db.delete(customers).where(eq(customers.userId, userId));
         if (milkIds.length) await db.delete(milkmen).where(eq(milkmen.userId, userId));
         await db.delete(users).where(eq(users.id, userId));
