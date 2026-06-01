@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from '../../lib/queryClient';
 import { Receipt, CreditCard, Clock, CheckCircle, ArrowLeft, Calendar, Download, Calculator } from 'lucide-react-native';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
 import { useTranslation } from '../../contexts/LanguageContext';
+import { downloadBill } from '../../lib/documents';
 
 export default function BillsScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -104,7 +105,7 @@ export default function BillsScreen({ navigation }: any) {
                       <Text style={styles.payBtnText}>Pay Now</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity style={[styles.downloadBtn, { borderColor }]} activeOpacity={0.8}>
+                  <TouchableOpacity style={[styles.downloadBtn, { borderColor }]} activeOpacity={0.8} onPress={() => downloadBill(bill)}>
                     <Download size={18} color={textColor} />
                     <Text style={[styles.downloadText, { color: textColor }]}>Download Bill</Text>
                   </TouchableOpacity>

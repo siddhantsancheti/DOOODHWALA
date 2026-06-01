@@ -1473,10 +1473,14 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
             <View style={{ height: 1, backgroundColor: borderColor, marginBottom: 24 }} />
             <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 12, fontSize: 16, fontFamily: fontFamilyBold }]}>{t('activeCustomers')}</Text>
             {Array.isArray(customers) && customers.map((c: any) => (
-              <TouchableOpacity 
-                key={c.id} 
+              <TouchableOpacity
+                key={c.id}
                 style={[styles.modalCard, { backgroundColor: surfaceColor, borderColor }]}
-                onPress={() => { setSelectedDetailCustomer(c); setShowDetailModal(true); }}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setShowCustomersModal(false);
+                  navigation.navigate('Chat', { customerId: c.id, milkmanId: milkmanProfile?.id });
+                }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View style={[styles.mCustAvatar, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE' }]}>
@@ -1486,16 +1490,14 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                     <Text style={[styles.mCustName, { color: textColor, fontFamily: fontFamilyBold }]}>{c.name}</Text>
                     <Text style={[styles.mCustPhone, { color: textMuted, fontFamily }]}>{c.phone}</Text>
                   </View>
-                  <TouchableOpacity 
-                    style={{ padding: 8 }}
-                    onPress={() => {
-                      setShowCustomersModal(false);
-                      navigation.navigate('Chat', { customerId: c.id, milkmanId: milkmanProfile?.id });
-                    }}
+                  <MessageSquare size={22} color="#2563EB" />
+                  {/* Chevron opens the customer detail view */}
+                  <TouchableOpacity
+                    style={{ padding: 6, marginLeft: 8 }}
+                    onPress={() => { setSelectedDetailCustomer(c); setShowDetailModal(true); }}
                   >
-                    <MessageSquare size={22} color="#2563EB" />
+                    <ChevronRight size={20} color={textMuted} />
                   </TouchableOpacity>
-                  <ChevronRight size={20} color={textMuted} style={{ marginLeft: 8 }} />
                 </View>
               </TouchableOpacity>
             ))}

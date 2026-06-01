@@ -44,6 +44,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   const [showActiveSubscriptions, setShowActiveSubscriptions] = useState(false);
   const [isAutoSend, setIsAutoSend] = useState(false);
   const [scheduleTime, setScheduleTime] = useState("07:00");
+  const [showTimePicker, setShowTimePicker] = useState(false);
   
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -97,6 +98,9 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+      // A chat order now also creates an Active Order on the server — refresh the
+      // orders list so it appears immediately.
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/customer'] });
       sendWSMessage(customerId, milkmanId, data.message, (user?.userType as any) || 'customer');
     },
     onError: (error: any) => Alert.alert("Error", error.message || "Failed to send message"),
@@ -478,7 +482,10 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
               </TouchableOpacity>
 
               {isAutoSend && (
-                <TouchableOpacity style={[styles.timeSelector, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                <TouchableOpacity
+                  style={[styles.timeSelector, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                  onPress={() => setShowTimePicker(true)}
+                >
                   <Clock size={14} color={colors.primary} />
                   <Text style={[styles.timeText, { color: textColor }]}>{scheduleTime}</Text>
                 </TouchableOpacity>
@@ -582,6 +589,43 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
           </View>
         )}
       </View>
+
+      {/* Time picker for auto-send (custom, no native dependency) */}
+      <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
+        <TouchableOpacity activeOpacity={1} style={styles.tpOverlay} onPress={() => setShowTimePicker(false)}>
+          <TouchableOpacity activeOpacity={1} style={[styles.tpCard, { backgroundColor: surfaceColor }]}>
+            <Text style={[styles.tpTitle, { color: textColor }]}>Auto-send time</Text>
+            <View style={styles.tpColumns}>
+              <ScrollView style={styles.tpCol} showsVerticalScrollIndicator={false}>
+                {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0')).map((h) => {
+                  const sel = scheduleTime.split(':')[0] === h;
+                  return (
+                    <TouchableOpacity key={h} style={[styles.tpCell, sel && { backgroundColor: colors.primary }]}
+                      onPress={() => setScheduleTime(`${h}:${scheduleTime.split(':')[1] || '00'}`)}>
+                      <Text style={[styles.tpCellText, { color: sel ? '#FFF' : textColor }]}>{h}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <Text style={[styles.tpColon, { color: textColor }]}>:</Text>
+              <ScrollView style={styles.tpCol} showsVerticalScrollIndicator={false}>
+                {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')).map((m) => {
+                  const sel = (scheduleTime.split(':')[1] || '00') === m;
+                  return (
+                    <TouchableOpacity key={m} style={[styles.tpCell, sel && { backgroundColor: colors.primary }]}
+                      onPress={() => setScheduleTime(`${scheduleTime.split(':')[0] || '07'}:${m}`)}>
+                      <Text style={[styles.tpCellText, { color: sel ? '#FFF' : textColor }]}>{m}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            <TouchableOpacity style={[styles.tpDone, { backgroundColor: colors.primary }]} onPress={() => setShowTimePicker(false)}>
+              <Text style={styles.tpDoneText}>Set {scheduleTime}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -695,4 +739,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  // Time picker
+  tpOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  tpCard: { width: '100%', maxWidth: 320, borderRadius: 16, padding: 20 },
+  tpTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 14 },
+  tpColumns: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: 180 },
+  tpCol: { width: 70 },
+  tpColon: { fontSize: 24, fontWeight: '800', marginHorizontal: 8 },
+  tpCell: { paddingVertical: 10, borderRadius: 8, alignItems: 'center', marginVertical: 2 },
+  tpCellText: { fontSize: 18, fontWeight: '600' },
+  tpDone: { height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 14 },
+  tpDoneText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 });

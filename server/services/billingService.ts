@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { bills, chatMessages, milkmen, familyChats, familyChatMembers, customers } from "@shared/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 
 // Canonical "YYYY-MM" month key so the bills list (paymentRoutes) can split on "-"
 // to render the month name. Used for every bill row this service creates.
@@ -13,19 +13,24 @@ export class BillingService {
     static async generateMonthlyBill(milkmanId: number): Promise<void> {
         const currentMonth = currentMonthKey();
 
-        // 1. Get all order messages for this milkman
+        // 1. Get only UN-BILLED order messages for this milkman. Every order
+        //    carries a billId once it has been billed; filtering on billId IS NULL
+        //    guarantees the same order can never be aggregated into a second bill
+        //    (this was the root cause of the same order appearing in two months).
         const orderMessages = await db
             .select()
             .from(chatMessages)
             .where(
                 and(
                     eq(chatMessages.milkmanId, milkmanId),
-                    eq(chatMessages.messageType, "order")
+                    eq(chatMessages.messageType, "order"),
+                    isNull(chatMessages.billId)
                 )
             );
 
-        // 2. Group orders by customer
-        const customerOrders: Record<number, { total: number, items: any[] }> = {};
+        // 2. Group orders by customer (track which message rows feed each bill so
+        //    they can be stamped with the bill id afterwards).
+        const customerOrders: Record<number, { total: number, items: any[], msgIds: number[] }> = {};
 
         orderMessages.forEach((msg) => {
             if (!msg.customerId) return;
@@ -33,12 +38,14 @@ export class BillingService {
             if (!customerOrders[msg.customerId]) {
                 customerOrders[msg.customerId] = {
                     total: 0,
-                    items: []
+                    items: [],
+                    msgIds: []
                 };
             }
 
             const amount = msg.orderTotal ? parseFloat(msg.orderTotal) : 0;
             customerOrders[msg.customerId].total += amount;
+            customerOrders[msg.customerId].msgIds.push(msg.id);
 
             // Derive quantity: prefer orderQuantity, else sum the multi-product
             // orderItems (so the bill never shows "0 L" when there were orders).
@@ -54,9 +61,10 @@ export class BillingService {
             });
         });
 
-        // 3. Create or update bills for each customer
+        // 3. Create or extend the current-month bill for each customer
         for (const [customerIdStr, data] of Object.entries(customerOrders)) {
             const customerId = parseInt(customerIdStr);
+            if (data.items.length === 0) continue; // nothing new to bill
 
             // Check if a pending bill already exists for this month
             const existingBills = await db
@@ -71,16 +79,25 @@ export class BillingService {
                     )
                 );
 
+            let targetBillId: number;
+
             if (existingBills.length > 0) {
-                // Update existing bill
+                // Append the new orders to the existing pending bill (don't replace,
+                // or already-billed-this-month orders would be lost).
+                const ex = existingBills[0];
+                const prevItems = Array.isArray(ex.items) ? (ex.items as any[]) : [];
+                const newItems = [...prevItems, ...data.items];
+                const newTotal = (parseFloat(ex.totalAmount) || 0) + data.total;
                 await db
                     .update(bills)
                     .set({
-                        totalAmount: data.total.toString(),
-                        items: data.items,
+                        totalAmount: newTotal.toString(),
+                        totalOrders: newItems.length,
+                        items: newItems,
                         updatedAt: new Date()
                     })
-                    .where(eq(bills.id, existingBills[0].id));
+                    .where(eq(bills.id, ex.id));
+                targetBillId = ex.id;
             } else {
                 // Create new bill
                 const [newBill] = await db.insert(bills).values({
@@ -93,10 +110,11 @@ export class BillingService {
                     status: "pending",
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Due in 7 days
                 }).returning();
+                targetBillId = newBill.id;
 
                 // 4. Send chat message informing about the new bill
                 const [milkmanData] = await db.select().from(milkmen).where(eq(milkmen.id, milkmanId)).limit(1);
-                
+
                 await db.insert(chatMessages).values({
                     milkmanId,
                     customerId,
@@ -108,6 +126,12 @@ export class BillingService {
                     billId: newBill.id,
                 });
             }
+
+            // 5. Stamp every billed order so it is never billed again.
+            await db
+                .update(chatMessages)
+                .set({ billId: targetBillId })
+                .where(inArray(chatMessages.id, data.msgIds));
         }
     }
 
@@ -135,8 +159,9 @@ export class BillingService {
         const customerIds = memberCustomers.map((c) => c.id);
         if (customerIds.length === 0) return null;
 
-        // All order messages for this milkman placed by any member (either tagged
-        // to the group chat or to a member's individual chat).
+        // Only UN-BILLED order messages for this milkman placed by any member
+        // (either tagged to the group chat or to a member's individual chat).
+        // Filtering on billId IS NULL prevents the same order being re-billed.
         const orderMessages = await db
             .select()
             .from(chatMessages)
@@ -144,11 +169,13 @@ export class BillingService {
                 and(
                     eq(chatMessages.milkmanId, milkmanId),
                     eq(chatMessages.messageType, "order"),
+                    isNull(chatMessages.billId),
                 ),
             );
 
         let total = 0;
         const items: any[] = [];
+        const billedMsgIds: number[] = [];
         for (const msg of orderMessages) {
             const belongs =
                 msg.familyChatId === familyChatId ||
@@ -156,6 +183,7 @@ export class BillingService {
             if (!belongs) continue;
             const amount = msg.orderTotal ? parseFloat(msg.orderTotal) : 0;
             total += amount;
+            billedMsgIds.push(msg.id);
             const oi = Array.isArray(msg.orderItems) ? (msg.orderItems as any[]) : [];
             const qty = parseFloat(msg.orderQuantity?.toString() || "0")
                 || oi.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
@@ -182,15 +210,25 @@ export class BillingService {
             );
 
         if (existing.length > 0) {
+            // Nothing new to add — return the existing bill untouched.
+            if (items.length === 0) return existing[0];
+            // Append the new un-billed orders to the pending bill.
+            const ex = existing[0];
+            const prevItems = Array.isArray(ex.items) ? (ex.items as any[]) : [];
+            const newItems = [...prevItems, ...items];
+            const newTotal = (parseFloat(ex.totalAmount) || 0) + total;
             const [updated] = await db
                 .update(bills)
-                .set({ totalAmount: total.toString(), totalOrders: items.length, items, updatedAt: new Date() })
-                .where(eq(bills.id, existing[0].id))
+                .set({ totalAmount: newTotal.toString(), totalOrders: newItems.length, items: newItems, updatedAt: new Date() })
+                .where(eq(bills.id, ex.id))
                 .returning();
+            if (billedMsgIds.length > 0) {
+                await db.update(chatMessages).set({ billId: ex.id }).where(inArray(chatMessages.id, billedMsgIds));
+            }
             return updated;
         }
 
-        if (total <= 0) return null;
+        if (total <= 0 || items.length === 0) return null;
 
         const [newBill] = await db
             .insert(bills)
@@ -205,6 +243,10 @@ export class BillingService {
                 dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
             })
             .returning();
+        // Stamp every billed order so it is never billed again.
+        if (billedMsgIds.length > 0) {
+            await db.update(chatMessages).set({ billId: newBill.id }).where(inArray(chatMessages.id, billedMsgIds));
+        }
         return newBill;
     }
 

@@ -138,6 +138,41 @@ const sendMessageHandler = async (req: AuthRequest, res: any) => {
             milkmanId: newMessage.milkmanId,
         });
 
+        // Create the order row IMMEDIATELY when a customer places an order via
+        // chat, so it shows up under "Active Orders" right away (status pending)
+        // instead of only after the milkman accepts. The order is tagged with the
+        // source chat message id so acceptance updates THIS order rather than
+        // inserting a duplicate.
+        if (newMessage.messageType === "order" && newMessage.senderType === "customer") {
+            try {
+                const items: any[] = Array.isArray(newMessage.orderItems) ? (newMessage.orderItems as any[]) : [];
+                const qtyFromItems = items.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
+                const qty = newMessage.orderQuantity ? parseFloat(newMessage.orderQuantity) : qtyFromItems;
+                if (qty > 0 && newMessage.customerId) {
+                    const mk = await db.query.milkmen.findFirst({ where: eq(milkmen.id, newMessage.milkmanId) });
+                    const ppl = mk?.pricePerLiter || "0";
+                    const total = newMessage.orderTotal && parseFloat(newMessage.orderTotal) > 0
+                        ? String(newMessage.orderTotal)
+                        : (qty * parseFloat(ppl)).toString();
+                    await db.insert(orders).values({
+                        milkmanId: newMessage.milkmanId,
+                        customerId: newMessage.customerId,
+                        orderedBy: newMessage.senderId,
+                        quantity: qty.toString(),
+                        pricePerLiter: ppl,
+                        totalAmount: total,
+                        status: "pending",
+                        deliveryDate: new Date(),
+                        specialInstructions: `chatMsg:${newMessage.id}`,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    });
+                }
+            } catch (orderErr) {
+                console.error("Failed to create order from chat message:", orderErr);
+            }
+        }
+
         // Notify the milkman when a customer places an order via chat.
         if (newMessage.messageType === "order" && newMessage.senderType === "customer") {
             try {
@@ -227,32 +262,45 @@ router.post("/messages/:id/accepted", async (req, res) => {
             ? parseFloat(updatedMessage.orderQuantity)
             : qtyFromItems;
 
-        // Create an official order record from this accepted chat request
+        // The order row is normally created up-front when the customer places it
+        // (tagged specialInstructions = "chatMsg:<id>"). On acceptance, mark that
+        // same order "confirmed" rather than inserting a duplicate. Only insert as
+        // a fallback for legacy orders that were never created at send time.
         if (acceptedQty > 0) {
             const milkman = await db.query.milkmen.findFirst({
                 where: eq(milkmen.id, updatedMessage.milkmanId)
             });
 
             if (milkman) {
-                const pricePerLiter = parseFloat(milkman.pricePerLiter || "0");
-                // Prefer the customer-facing total (correct for multi-product /
-                // custom-priced orders); fall back to qty × the standard rate.
-                const totalAmount = updatedMessage.orderTotal && parseFloat(updatedMessage.orderTotal) > 0
-                    ? String(updatedMessage.orderTotal)
-                    : (acceptedQty * pricePerLiter).toString();
-
-                await db.insert(orders).values({
-                    milkmanId: updatedMessage.milkmanId,
-                    customerId: updatedMessage.customerId,
-                    orderedBy: updatedMessage.senderId,
-                    quantity: acceptedQty.toString(),
-                    pricePerLiter: milkman.pricePerLiter,
-                    totalAmount,
-                    status: "pending",
-                    deliveryDate: new Date(),
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
+                const existingOrder = await db.query.orders.findFirst({
+                    where: eq(orders.specialInstructions, `chatMsg:${updatedMessage.id}`),
                 });
+
+                if (existingOrder) {
+                    await db.update(orders)
+                        .set({ status: "confirmed", updatedAt: new Date() })
+                        .where(eq(orders.id, existingOrder.id));
+                } else {
+                    const pricePerLiter = parseFloat(milkman.pricePerLiter || "0");
+                    // Prefer the customer-facing total (correct for multi-product /
+                    // custom-priced orders); fall back to qty × the standard rate.
+                    const totalAmount = updatedMessage.orderTotal && parseFloat(updatedMessage.orderTotal) > 0
+                        ? String(updatedMessage.orderTotal)
+                        : (acceptedQty * pricePerLiter).toString();
+
+                    await db.insert(orders).values({
+                        milkmanId: updatedMessage.milkmanId,
+                        customerId: updatedMessage.customerId,
+                        orderedBy: updatedMessage.senderId,
+                        quantity: acceptedQty.toString(),
+                        pricePerLiter: milkman.pricePerLiter,
+                        totalAmount,
+                        status: "confirmed",
+                        deliveryDate: new Date(),
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    });
+                }
             }
         }
 

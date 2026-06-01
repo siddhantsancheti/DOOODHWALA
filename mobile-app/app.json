@@ -78,7 +78,9 @@
       "android"
     ],
     "plugins": [
+      "./plugins/withUpiQueries",
       "expo-secure-store",
+      "expo-sharing",
       [
         "expo-location",
         {

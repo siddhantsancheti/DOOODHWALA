@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, useColorScheme, Modal, TextInput
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, useColorScheme, Modal, TextInput, Image, Dimensions
 } from 'react-native';
-import { X, Heart, ArrowLeft, Clock, Settings, BarChart3, MessageCircle, Phone, Users, Plus, Star, Truck, ShoppingCart, Info, CreditCard, LogOut, Copy, Check, Search } from 'lucide-react-native';
+import { X, Heart, ArrowLeft, Clock, Settings, BarChart3, MessageCircle, Phone, Users, Plus, Star, Truck, ShoppingCart, Info, CreditCard, LogOut, Copy, Check, Search, Images, FileText, ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
@@ -33,6 +33,7 @@ export default function YDPageScreen({ navigation }: any) {
 
   const [showChat, setShowChat] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
+  const [showMediaGallery, setShowMediaGallery] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
@@ -64,6 +65,16 @@ export default function YDPageScreen({ navigation }: any) {
   const { data: myGroup } = useQuery<any>({
     queryKey: ['/api/groups/mine'], enabled: !!user,
   });
+
+  // Chat history (for the shared-media gallery in Chat Info). Only fetched once
+  // the customer is assigned a dairyman.
+  const assignedId = customerProfile?.assignedMilkmanId;
+  const { data: chatHistory = [] } = useQuery<any[]>({
+    queryKey: [`/api/chat/group/${assignedId}`], enabled: !!assignedId,
+  });
+  const sharedImages = (Array.isArray(chatHistory) ? chatHistory : []).filter((m: any) => m.messageType === 'image');
+  const sharedFiles = (Array.isArray(chatHistory) ? chatHistory : []).filter((m: any) => m.messageType === 'file');
+  const sharedMediaCount = sharedImages.length + sharedFiles.length;
 
   // Send a new service request to a milkman (products + time only).
   const createRequestMutation = useMutation({
@@ -390,14 +401,11 @@ export default function YDPageScreen({ navigation }: any) {
                   <Text style={styles.groupCountText}>{myGroup.memberCount || myGroup.members?.length || 1} members</Text>
                 </View>
               </View>
-              <TouchableOpacity
-                style={styles.groupCodeRow}
-                onPress={() => Alert.alert('Group Code', `Share this code with family members so they can join:\n\n${myGroup.chatCode}`)}
-              >
-                <Text style={[styles.groupCodeLabel, { color: textMuted }]}>Share code:</Text>
-                <Text style={[styles.groupCodeValue, { color: colors.primary }]}>{myGroup.chatCode}</Text>
-                <Copy size={14} color={colors.primary} />
-              </TouchableOpacity>
+              {/* Share code intentionally omitted here — it lives in Chat Info to
+                  avoid duplicating it on the dashboard. */}
+              <Text style={[styles.groupCodeLabel, { color: textMuted, marginTop: 8 }]}>
+                Open the chat → tap the header for the group code.
+              </Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -580,6 +588,17 @@ export default function YDPageScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
 
+            {/* Shared media — WhatsApp-style entry into images & documents */}
+            <TouchableOpacity
+              style={[styles.bigActionBtn, { borderColor, marginTop: 12 }]}
+              onPress={() => { setShowChatInfo(false); setShowMediaGallery(true); }}
+            >
+              <Images size={20} color={textColor} />
+              <Text style={[styles.bigActionText, { color: textColor, flex: 1 }]}>Media, links & docs</Text>
+              <Text style={{ color: textMuted, fontSize: 13, fontFamily, marginRight: 4 }}>{sharedMediaCount}</Text>
+              <ChevronRight size={18} color={textMuted} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.bigActionBtn, { borderColor, marginTop: 12 }]}
               onPress={() => yourDairyman?.phone && Linking.openURL(`tel:${yourDairyman.phone}`)}
@@ -589,6 +608,52 @@ export default function YDPageScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Shared Media Gallery (images grid + document list) */}
+      <Modal visible={showMediaGallery} animationType="slide" transparent={false} onRequestClose={() => setShowMediaGallery(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+          <View style={[styles.chatHeader, { borderBottomColor: borderColor, backgroundColor: surfaceColor }]}>
+            <TouchableOpacity onPress={() => setShowMediaGallery(false)} style={styles.chatBackBtn}>
+              <ArrowLeft size={22} color={textColor} />
+            </TouchableOpacity>
+            <Text style={[styles.chatHeaderTitle, { color: textColor }]}>Shared Media</Text>
+            <View style={{ width: 22 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+            <Text style={[styles.inputLabel, { color: textColor, marginBottom: 10 }]}>Images ({sharedImages.length})</Text>
+            {sharedImages.length > 0 ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {sharedImages.map((m: any) => (
+                  <TouchableOpacity key={m.id} activeOpacity={0.85} onPress={() => Linking.openURL(m.message)}>
+                    <Image source={{ uri: m.message }} style={{ width: (Dimensions.get('window').width - 44) / 3, height: (Dimensions.get('window').width - 44) / 3, borderRadius: 8, backgroundColor: borderColor }} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ color: textMuted, fontSize: 13, fontFamily, marginBottom: 8 }}>No images shared yet.</Text>
+            )}
+
+            <Text style={[styles.inputLabel, { color: textColor, marginTop: 22, marginBottom: 10 }]}>Documents ({sharedFiles.length})</Text>
+            {sharedFiles.length > 0 ? (
+              sharedFiles.map((m: any) => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[styles.milkmanCard, { backgroundColor: surfaceColor, borderColor, flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+                  onPress={() => Linking.openURL(m.message)}
+                >
+                  <FileText size={20} color={colors.primary} />
+                  <Text style={{ color: textColor, fontSize: 14, fontFamily, flex: 1 }} numberOfLines={1}>
+                    {decodeURIComponent((m.message.split('/').pop() || 'document').split('?')[0].replace(/^\d+-\d+-/, ''))}
+                  </Text>
+                  <ChevronRight size={16} color={textMuted} />
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={{ color: textMuted, fontSize: 13, fontFamily }}>No documents shared yet.</Text>
+            )}
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
 
       {/* Group Modal (Create / Join) */}

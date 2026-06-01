@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Package, Clock, CheckCircle, XCircle, ShoppingBag, Download, ArrowLeft, Calendar } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
+import { downloadOrderReceipt } from '../../lib/documents';
 
 export default function ViewOrdersScreen({ navigation }: any) {
   const { colors } = useTheme();
@@ -135,7 +136,7 @@ export default function ViewOrdersScreen({ navigation }: any) {
                         <Text style={styles.trackBtnText}>Track Delivery</Text>
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity style={[styles.receiptBtn, tab === 'history' && styles.receiptBtnFull]} activeOpacity={0.8}>
+                    <TouchableOpacity style={[styles.receiptBtn, tab === 'history' && styles.receiptBtnFull]} activeOpacity={0.8} onPress={() => downloadOrderReceipt(order)}>
                       <Download size={16} color={colors.foreground} />
                       <Text style={styles.receiptBtnText}>Receipt</Text>
                     </TouchableOpacity>
