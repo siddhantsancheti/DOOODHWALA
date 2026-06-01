@@ -112,8 +112,9 @@
       "eas": {
         "projectId": "9a8b04b4-d793-400b-b71e-b410d0afc2ff"
       },
-      "privacyPolicyUrl": "https://dooodhwala.com/privacy-policy",
-      "termsUrl": "https://dooodhwala.com/terms",
+      "privacyPolicyUrl": "https://siddhantsancheti.github.io/DOOODHWALA/privacy-policy.html",
+      "termsUrl": "https://siddhantsancheti.github.io/DOOODHWALA/terms.html",
+      "accountDeletionUrl": "https://siddhantsancheti.github.io/DOOODHWALA/account-deletion.html",
       "supportEmail": "supportdooodhwala@gmail.com"
     },
     "owner": "siddhant_20",
