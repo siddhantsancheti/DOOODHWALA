@@ -12,7 +12,7 @@ import {
 } from 'lucide-react-native';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
 import {
-  Moon, Sun, Languages, LogOut, Headset, Package, Check, Star
+  Moon, Sun, Languages, LogOut, Headset, Package, Check, Star, Trash2
 } from 'lucide-react-native';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { Language } from '../../lib/translations';
@@ -68,6 +68,37 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
   const handleLogout = async () => {
     setShowSettingsDropdown(false);
     await logout();
+  };
+
+  // Permanently delete the account + all data (Google Play data-deletion policy).
+  const handleDeleteAccount = () => {
+    setShowSettingsDropdown(false);
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account and all your data (orders, bills, chats, subscriptions). This cannot be undone. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await apiRequest({ url: '/api/auth/account', method: 'DELETE' });
+              const data: any = await res.json();
+              if (data?.success) {
+                Alert.alert('Account Deleted', 'Your account and data have been removed.', [
+                  { text: 'OK', onPress: () => logout() },
+                ]);
+              } else {
+                throw new Error(data?.message || 'Failed to delete account');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Could not delete your account. Please try again or email supportdooodhwala@gmail.com.');
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -200,12 +231,21 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
                 <View style={[styles.dropdownSeparator, { backgroundColor: borderColor }]} />
 
                 {/* Logout */}
-                <TouchableOpacity 
-                  style={styles.dropdownItem} 
+                <TouchableOpacity
+                  style={styles.dropdownItem}
                   onPress={handleLogout}
                 >
                   <LogOut size={18} color="#EF4444" style={styles.dropdownIcon} />
                   <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('logout')}</Text>
+                </TouchableOpacity>
+
+                {/* Delete Account — permanent, last item */}
+                <TouchableOpacity
+                  style={styles.dropdownItem}
+                  onPress={handleDeleteAccount}
+                >
+                  <Trash2 size={18} color="#EF4444" style={styles.dropdownIcon} />
+                  <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('deleteAccount') || 'Delete Account'}</Text>
                 </TouchableOpacity>
               </>
             ) : (

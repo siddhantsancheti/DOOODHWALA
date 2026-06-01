@@ -86,6 +86,37 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
     await logout();
   };
 
+  // Permanently delete the account + all data (Google Play data-deletion policy).
+  const handleDeleteAccount = () => {
+    setShowSettingsDropdown(false);
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account and all your data (products, orders, bills, chats, customers). This cannot be undone. Continue?',
+      [
+        { text: t('cancel') || 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await apiRequest({ url: '/api/auth/account', method: 'DELETE' });
+              const data: any = await res.json();
+              if (data?.success) {
+                Alert.alert('Account Deleted', 'Your account and data have been removed.', [
+                  { text: 'OK', onPress: () => logout() },
+                ]);
+              } else {
+                throw new Error(data?.message || 'Failed to delete account');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Could not delete your account. Please try again or email supportdooodhwala@gmail.com.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // One-tap logout with confirmation, used by the direct top-bar button
   const confirmLogout = () => {
     Alert.alert(
@@ -724,6 +755,15 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                   >
                     <LogOut size={18} color="#EF4444" style={styles.dropdownIcon} />
                     <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('logout')}</Text>
+                  </TouchableOpacity>
+
+                  {/* Delete Account — permanent, last item */}
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={handleDeleteAccount}
+                  >
+                    <Trash2 size={18} color="#EF4444" style={styles.dropdownIcon} />
+                    <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('deleteAccount') || 'Delete Account'}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
