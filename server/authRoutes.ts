@@ -11,6 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 import { OTPService } from "./services/otpService";
+import { deleteUserAndData } from "./adminRoutes";
 // Importing fcmService initializes the firebase-admin app (side effect) so we
 // can verify Firebase ID tokens for phone-auth login below.
 import { getApps } from "firebase-admin/app";
@@ -311,6 +312,29 @@ router.post("/profile", async (req, res) => {
     } catch (error) {
         console.error("Profile update error:", error);
         res.status(500).json({ message: "Server error" });
+    }
+});
+
+// DELETE /api/auth/account
+// Self-service account deletion (required for Google Play data-deletion policy).
+// Permanently removes the authenticated user and all their related data.
+router.delete("/account", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ message: "No token provided" });
+        const token = authHeader.split(" ")[1];
+        let decoded: any;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (err) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+        const ok = await deleteUserAndData(decoded.id);
+        if (!ok) return res.status(404).json({ success: false, message: "User not found" });
+        res.json({ success: true, message: "Your account and all related data have been deleted." });
+    } catch (error) {
+        console.error("Account deletion error:", error);
+        res.status(500).json({ success: false, message: "Failed to delete account" });
     }
 });
 

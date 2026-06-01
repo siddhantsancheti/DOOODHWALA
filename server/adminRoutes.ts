@@ -147,14 +147,12 @@ router.get("/milkmen/:id/details", async (req, res) => {
     }
 });
 
-// DELETE /api/admin/users/:id — permanently remove a user and all their data.
-// Deletes dependent rows (customer/milkman profiles, orders, bills, chats,
-// service requests, etc.) in FK-safe order, then the user row.
-router.delete("/users/:id", async (req, res) => {
-    try {
-        const userId = req.params.id;
+// Permanently remove a user and ALL their data in FK-safe order. Shared by the
+// admin delete-user route and the customer self-service account-deletion route
+// (required for Google Play's data-deletion policy). Throws on failure.
+export async function deleteUserAndData(userId: string): Promise<boolean> {
         const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        if (!user) return false;
 
         const custRows = await db.select({ id: customers.id }).from(customers).where(eq(customers.userId, userId));
         const milkRows = await db.select({ id: milkmen.id }).from(milkmen).where(eq(milkmen.userId, userId));
@@ -241,6 +239,14 @@ router.delete("/users/:id", async (req, res) => {
         if (milkIds.length) await db.delete(milkmen).where(eq(milkmen.userId, userId));
         await db.delete(users).where(eq(users.id, userId));
 
+        return true;
+}
+
+// DELETE /api/admin/users/:id — admin removes a user and all their data.
+router.delete("/users/:id", async (req, res) => {
+    try {
+        const ok = await deleteUserAndData(req.params.id);
+        if (!ok) return res.status(404).json({ success: false, message: "User not found" });
         res.json({ success: true, message: "User and all related data deleted" });
     } catch (error: any) {
         console.error("Delete user error:", error);

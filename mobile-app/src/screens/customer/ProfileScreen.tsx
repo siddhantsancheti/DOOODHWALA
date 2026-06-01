@@ -15,6 +15,40 @@ export default function ProfileScreen({ navigation }: any) {
   const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ name: '', address: '', email: '', businessName: '', pricePerLiter: '' });
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Permanently delete the account + all data (Google Play data-deletion policy).
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account and all your data (orders, bills, chats, subscriptions). This cannot be undone. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              const res = await apiRequest({ url: '/api/auth/account', method: 'DELETE' });
+              const data: any = await res.json();
+              if (data?.success) {
+                Alert.alert('Account Deleted', 'Your account and data have been removed.', [
+                  { text: 'OK', onPress: () => logout() },
+                ]);
+              } else {
+                throw new Error(data?.message || 'Failed to delete account');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Could not delete your account. Please try again or email support@dooodhwala.com.');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const { data: customerProfile, isLoading: customerLoading } = useQuery<any>({
     queryKey: ['/api/customers/profile'],
@@ -235,6 +269,14 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.8} disabled={isDeleting}>
+          {isDeleting ? (
+            <ActivityIndicator color={colors.destructive} />
+          ) : (
+            <Text style={styles.deleteText}>Delete Account</Text>
+          )}
+        </TouchableOpacity>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -383,4 +425,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.destructive,
   },
   logoutText: { color: colors.destructive, fontSize: fontSize.base, fontWeight: '600' },
+  deleteBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
+  deleteText: { color: colors.destructive, fontSize: fontSize.sm, fontWeight: '700', textDecorationLine: 'underline' },
 });
