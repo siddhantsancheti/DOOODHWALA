@@ -24,20 +24,26 @@ Copy-paste content and exact answers for the Play Console listing & policy forms
 ---
 
 ## Short description (max 80 chars)
-> Daily milk & dairy delivery from your local dairyman — order, track, pay easily.
+> Fresh milk at your door every morning — order from your local dairyman in seconds.
 
 ## Full description
-> DOOODHWALA connects you with trusted local milk-delivery vendors for fresh daily dairy.
+> Remember when the milkman just knew your order? DOOODHWALA brings that back — only now it lives in your pocket.
 >
-> • Find a nearby dairyman and place daily or recurring milk orders in a simple chat.
-> • Set up subscriptions and auto-send your daily order at a time you choose.
-> • Track your delivery live on the map and know exactly when it's arriving.
-> • Get clear monthly bills and pay online via UPI, cards, or net banking — or choose Cash on Delivery with secure OTP confirmation.
-> • Download bills and order receipts as PDFs.
-> • Create a household group so your family shares one chat and one combined bill.
-> • Chat with your dairyman, share photos, documents and your location.
+> Find a trusted dairyman near you, send your order in a quick chat, and get fresh milk at your door every morning. No phone calls, no confusion, no "did he come today?"
 >
-> Simple, transparent, and built for everyday milk delivery.
+> Here's what people love about it:
+>
+> Order the way you'd text a friend. Just tap your quantity and hit send. Want the same thing every day? Set it once and let it auto-send each morning at the time you pick.
+>
+> Know exactly when it's coming. Watch your delivery move on the map and see how far away it is — so you're not left wondering.
+>
+> No more month-end bill surprises. Your orders add up into one clear monthly bill you can see anytime. Pay online with UPI, card, or net banking, or keep it old-school with Cash on Delivery (with a quick OTP so everyone's on the same page). Need a copy? Download any bill or receipt as a PDF.
+>
+> Sort it out as a family. Create a household group so everyone orders into one chat and shares a single bill — no splitting hassles.
+>
+> Stay in touch. Chat with your dairyman, send a photo or a note, or drop your location so they find you the first time.
+>
+> Simple, honest, and built for the little daily ritual that keeps your mornings running. Welcome to your DOOODHWALA.
 
 ---
 
