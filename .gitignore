@@ -14,3 +14,6 @@ android/app/build/
 .env.local
 .env.*.local
 firebase-service-account.json
+
+# Claude Code worktrees (must never be committed as gitlinks)
+.claude/
