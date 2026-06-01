@@ -8,7 +8,7 @@
 - **Category:** Food & Drink / Lifestyle
 - **Content Rating:** Everyone (3+)
 - **Privacy Policy URL:** https://dooodhwala.com/privacy-policy
-- **Support Email:** support@dooodhwala.com
+- **Support Email:** supportdooodhwala@gmail.com
 
 ---
 

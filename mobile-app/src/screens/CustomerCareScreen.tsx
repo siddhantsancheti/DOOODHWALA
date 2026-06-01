@@ -20,7 +20,7 @@ export default function CustomerCareScreen() {
   }, [t]);
 
   const handleEmail = useCallback(async () => {
-    const email = 'mailto:support@dooodhwala.com'; // Placeholder
+    const email = 'mailto:supportdooodhwala@gmail.com'; // Placeholder
     const supported = await Linking.canOpenURL(email);
     if (supported) {
       await Linking.openURL(email);

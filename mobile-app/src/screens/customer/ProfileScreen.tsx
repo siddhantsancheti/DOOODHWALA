@@ -40,7 +40,7 @@ export default function ProfileScreen({ navigation }: any) {
                 throw new Error(data?.message || 'Failed to delete account');
               }
             } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Could not delete your account. Please try again or email support@dooodhwala.com.');
+              Alert.alert('Error', e?.message || 'Could not delete your account. Please try again or email supportdooodhwala@gmail.com.');
             } finally {
               setIsDeleting(false);
             }

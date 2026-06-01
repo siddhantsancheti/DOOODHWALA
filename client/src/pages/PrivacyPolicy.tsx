@@ -79,7 +79,7 @@ const PrivacyPolicy = () => {
                             <section>
                                 <h3 className="text-lg font-semibold mb-2">6. Contact Us</h3>
                                 <p className="text-muted-foreground leading-relaxed">
-                                    If you have questions about this policy, please contact us at: <a href="mailto:support@dooodhwala.com" className="text-primary hover:underline">support@dooodhwala.com</a>
+                                    If you have questions about this policy, please contact us at: <a href="mailto:supportdooodhwala@gmail.com" className="text-primary hover:underline">supportdooodhwala@gmail.com</a>
                                 </p>
                             </section>
                         </div>
