@@ -9,7 +9,7 @@ Copy-paste content and exact answers for the Play Console listing & policy forms
 - **Package name:** `com.dooodhwala.app`
 - **Default language:** English (India) — en-IN
 - **Category:** Food & Drink (alt: Shopping)
-- **Contact email:** support@dooodhwala.com
+- **Contact email:** supportdooodhwala@gmail.com
 - **Phone:** +91 8087906174
 - **Website:** https://dooodhwala.com (or your hosted docs URL)
 
