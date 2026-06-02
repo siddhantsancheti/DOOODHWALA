@@ -19,13 +19,11 @@
       "requireFullScreen": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "DOOODHWALA uses your location to track deliveries and find milkmen near you.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "DOOODHWALA uses your location in the background to track live delivery progress.",
         "NSCameraUsageDescription": "DOOODHWALA uses your camera to upload your profile photo.",
         "NSPhotoLibraryUsageDescription": "DOOODHWALA accesses your photo library to let you choose a profile picture.",
         "NSPhotoLibraryAddUsageDescription": "DOOODHWALA saves images to your photo library.",
         "NSUserNotificationsUsageDescription": "DOOODHWALA sends you delivery updates and order alerts.",
         "UIBackgroundModes": [
-          "location",
           "remote-notification"
         ]
       },
@@ -46,7 +44,6 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -84,10 +81,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "DOOODHWALA uses your location to track deliveries and find milkmen near you.",
-          "locationAlwaysPermission": "DOOODHWALA uses your location in the background to track live delivery progress.",
           "locationWhenInUsePermission": "DOOODHWALA uses your location to track deliveries and find milkmen near you.",
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       [
