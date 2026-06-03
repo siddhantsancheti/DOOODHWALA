@@ -15,6 +15,7 @@
     "ios": {
       "bundleIdentifier": "com.dooodhwala.app",
       "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": false,
       "requireFullScreen": true,
       "infoPlist": {
@@ -76,6 +77,15 @@
     ],
     "plugins": [
       "./plugins/withUpiQueries",
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
       "expo-secure-store",
       "expo-sharing",
       [
