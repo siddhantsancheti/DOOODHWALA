@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.dooodhwala.app",
-      "versionCode": 23,
+      "versionCode": 25,
       "adaptiveIcon": {
         "backgroundColor": "#1B67B0",
         "foregroundImage": "./assets/logo.png"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,33 @@ export default function LoginScreen({ navigation }: any) {
   const [showLangMenu, setShowLangMenu] = useState(false);
 
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
+
+  // Single completion path for Firebase phone-auth. On Android the SMS can be
+  // auto-retrieved/instant-verified in the background, which signs the user in
+  // WITHOUT a manual confirm() — and a later manual confirm() then throws
+  // auth/session-expired. Listening to onAuthStateChanged catches BOTH the
+  // auto-verified and the manual-confirm cases and exchanges the ID token for
+  // our app JWT exactly once.
+  const completedRef = useRef(false);
+  useEffect(() => {
+    const unsub = auth().onAuthStateChanged(async (user) => {
+      if (user && !completedRef.current) {
+        completedRef.current = true;
+        setIsLoginLoading(true);
+        try {
+          const idToken = await user.getIdToken(true);
+          if (!idToken) throw new Error('Verification failed');
+          await firebaseLogin({ idToken });
+          // AppNavigator switches automatically once the JWT is stored.
+        } catch (e: any) {
+          completedRef.current = false;
+          setIsLoginLoading(false);
+          showAlert(t('invalidOtp') || 'Login failed', firebaseErrorMessage(e));
+        }
+      }
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -102,23 +129,29 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handleVerifyOTP = async () => {
+    // If Android already auto-verified, a Firebase user exists and the
+    // onAuthStateChanged listener is completing (or has completed) login —
+    // nothing to do here.
+    if (auth().currentUser) {
+      setIsLoginLoading(true);
+      return;
+    }
     if (!confirmation) {
       showAlert(t('error'), t('waitTryAgain') || 'Please request a new code.');
       return;
     }
     setIsLoginLoading(true);
     try {
-      // Confirm the OTP with Firebase, then exchange the verified ID token
-      // for our app JWT via the backend.
-      const credential = await confirmation.confirm(otp);
-      const idToken = await credential?.user.getIdToken();
-      if (!idToken) throw new Error(t('verificationFailed') || 'Verification failed');
-      await firebaseLogin({ idToken });
-      // AppNavigator handles navigation automatically once the JWT is stored.
+      // Confirm the OTP with Firebase. On success the user is signed in and the
+      // onAuthStateChanged listener exchanges the ID token for our app JWT.
+      await confirmation.confirm(otp);
     } catch (error: any) {
-      showAlert(t('invalidOtp') || 'Invalid OTP', firebaseErrorMessage(error));
-    } finally {
+      // Race: auto-retrieval may have already signed the user in, which makes a
+      // late manual confirm() throw session-expired. If a user now exists, let
+      // the listener finish instead of surfacing a false error.
+      if (auth().currentUser) return;
       setIsLoginLoading(false);
+      showAlert(t('invalidOtp') || 'Invalid OTP', firebaseErrorMessage(error));
     }
   };
 

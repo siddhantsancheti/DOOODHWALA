@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { authAPI } from "../lib/api";
+import auth from "@react-native-firebase/auth";
 import * as SecureStore from "../lib/storage";
 import type { User } from "../types/schema"; // We will create this
 
@@ -124,6 +125,11 @@ export function useAuth() {
     const logout = async () => {
         try {
             await authAPI.logout();
+        } catch (e) { }
+        // Also clear the Firebase session so a stale phone-auth user can't
+        // silently re-authenticate on the next visit to the login screen.
+        try {
+            if (auth().currentUser) await auth().signOut();
         } catch (e) { }
         await clearTokens();
         queryClient.setQueryData(["/api/auth/user"], null);
