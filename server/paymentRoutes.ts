@@ -1,14 +1,56 @@
 import { Router } from "express";
 import { db } from "./db";
-import { bills, payments, customers, chatMessages, smsQueue, notifications, familyChatMembers } from "@shared/schema";
+import { bills, payments, customers, chatMessages, smsQueue, notifications, familyChatMembers, milkmen, users } from "@shared/schema";
 import { eq, desc, and, isNull, inArray, or } from "drizzle-orm";
 import Razorpay from "razorpay";
 import Stripe from "stripe";
 import crypto from "crypto";
 import { BillingService } from "./services/billingService";
 import { type AuthRequest } from "./middleware/auth";
+import { broadcast } from "./websocket";
+import { sendPushNotification } from "./services/fcmService";
 
 const router = Router();
+
+// Push a real-time "bill paid" event so the milkman (and the customer's other
+// devices / chat "Pay Now" card) update instantly, and notify the milkman.
+async function notifyBillPaid(bill: any, paidByUserId: string | null) {
+    try {
+        broadcast({
+            type: "bill_paid",
+            billId: bill.id,
+            customerId: bill.customerId ?? null,
+            milkmanId: bill.milkmanId ?? null,
+            familyChatId: bill.familyChatId ?? null,
+            amount: bill.totalAmount,
+            paidBy: paidByUserId,
+        });
+        if (bill.milkmanId) {
+            const mk = await db.query.milkmen.findFirst({ where: eq(milkmen.id, bill.milkmanId) });
+            if (mk?.userId) {
+                await db.insert(notifications).values({
+                    userId: mk.userId,
+                    title: "Payment Received",
+                    message: `A bill of ₹${bill.totalAmount} has been paid.`,
+                    type: "payment",
+                    relatedId: bill.id,
+                    isRead: false,
+                });
+                const mkUser = await db.query.users.findFirst({ where: eq(users.id, mk.userId) });
+                if (mkUser?.fcmToken) {
+                    await sendPushNotification(
+                        mkUser.fcmToken,
+                        "Payment Received 💰",
+                        `A bill of ₹${bill.totalAmount} has been paid.`,
+                        { type: "bill_paid", billId: String(bill.id) }
+                    );
+                }
+            }
+        }
+    } catch (e) {
+        console.error("notifyBillPaid failed:", e);
+    }
+}
 
 // Initialize Payment Gateways — conditionally to avoid crashes when keys are missing
 let razorpay: Razorpay | null = null;
@@ -104,8 +146,9 @@ router.post("/cod/verify-otp", async (req, res) => {
         
         if (orderId.startsWith('BILL_')) {
             const billId = parseInt(orderId.replace('BILL_', ''));
-            
+
             // 1. Update bill status
+            const [paidBill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
             await db.update(bills)
                 .set({
                     status: "paid",
@@ -113,6 +156,8 @@ router.post("/cod/verify-otp", async (req, res) => {
                     paidBy: user.id
                 })
                 .where(eq(bills.id, billId));
+            // Real-time: notify milkman + customer that the COD bill is settled.
+            if (paidBill) await notifyBillPaid(paidBill, user.id);
 
             // 2. Create payment record
             await db.insert(payments).values({
@@ -438,6 +483,8 @@ router.post("/razorpay/verify", async (req, res) => {
                     await db.update(bills)
                         .set({ status: "paid", paidAt: new Date(), paidBy: userId })
                         .where(eq(bills.id, billId));
+                    // Real-time: tell the milkman + customer the bill is paid.
+                    await notifyBillPaid(bill, userId);
                 }
             }
 

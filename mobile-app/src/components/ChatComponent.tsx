@@ -86,6 +86,11 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       if (['new_message', 'message_sent', 'order_accepted', 'order_delivered'].includes(data.type)) {
         queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
       }
+      // Payment settled in real time → refresh the chat bill card + bills list.
+      if (data.type === 'bill_paid') {
+        queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/bills/list'] });
+      }
     };
     addMessageHandler('chat-comp', handleNewMessage);
     return () => removeMessageHandler('chat-comp');

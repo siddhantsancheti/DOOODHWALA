@@ -143,6 +143,11 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
       } else if (data.type === 'service_request_update') {
         setHasNewActivity(true);
         queryClient.invalidateQueries({ queryKey: ['/api/service-requests/milkman'] });
+      } else if (data.type === 'bill_paid') {
+        // A customer just paid a bill — refresh earnings and order/customer views live.
+        setHasNewActivity(true);
+        queryClient.invalidateQueries({ queryKey: ['/api/orders/milkman'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/milkmen/profile'] });
       }
     };
     addMessageHandler('milkman-dashboard', handler);
