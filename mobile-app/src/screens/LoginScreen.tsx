@@ -15,7 +15,6 @@ import {
   ScrollView,
 } from 'react-native';
 import { Phone, ArrowRight, RotateCcw, Loader2, Globe, Check } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { useAuth } from '../hooks/useAuth';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
@@ -172,34 +171,31 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-    const gradientColors = (isDark
-      ? ['#0B1120', '#13294A', '#0B1120']
-      : ['#1B67B0', '#2E8BD8', '#2E8BD8']) as [string, string, string];
-
     const content = (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Brand hero over the gradient */}
-          <View style={styles.hero}>
-            <View style={styles.headerTopActions}>
-              <TouchableOpacity
-                 style={styles.langBtn}
-                 onPress={() => setShowLangMenu(!showLangMenu)}
-                 activeOpacity={0.8}
-              >
-                <Globe size={15} color="#FFFFFF" />
-                <Text style={styles.langBtnText}>{language}</Text>
-              </TouchableOpacity>
+          <View style={styles.card}>
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <View style={styles.headerTopActions}>
+                <TouchableOpacity 
+                   style={[styles.langBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
+                   onPress={() => setShowLangMenu(!showLangMenu)}
+                >
+                  <Globe size={16} color={colors.foreground} />
+                  <Text style={[styles.langBtnText, { color: colors.foreground }]}>{language}</Text>
+                </TouchableOpacity>
+              </View>
 
               {showLangMenu && (
                 <View style={[styles.langMenu, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {(['English', 'Hindi', 'Marathi'] as Language[]).map((lang) => (
-                    <TouchableOpacity
-                      key={lang}
-                      style={styles.langItem}
+                    <TouchableOpacity 
+                      key={lang} 
+                      style={styles.langItem} 
                       onPress={() => { setLanguage(lang); setShowLangMenu(false); }}
                     >
                       <Text style={[styles.langText, { color: colors.foreground }, language === lang && { color: colors.primary, fontWeight: '700' }]}>{lang}</Text>
@@ -208,17 +204,15 @@ export default function LoginScreen({ navigation }: any) {
                   ))}
                 </View>
               )}
-            </View>
 
-            <View style={styles.logoBadge}>
               <Image source={logo} style={styles.logo} resizeMode="contain" />
             </View>
+
+            {/* Title with gradient effect (simulated) */}
             <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>DOOODHWALA</Text>
             <Text style={styles.subtitle}>{t('trustedDairy')}</Text>
-          </View>
 
-          {/* Floating card */}
-          <View style={styles.card}>
+            {/* Login Header */}
             <Text style={styles.header}>{t('signIn')}</Text>
 
             {/* Phone Step */}
@@ -339,12 +333,7 @@ export default function LoginScreen({ navigation }: any) {
     );
 
     if (Platform.OS === 'web') {
-        return (
-            <View style={styles.container}>
-                <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFillObject} />
-                {content}
-            </View>
-        );
+        return <View style={styles.container}>{content}</View>;
     }
 
     return (
@@ -353,7 +342,6 @@ export default function LoginScreen({ navigation }: any) {
                 style={styles.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFillObject} />
                 {content}
             </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
@@ -363,112 +351,96 @@ export default function LoginScreen({ navigation }: any) {
 const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFamilyBold: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: isDark ? '#0B1120' : '#1B67B0',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing['4xl'],
+    padding: spacing.lg,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.xl,
+    padding: spacing['3xl'],
+    ...shadows['2xl'],
   },
 
-  // Brand hero
-  hero: {
+  // Logo
+  logoContainer: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing['2xl'],
     position: 'relative',
   },
   headerTopActions: {
     position: 'absolute',
-    top: -16,
-    right: 0,
-    zIndex: 1000,
+    top: -10,
+    right: -10,
+    zIndex: 10,
   },
   langBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: borderRadius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   langBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: fontFamilyBold,
+    fontSize: 12,
+    fontWeight: '600',
   },
   langMenu: {
     position: 'absolute',
-    top: 42,
-    right: 0,
-    width: 132,
-    borderRadius: borderRadius.lg,
+    top: 30,
+    right: -10,
+    width: 120,
+    borderRadius: 12,
     borderWidth: 1,
     paddingVertical: 4,
-    ...shadows.xl,
+    ...shadows.lg,
     zIndex: 1000,
   },
   langItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   langText: {
     fontSize: 14,
     fontFamily,
   },
-  logoBadge: {
-    width: 116,
-    height: 116,
-    borderRadius: 58,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.28)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
   logo: {
-    width: 78,
-    height: 78,
+    width: 128,
+    height: 128,
   },
 
   // Title
   title: {
-    fontSize: 34,
+    fontSize: fontSize['3xl'],
     fontWeight: fontWeight.bold,
     textAlign: 'center',
-    color: '#FFFFFF',
+    color: colors.brandPrimary,
     marginBottom: spacing.xs,
     fontFamily: fontFamilyBold,
-    letterSpacing: 1.5,
+    letterSpacing: 1,
   },
   subtitle: {
-    fontSize: fontSize.base,
+    fontSize: fontSize.lg,
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.88)',
+    color: colors.mutedForeground,
+    marginBottom: spacing['3xl'],
     fontFamily,
-  },
-
-  // Floating card
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 28,
-    padding: spacing['2xl'],
-    marginTop: spacing.sm,
-    ...shadows['2xl'],
   },
 
   // Header
   header: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
     color: colors.foreground,
-    marginBottom: spacing.xl,
+    marginBottom: spacing['2xl'],
     fontFamily: fontFamilyBold,
   },
 
@@ -478,7 +450,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   },
   label: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.medium,
     color: colors.foreground,
     marginBottom: spacing.sm,
     fontFamily: fontFamilyBold,
@@ -494,38 +466,38 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    borderRadius: borderRadius.xl,
-    height: 56,
+    borderWidth: 1,
+    borderColor: colors.input,
+    borderRadius: borderRadius.md,
+    height: 48,
     paddingHorizontal: spacing.lg,
-    backgroundColor: isDark ? colors.surfaceSecondary : '#F1F5F9',
+    backgroundColor: colors.background,
   },
   inputFocused: {
     borderColor: colors.primary,
-    backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+    borderWidth: 2,
   },
   phoneIcon: {
     marginRight: spacing.md,
   },
   phoneInput: {
     flex: 1,
-    fontSize: fontSize.lg,
+    fontSize: fontSize.base,
     color: colors.foreground,
     height: '100%',
-    fontFamily: fontFamilyBold,
+    fontFamily,
   },
 
   // OTP Input
   otpInput: {
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    borderRadius: borderRadius.xl,
-    height: 62,
-    fontSize: 26,
-    letterSpacing: 10,
+    borderWidth: 1,
+    borderColor: colors.input,
+    borderRadius: borderRadius.md,
+    height: 56,
+    fontSize: fontSize['2xl'],
+    letterSpacing: 8,
     fontWeight: fontWeight.bold,
-    backgroundColor: isDark ? colors.surfaceSecondary : '#F1F5F9',
+    backgroundColor: colors.background,
     color: colors.foreground,
     paddingHorizontal: spacing.lg,
     fontFamily: fontFamilyBold,
@@ -534,20 +506,14 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   // Button
   button: {
     backgroundColor: colors.primary,
-    height: 56,
-    borderRadius: borderRadius.xl,
+    height: 48,
+    borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    ...shadows.sm,
   },
   buttonDisabled: {
     backgroundColor: colors.gray400,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   buttonContent: {
     flexDirection: 'row',
@@ -555,9 +521,9 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     gap: spacing.sm,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.primaryForeground,
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     fontFamily: fontFamilyBold,
   },
 
