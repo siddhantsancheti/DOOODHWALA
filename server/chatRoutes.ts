@@ -8,6 +8,7 @@ import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
 import "./services/fcmService"; // ensure firebase-admin is initialized for Storage
 import { nudgeCustomerToOrder } from "./services/routeNotify";
+import { partyUserIds } from "./services/wsParties";
 import { type AuthRequest } from "./middleware/auth";
 
 const router = Router();
@@ -136,7 +137,11 @@ const sendMessageHandler = async (req: AuthRequest, res: any) => {
             message: newMessage,
             customerId: newMessage.customerId,
             milkmanId: newMessage.milkmanId,
-        });
+        }, await partyUserIds({
+            customerId: newMessage.customerId,
+            milkmanId: newMessage.milkmanId,
+            familyChatId: newMessage.familyChatId,
+        }));
 
         // Create the order row IMMEDIATELY when a customer places an order via
         // chat, so it shows up under "Active Orders" right away (status pending)
@@ -248,7 +253,11 @@ router.post("/messages/:id/accepted", async (req, res) => {
             messageId: updatedMessage.id,
             customerId: updatedMessage.customerId,
             milkmanId: updatedMessage.milkmanId
-        });
+        }, await partyUserIds({
+            customerId: updatedMessage.customerId,
+            milkmanId: updatedMessage.milkmanId,
+            familyChatId: updatedMessage.familyChatId,
+        }));
 
         // An order message may carry an explicit orderQuantity (ChatScreen) or
         // only an orderItems array (ChatComponent). Normalise both here.
@@ -353,7 +362,7 @@ router.post("/messages/:id/accepted", async (req, res) => {
                             message: `Inventory updated: ${updatedMessage.orderProduct || Object.keys(deduction).join(', ') || 'order'}`,
                             dairyItems: updatedItems
                         }
-                    });
+                    }, await partyUserIds({ milkmanId: updatedMessage.milkmanId }));
                 }
             } catch (invError) {
                 console.error("Failed to update JSONB inventory:", invError);
@@ -432,7 +441,11 @@ router.post("/messages/:id/delivered", async (req, res) => {
             messageId: updatedMessage.id,
             customerId: updatedMessage.customerId,
             milkmanId: updatedMessage.milkmanId
-        });
+        }, await partyUserIds({
+            customerId: updatedMessage.customerId,
+            milkmanId: updatedMessage.milkmanId,
+            familyChatId: updatedMessage.familyChatId,
+        }));
 
         // Update the corresponding order record to 'delivered'.
         // An order message carries orderQuantity (ChatScreen) or orderItems

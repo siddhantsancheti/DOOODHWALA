@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { BillingService } from "./services/billingService";
 import { type AuthRequest } from "./middleware/auth";
 import { broadcast } from "./websocket";
+import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
 
 const router = Router();
@@ -16,6 +17,11 @@ const router = Router();
 // devices / chat "Pay Now" card) update instantly, and notify the milkman.
 async function notifyBillPaid(bill: any, paidByUserId: string | null) {
     try {
+        const targets = await partyUserIds({
+            customerId: bill.customerId,
+            milkmanId: bill.milkmanId,
+            familyChatId: bill.familyChatId,
+        });
         broadcast({
             type: "bill_paid",
             billId: bill.id,
@@ -24,7 +30,7 @@ async function notifyBillPaid(bill: any, paidByUserId: string | null) {
             familyChatId: bill.familyChatId ?? null,
             amount: bill.totalAmount,
             paidBy: paidByUserId,
-        });
+        }, targets);
         if (bill.milkmanId) {
             const mk = await db.query.milkmen.findFirst({ where: eq(milkmen.id, bill.milkmanId) });
             if (mk?.userId) {
@@ -140,39 +146,52 @@ router.post("/cod/verify-otp", async (req, res) => {
 
         if (!otp || !orderId) return res.status(400).json({ message: "OTP and Order ID required" });
 
-        // In this implementation, we check against a simple pattern or session-stored OTP.
-        // For now, we'll implement the persistent check if we had a dedicated CODs table, 
-        // but since we're using mock verify for now, let's at least update the bill if it matches.
-        
-        if (orderId.startsWith('BILL_')) {
-            const billId = parseInt(orderId.replace('BILL_', ''));
+        if (!orderId.startsWith('BILL_')) {
+            return res.status(400).json({ message: "Invalid order ID format" });
+        }
+        const billId = parseInt(orderId.replace('BILL_', ''));
 
-            // 1. Update bill status
-            const [paidBill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
-            await db.update(bills)
-                .set({
-                    status: "paid",
-                    paidAt: new Date(),
-                    paidBy: user.id
-                })
-                .where(eq(bills.id, billId));
-            // Real-time: notify milkman + customer that the COD bill is settled.
-            if (paidBill) await notifyBillPaid(paidBill, user.id);
+        // 1. Find the PENDING COD payment created for this bill and validate the OTP.
+        const [pending] = await db.select().from(payments)
+            .where(and(
+                eq(payments.orderId, orderId),
+                eq(payments.paymentMethod, "cod"),
+                eq(payments.status, "pending"),
+            ))
+            .orderBy(desc(payments.createdAt))
+            .limit(1);
 
-            // 2. Create payment record
-            await db.insert(payments).values({
-                userId: user.id,
-                orderId: orderId,
-                amount: "0.00", // Would be fetched from bill
-                status: "completed",
-                paymentMethod: "cod",
-                paymentDetails: { verified: true, otp: otp, timestamp: new Date() }
-            });
-
-            return res.json({ success: true, message: "COD payment verified and Bill updated." });
+        if (!pending) {
+            return res.status(400).json({ message: "No pending COD payment found for this bill." });
+        }
+        const details: any = pending.paymentDetails || {};
+        if (!details.codOtp || String(details.codOtp) !== String(otp).trim()) {
+            return res.status(400).json({ success: false, message: "Incorrect OTP." });
+        }
+        if (details.expiresAt && new Date(details.expiresAt) < new Date()) {
+            return res.status(400).json({ success: false, message: "OTP expired. Please regenerate." });
         }
 
-        res.status(400).json({ message: "Invalid order ID format" });
+        // 2. Mark the bill paid (authoritative amount from the bill) + complete payment.
+        const [paidBill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
+        const settledAmount = paidBill?.totalAmount || pending.amount || "0.00";
+
+        await db.update(bills)
+            .set({ status: "paid", paidAt: new Date(), paidBy: user.id })
+            .where(eq(bills.id, billId));
+
+        await db.update(payments)
+            .set({
+                status: "completed",
+                amount: settledAmount,
+                paymentDetails: { ...details, verified: true, verifiedAt: new Date().toISOString() },
+            })
+            .where(eq(payments.id, pending.id));
+
+        // Real-time: notify milkman + customer that the COD bill is settled.
+        if (paidBill) await notifyBillPaid(paidBill, user.id);
+
+        return res.json({ success: true, message: "COD payment verified and Bill updated." });
     } catch (error) {
         console.error("Verify COD OTP error:", error);
         res.status(500).json({ message: "Server error" });
@@ -587,12 +606,26 @@ router.post("/stripe/webhook", async (req, res) => {
 router.post("/cod/create-order", async (req, res) => {
     try {
         const { amount, orderId, customerId, milkmanId, description, customerPhone } = req.body;
+        const requesterId = (req as any).user?.id ?? null;
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // 1. Create a "pending" payment record or just log it
-        // For COD, we rely on the milkman confirming receipt, so maybe we create a bill or order status.
-        // For this implementation, we'll queue an SMS/Chat message with the OTP.
+        // Persist a PENDING COD payment carrying the hashed-free OTP + expiry so
+        // /cod/verify-otp can actually validate the code the customer received
+        // (previously verify accepted ANY code — a money-integrity hole).
+        await db.insert(payments).values({
+            userId: requesterId,
+            orderId,
+            amount: String(amount ?? "0"),
+            status: "pending",
+            paymentMethod: "cod",
+            customerId: customerId || null,
+            milkmanId: milkmanId || null,
+            paymentDetails: {
+                codOtp: otp,
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            },
+        });
 
         // Queue SMS
         if (customerPhone) {

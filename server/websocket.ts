@@ -87,17 +87,23 @@ export function setupWebSocket(server: Server) {
     log("WebSocket server setup complete");
 }
 
-export function broadcast(message: WebSocketMessage) {
+// Broadcast a message. When `targetUserIds` is provided, the event is delivered
+// ONLY to authenticated sockets whose user is in that set (the parties to the
+// message) — this prevents one user from receiving another user's chat messages
+// or payment events. Without it, the message goes to all authenticated clients
+// (use only for genuinely public/global events).
+export function broadcast(message: WebSocketMessage, targetUserIds?: (string | null | undefined)[]) {
     if (!wss) return;
+
+    const targets = targetUserIds
+        ? new Set(targetUserIds.filter((id): id is string => !!id))
+        : null;
 
     wss.clients.forEach((client: WebSocket) => {
         const ws = client as AuthenticatedWebSocket;
-        if (client.readyState === WebSocket.OPEN) {
-            // Simple broadcast for now, can be optimized to target specific users
-            // But for "order_accepted", we want the Customer to receive it.
-            // The message usually contains customerId/milkmanId so the client can filter.
-            client.send(JSON.stringify(message));
-        }
+        if (client.readyState !== WebSocket.OPEN || !ws.isAuthenticated) return;
+        if (targets && (!ws.userId || !targets.has(ws.userId))) return;
+        client.send(JSON.stringify(message));
     });
 }
 

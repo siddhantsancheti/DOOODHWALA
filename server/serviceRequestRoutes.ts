@@ -4,20 +4,26 @@ import { serviceRequests, customers, milkmen, notifications, users } from "@shar
 import { eq, desc, ne, and } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import { broadcast } from "./websocket";
+import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
 
 const router = Router();
 
 // Push a real-time update so both the customer's and milkman's open screens
 // refresh their service-request lists without a manual reload.
-function broadcastServiceRequest(event: string, request: { id: number; customerId: number; milkmanId: number }) {
-    broadcast({
-        type: "service_request_update",
-        event,
-        requestId: request.id,
-        customerId: request.customerId,
-        milkmanId: request.milkmanId,
-    });
+async function broadcastServiceRequest(event: string, request: { id: number; customerId: number; milkmanId: number }) {
+    try {
+        const targets = await partyUserIds({ customerId: request.customerId, milkmanId: request.milkmanId });
+        broadcast({
+            type: "service_request_update",
+            event,
+            requestId: request.id,
+            customerId: request.customerId,
+            milkmanId: request.milkmanId,
+        }, targets);
+    } catch (e) {
+        console.error("broadcastServiceRequest failed:", e);
+    }
 }
 
 // Best-effort in-app notification + FCM push to a user.
