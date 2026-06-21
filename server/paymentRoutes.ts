@@ -430,14 +430,19 @@ router.post("/razorpay/create-order", async (req, res) => {
         }
 
         const { amount, orderId, description } = req.body;
+        const payerUserId = (req as any).user?.id ?? "";
 
-        // Amount should be in paise
+        // Amount should be in paise. The internalOrderId + payerUserId are carried
+        // in notes so the webhook fallback can settle the bill even if the client
+        // never returns to call /verify (app closed / network drop after payment).
         const options = {
             amount: Math.round(amount * 100),
             currency: "INR",
             receipt: orderId?.toString() || `receipt_${Date.now()}`,
             notes: {
-                description: description || "Dooodhwala Payment"
+                description: description || "Dooodhwala Payment",
+                internalOrderId: orderId?.toString() || "",
+                payerUserId: String(payerUserId),
             }
         };
 
@@ -534,6 +539,38 @@ router.post("/razorpay/verify", async (req, res) => {
 });
 
 // Razorpay Webhook
+// Fallback settlement: mark a bill paid from a verified Razorpay event, even if
+// the client never returned to call /verify. Idempotent on razorpayPaymentId.
+async function settleBillFromRazorpay(internalOrderId: string | undefined, razorpayOrderId: string, razorpayPaymentId: string, payerUserId: string | null, paidAmount: string) {
+    if (!internalOrderId || !internalOrderId.startsWith("BILL_")) return;
+    // Idempotency: bail if this payment is already recorded (client /verify ran).
+    const existing = await db.select().from(payments).where(eq(payments.razorpayPaymentId, razorpayPaymentId)).limit(1);
+    if (existing.length > 0) return;
+
+    const billId = parseInt(internalOrderId.replace("BILL_", ""));
+    const [bill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
+    if (!bill) return;
+
+    const settledAmount = bill.totalAmount || paidAmount || "0.00";
+    if (bill.status !== "paid") {
+        await db.update(bills)
+            .set({ status: "paid", paidAt: new Date(), paidBy: bill.paidBy ?? payerUserId })
+            .where(eq(bills.id, billId));
+    }
+    await db.insert(payments).values({
+        userId: payerUserId || bill.paidBy || null as any,
+        orderId: razorpayOrderId,
+        amount: settledAmount,
+        status: "completed",
+        paymentMethod: "razorpay",
+        razorpayOrderId,
+        razorpayPaymentId,
+        paymentDetails: { via: "webhook", verified: true, timestamp: new Date() },
+    });
+    await notifyBillPaid({ ...bill, status: "paid" }, bill.paidBy ?? payerUserId);
+    console.log(`[Webhook] Settled bill ${billId} from Razorpay payment ${razorpayPaymentId}`);
+}
+
 router.post("/razorpay/webhook", async (req, res) => {
     try {
         const secret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
@@ -542,23 +579,35 @@ router.post("/razorpay/webhook", async (req, res) => {
         const signature = req.headers["x-razorpay-signature"] as string;
         if (!signature) return res.status(400).send("Missing signature");
 
-        const expectedSignature = crypto
-            .createHmac("sha256", secret)
-            .update(JSON.stringify(req.body))
-            .digest("hex");
-
+        // Verify against the RAW request body bytes (Razorpay signs the raw
+        // payload — re-stringifying parsed JSON is not reliable).
+        const rawBody: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+        const expectedSignature = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
         if (expectedSignature !== signature) {
             return res.status(400).send("Invalid webhook signature");
         }
 
-        const event = req.body;
+        const event = JSON.parse(rawBody.toString());
 
-        if (event.event === "payment.captured") {
-            const paymentEntity = event.payload.payment.entity;
-            console.log("Razorpay payment captured via webhook:", paymentEntity.id);
+        if (event.event === "payment.captured" || event.event === "order.paid") {
+            const paymentEntity = event.payload?.payment?.entity;
+            const orderEntity = event.payload?.order?.entity;
+            // Prefer notes/receipt from the order; fall back to fetching the order.
+            let notes: any = orderEntity?.notes || paymentEntity?.notes || {};
+            let internalOrderId: string | undefined = notes.internalOrderId || orderEntity?.receipt;
+            const razorpayOrderId: string = orderEntity?.id || paymentEntity?.order_id;
+            const razorpayPaymentId: string = paymentEntity?.id || `webhook_${razorpayOrderId}`;
+            const paidAmount = paymentEntity?.amount ? (paymentEntity.amount / 100).toFixed(2) : "0.00";
 
-            // Mark payment as complete in DB here (finding by order_id or payment_id)
-            // Example logic (skipped full mapping for brevity, but you'd match the order)
+            if (!internalOrderId && razorpayOrderId && razorpay) {
+                try {
+                    const ord: any = await razorpay.orders.fetch(razorpayOrderId);
+                    notes = ord?.notes || {};
+                    internalOrderId = notes.internalOrderId || ord?.receipt;
+                } catch (e) { /* best effort */ }
+            }
+
+            await settleBillFromRazorpay(internalOrderId, razorpayOrderId, razorpayPaymentId, notes.payerUserId || null, paidAmount);
         }
 
         res.json({ status: "ok" });
@@ -608,6 +657,19 @@ router.post("/cod/create-order", async (req, res) => {
         const { amount, orderId, customerId, milkmanId, description, customerPhone } = req.body;
         const requesterId = (req as any).user?.id ?? null;
 
+        // Derive the authoritative customer/milkman from the bill — never trust
+        // client-sent ids (the old `milkmanId || 1` fallback misattributed COD
+        // payments to milkman #1).
+        let billCustomerId: number | null = customerId ?? null;
+        let billMilkmanId: number | null = milkmanId ?? null;
+        if (typeof orderId === "string" && orderId.startsWith("BILL_")) {
+            const [bill] = await db.select().from(bills).where(eq(bills.id, parseInt(orderId.replace("BILL_", "")))).limit(1);
+            if (bill) {
+                billCustomerId = bill.customerId ?? billCustomerId;
+                billMilkmanId = bill.milkmanId ?? billMilkmanId;
+            }
+        }
+
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Persist a PENDING COD payment carrying the hashed-free OTP + expiry so
@@ -619,8 +681,8 @@ router.post("/cod/create-order", async (req, res) => {
             amount: String(amount ?? "0"),
             status: "pending",
             paymentMethod: "cod",
-            customerId: customerId || null,
-            milkmanId: milkmanId || null,
+            customerId: billCustomerId,
+            milkmanId: billMilkmanId,
             paymentDetails: {
                 codOtp: otp,
                 expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),

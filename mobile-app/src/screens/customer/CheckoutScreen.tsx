@@ -130,8 +130,9 @@ export default function CheckoutScreen({ route, navigation }: any) {
         url: '/api/payments/cod/create-order', method: 'POST',
         body: {
           amount, orderId,
-          customerId: customerProfile?.id || 0,
-          milkmanId: customerProfile?.assignedMilkmanId || 1,
+          // No fake fallbacks — the server derives customer/milkman from the bill.
+          customerId: customerProfile?.id ?? null,
+          milkmanId: customerProfile?.assignedMilkmanId ?? null,
           description,
           customerPhone: user?.phone?.replace('+91', '') || user?.phone,
           deliveryAddress: customerProfile?.address || 'Delivery location',

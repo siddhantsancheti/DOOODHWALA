@@ -61,8 +61,9 @@ const limiter = rateLimit({
 // Apply rate limiter only to API routes
 app.use("/api", limiter);
 
-// Stripe webhook must use raw body parsing
+// Payment webhooks must use raw body parsing for signature verification.
 app.use("/api/payments/stripe/webhook", express.raw({ type: 'application/json' }));
+app.use("/api/payments/razorpay/webhook", express.raw({ type: 'application/json' }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
