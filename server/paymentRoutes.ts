@@ -174,6 +174,14 @@ router.post("/cod/verify-otp", async (req, res) => {
 
         // 2. Mark the bill paid (authoritative amount from the bill) + complete payment.
         const [paidBill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
+        if (paidBill) {
+            // Authorization: only the bill's dairyman / customer / group member may
+            // confirm a COD settlement (the OTP is the second factor).
+            const parties = await partyUserIds({ customerId: paidBill.customerId, milkmanId: paidBill.milkmanId, familyChatId: paidBill.familyChatId });
+            if (user?.id && parties.length && !parties.includes(user.id)) {
+                return res.status(403).json({ success: false, message: "Not authorized for this bill." });
+            }
+        }
         const settledAmount = paidBill?.totalAmount || pending.amount || "0.00";
 
         await db.update(bills)
@@ -503,6 +511,12 @@ router.post("/razorpay/verify", async (req, res) => {
                 const billId = parseInt(internalOrderId.replace('BILL_', ''));
                 const [bill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
                 if (bill) {
+                    // Authorization: only a party to the bill (the customer, a
+                    // household-group member, or the milkman) may settle it.
+                    const parties = await partyUserIds({ customerId: bill.customerId, milkmanId: bill.milkmanId, familyChatId: bill.familyChatId });
+                    if (userId && parties.length && !parties.includes(userId)) {
+                        return res.status(403).json({ success: false, message: "Not authorized for this bill." });
+                    }
                     verifiedAmount = bill.totalAmount;
                     await db.update(bills)
                         .set({ status: "paid", paidAt: new Date(), paidBy: userId })
