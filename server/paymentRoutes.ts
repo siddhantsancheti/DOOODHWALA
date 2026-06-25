@@ -282,9 +282,15 @@ router.get("/consolidated/:milkmanId", async (req, res) => {
 });
 
 // POST /api/bills/consolidated/:milkmanId/generate
-router.post("/consolidated/:milkmanId/generate", async (req, res) => {
+router.post("/consolidated/:milkmanId/generate", async (req: AuthRequest, res) => {
     try {
         const milkmanId = parseInt(req.params.milkmanId);
+
+        // Authorization: only the milkman themselves may generate their bills.
+        const [mk] = await db.select().from(milkmen).where(eq(milkmen.userId, req.user!.id)).limit(1);
+        if (!mk || mk.id !== milkmanId) {
+            return res.status(403).json({ message: "Not authorized." });
+        }
 
         await BillingService.generateMonthlyBill(milkmanId);
 
@@ -401,9 +407,18 @@ router.get("/current", async (req: AuthRequest, res) => {
 });
 
 // GET /api/bills/customer/:customerId OR /api/payments/customer/:customerId
-router.get("/customer/:customerId", async (req, res) => {
+router.get("/customer/:customerId", async (req: AuthRequest, res) => {
     try {
         const customerId = parseInt(req.params.customerId);
+
+        // Authorization: the caller must own this customer profile, or be a
+        // dairyman (milkmen can view their customers' bills/payments).
+        const [cust] = await db.select().from(customers).where(eq(customers.id, customerId)).limit(1);
+        const [callerMilkman] = await db.select().from(milkmen).where(eq(milkmen.userId, req.user!.id)).limit(1);
+        const ownsCustomer = cust && cust.userId === req.user!.id;
+        if (!ownsCustomer && !callerMilkman) {
+            return res.status(403).json({ message: "Not authorized." });
+        }
 
         if (req.baseUrl.includes('bills')) {
             const customerBills = await db
