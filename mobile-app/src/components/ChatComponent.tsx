@@ -16,6 +16,7 @@ import {
 import { lightColors, darkColors } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
 import { uploadChatMedia, pickFromCamera, pickFromGallery, pickDocument } from '../lib/chatMedia';
+import { toast } from './Toast';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +28,76 @@ const getDateLabel = (date: Date) => {
   if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 };
+
+// Memoized message bubble — only re-renders when ITS props change, so a new
+// message (or a parent re-render) doesn't redraw the whole conversation.
+const MessageRow = React.memo(function MessageRow({ msg, isNewDay, isMe, senderName, colors, isDark, surfaceColor, textColor, textMuted, userType, onPayBill }: any) {
+  const msgDate = new Date(msg.createdAt);
+  const showTicks = isMe && msg.senderType === 'customer';
+  return (
+    <View>
+      {isNewDay && <View style={styles.dateSeparator}><Text style={styles.dateSeparatorText}>{getDateLabel(msgDate)}</Text></View>}
+      <View style={[styles.msgWrapper, isMe ? styles.myMsgWrapper : styles.theirMsgWrapper]}>
+        <View style={[styles.bubble, isMe ? styles.myBubble : [styles.theirBubble, { backgroundColor: surfaceColor }]]}>
+          {!isMe && <Text style={[styles.senderName, { color: colors.primary }]}>{senderName}</Text>}
+          {msg.messageType === 'order' && (
+            <View style={[styles.requestBanner, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(249,115,22,0.1)' }]}>
+              <Package size={14} color={isMe ? '#FFFFFF' : '#EA580C'} />
+              <Text style={[styles.requestBannerText, { color: isMe ? '#FFFFFF' : '#EA580C' }]}>Order Request</Text>
+            </View>
+          )}
+          {msg.messageType === 'bill' ? (
+            <View style={[styles.billMsgCard, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', borderColor: colors.primary }]}>
+              <View style={styles.billMsgHeader}>
+                <Receipt size={18} color={colors.primary} />
+                <Text style={[styles.billMsgTitle, { color: textColor }]}>Monthly Bill</Text>
+              </View>
+              <Text style={[styles.billMsgText, { color: textColor }]}>{msg.message}</Text>
+              {userType === 'customer' && (
+                <TouchableOpacity style={[styles.billPayBtn, { backgroundColor: colors.primary }]} onPress={() => onPayBill(msg)}>
+                  <Text style={styles.billPayBtnText}>Pay Now</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : msg.messageType === 'image' ? (
+            <TouchableOpacity activeOpacity={0.9} onPress={() => Linking.openURL(msg.message)}>
+              <Image source={{ uri: msg.message }} style={{ width: 200, height: 200, borderRadius: 10 }} resizeMode="cover" />
+            </TouchableOpacity>
+          ) : msg.messageType === 'file' ? (
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }} onPress={() => Linking.openURL(msg.message)}>
+              <FileText size={20} color={isMe ? '#FFFFFF' : colors.primary} />
+              <Text style={[{ flex: 1, textDecorationLine: 'underline' }, isMe ? styles.myMsgText : { color: textColor }]} numberOfLines={1}>
+                {decodeURIComponent((msg.message.split('/').pop() || 'file').split('?')[0].replace(/^\d+-\d+-/, ''))}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={[styles.msgText, isMe ? styles.myMsgText : { color: textColor }]}>{msg.message}</Text>
+          )}
+          <View style={styles.msgFooter}>
+            <Text style={[styles.msgTime, isMe ? styles.myMsgTime : { color: textMuted }]}>
+              {msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {showTicks && (
+              <View style={{ flexDirection: 'row', marginLeft: 4, alignItems: 'center' }}>
+                {msg.isDelivered ? (
+                  <View style={{ flexDirection: 'row' }}>
+                    <Check size={10} color="#93C5FD" />
+                    <Check size={10} color="#93C5FD" style={{ marginLeft: -6 }} />
+                    <Check size={10} color="#93C5FD" style={{ marginLeft: -6 }} />
+                  </View>
+                ) : msg.isAccepted ? (
+                  <CheckCheck size={12} color="#60A5FA" />
+                ) : (
+                  <Check size={12} color="rgba(255,255,255,0.7)" />
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+});
 
 export default function ChatComponent({ customerId, milkmanId, embedded = false, navigation }: { customerId: any, milkmanId: any, embedded?: boolean, navigation?: any }) {
   const { user } = useAuth();
@@ -47,7 +118,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   const [showTimePicker, setShowTimePicker] = useState(false);
   
   const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<FlatList>(null);
   const { isConnected, sendMessage: sendWSMessage, addMessageHandler, removeMessageHandler } = useWebSocket();
 
   const { data: milkman } = useQuery<any>({
@@ -68,8 +139,10 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   const { data: history = [], isLoading: isHistoryLoading } = useQuery<any[]>({
     queryKey: [`/api/chat/group/${milkmanId}`],
     enabled: !!milkmanId,
-    // Poll as a fallback so messages still arrive even if the WebSocket drops.
-    refetchInterval: 4000,
+    // The WebSocket delivers messages live; polling is only a fallback. When the
+    // socket is connected, poll slowly (20s safety net); when it drops, poll
+    // faster (5s). This removes the constant 4s full re-render that caused jank.
+    refetchInterval: isConnected ? 20000 : 5000,
   });
 
   const { data: customerSubscriptions = [], refetch: refetchSubscriptions } = useQuery<any[]>({
@@ -101,6 +174,24 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       const response = await apiRequest({ url: "/api/chat/send", method: "POST", body: messageData });
       return await response.json();
     },
+    // Optimistic: show the message instantly so sending feels immediate. The
+    // next refetch (onSuccess) reconciles it with the server's authoritative row.
+    onMutate: (vars: any) => {
+      const optimistic = {
+        id: `temp-${Date.now()}`,
+        customerId: vars.customerId,
+        milkmanId: vars.milkmanId,
+        senderType: vars.senderType,
+        senderId: user?.id,
+        message: vars.message,
+        messageType: vars.messageType || 'text',
+        orderItems: vars.orderItems,
+        orderTotal: vars.orderTotal,
+        createdAt: new Date().toISOString(),
+        _optimistic: true,
+      };
+      setChatMessages((prev) => [...prev, optimistic]);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
       // A chat order now also creates an Active Order on the server — refresh the
@@ -108,7 +199,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       queryClient.invalidateQueries({ queryKey: ['/api/orders/customer'] });
       sendWSMessage(customerId, milkmanId, data.message, (user?.userType as any) || 'customer');
     },
-    onError: (error: any) => Alert.alert("Error", error.message || "Failed to send message"),
+    onError: (error: any) => toast(error.message || "Failed to send message", 'error'),
   });
 
   const createSubscriptionMutation = useMutation({
@@ -121,9 +212,9 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       setShowSubscriptionPanel(false);
       setOrderQuantity("");
       setSelectedProduct(null);
-      Alert.alert(t('subscriptionCreated') || "Subscription Created", t('subscriptionCreatedDesc') || "Your recurring order has been set up!");
+      toast(t('subscriptionCreated') || "Subscription created", 'success');
     },
-    onError: (error: any) => Alert.alert("Error", error.message || "Failed to create subscription"),
+    onError: (error: any) => toast(error.message || "Failed to create subscription", 'error'),
   });
 
   const toggleSubscriptionMutation = useMutation({
@@ -153,7 +244,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers/profile"] });
-      Alert.alert(t('presetSaved') || "Preset Saved", t('presetSavedDesc') || "Your quick order preset has been saved.");
+      toast(t('presetSaved') || "Preset saved", 'success');
     },
   });
 
@@ -170,7 +261,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       const url = await uploadChatMedia(media);
       sendMessageMutation.mutate({ customerId, milkmanId, message: url, messageType: media.kind, senderType: user?.userType });
     } catch {
-      Alert.alert(t('error') || 'Error', 'Could not share the file. Please try again.');
+      toast('Could not share the file. Please try again.', 'error');
     } finally {
       setUploadingMedia(false);
     }
@@ -187,7 +278,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
 
   const handleSendOrder = () => {
     if (!orderQuantity || !selectedProduct) {
-      Alert.alert(t('missingInfo') || "Missing Info", t('selectProductAndQty') || "Please select product and enter quantity.");
+      toast(t('selectProductAndQty') || "Please select a product and enter quantity.", 'info');
       return;
     }
 
@@ -268,6 +359,20 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
+  // Stable callback so the memoized MessageRow doesn't re-render every time.
+  const handlePayBill = React.useCallback((msg: any) => {
+    if (navigation) {
+      navigation.navigate('Checkout', {
+        amount: parseFloat(msg.orderTotal || '0'),
+        description: `Bill #${msg.billId}`,
+        orderId: `BILL_${msg.billId}`,
+        paymentType: 'single',
+      });
+    } else {
+      Alert.alert('Navigation Error', "Could not find navigation context. Please use the 'Bills' screen.");
+    }
+  }, [navigation]);
+
   const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
   const textColor = isDark ? '#F9FAFB' : '#111827';
   const textMuted = isDark ? '#9CA3AF' : '#6B7280';
@@ -276,105 +381,42 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   const availableProducts = milkman?.dairyItems?.filter((item: any) => item.isAvailable !== false) || [];
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const MessageStatus = ({ message }: { message: any }) => {
-    if (message.senderType !== 'customer') return null;
-    return (
-      <View style={{ flexDirection: 'row', marginLeft: 4, alignItems: 'center' }}>
-        {message.isDelivered ? (
-          <View style={{ flexDirection: 'row' }}>
-            <Check size={10} color="#93C5FD" />
-            <Check size={10} color="#93C5FD" style={{ marginLeft: -6 }} />
-            <Check size={10} color="#93C5FD" style={{ marginLeft: -6 }} />
-          </View>
-        ) : message.isAccepted ? (
-          <CheckCheck size={12} color="#60A5FA" />
-        ) : (
-          <Check size={12} color="rgba(255,255,255,0.7)" />
-        )}
-      </View>
-    );
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView ref={scrollViewRef} style={styles.messagesList} contentContainerStyle={{ padding: 16 }} onContentSizeChange={scrollToEnd}>
-        {chatMessages.map((msg, idx) => {
+      <FlatList
+        ref={scrollViewRef}
+        style={styles.messagesList}
+        data={chatMessages}
+        keyExtractor={(item, index) => String(item.id ?? index)}
+        contentContainerStyle={{ padding: 16 }}
+        onContentSizeChange={scrollToEnd}
+        initialNumToRender={15}
+        maxToRenderPerBatch={12}
+        windowSize={11}
+        removeClippedSubviews
+        renderItem={({ item: msg, index: idx }) => {
           const isMe = msg.senderType === user?.userType && (user?.userType === 'milkman' ? msg.milkmanId === Number(milkmanId) : msg.customerId === Number(customerId));
-          const msgDate = new Date(msg.createdAt);
-          const prevMsgDate = idx > 0 ? new Date(chatMessages[idx - 1].createdAt) : null;
-          const isNewDay = !prevMsgDate || msgDate.toDateString() !== prevMsgDate.toDateString();
-
+          const prev = idx > 0 ? chatMessages[idx - 1] : null;
+          const isNewDay = !prev || new Date(msg.createdAt).toDateString() !== new Date(prev.createdAt).toDateString();
+          const senderName = msg.senderType === 'milkman' ? milkman?.businessName : (groupMembers.find((m: any) => m.id === msg.customerId)?.name || 'Member');
           return (
-            <View key={msg.id || idx}>
-              {isNewDay && <View style={styles.dateSeparator}><Text style={styles.dateSeparatorText}>{getDateLabel(msgDate)}</Text></View>}
-              <View style={[styles.msgWrapper, isMe ? styles.myMsgWrapper : styles.theirMsgWrapper]}>
-                <View style={[styles.bubble, isMe ? styles.myBubble : [styles.theirBubble, { backgroundColor: surfaceColor }]]}>
-                  {!isMe && (
-                    <Text style={[styles.senderName, { color: colors.primary }]}>
-                      {msg.senderType === 'milkman' ? milkman?.businessName : groupMembers.find((m: any) => m.id === msg.customerId)?.name || 'Member'}
-                    </Text>
-                  )}
-                  {msg.messageType === 'order' && (
-                    <View style={[styles.requestBanner, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(249,115,22,0.1)' }]}>
-                      <Package size={14} color={isMe ? '#FFFFFF' : '#EA580C'} />
-                      <Text style={[styles.requestBannerText, { color: isMe ? '#FFFFFF' : '#EA580C' }]}>Order Request</Text>
-                    </View>
-                  )}
-
-                  {msg.messageType === 'bill' ? (
-                    <View style={[styles.billMsgCard, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', borderColor: colors.primary }]}>
-                      <View style={styles.billMsgHeader}>
-                        <Receipt size={18} color={colors.primary} />
-                        <Text style={[styles.billMsgTitle, { color: textColor }]}>Monthly Bill</Text>
-                      </View>
-                      <Text style={[styles.billMsgText, { color: textColor }]}>{msg.message}</Text>
-                      {user?.userType === 'customer' && (
-                        <TouchableOpacity
-                          style={[styles.billPayBtn, { backgroundColor: colors.primary }]}
-                          onPress={() => {
-                            if (navigation) {
-                              navigation.navigate('Checkout', {
-                                amount: parseFloat(msg.orderTotal || '0'),
-                                description: `Bill #${msg.billId}`,
-                                orderId: `BILL_${msg.billId}`,
-                                paymentType: 'single',
-                              });
-                            } else {
-                              Alert.alert("Navigation Error", "Could not find navigation context. Please use the 'Bills' screen.");
-                            }
-                          }}
-                        >
-                          <Text style={styles.billPayBtnText}>Pay Now</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  ) : msg.messageType === 'image' ? (
-                    <TouchableOpacity activeOpacity={0.9} onPress={() => Linking.openURL(msg.message)}>
-                      <Image source={{ uri: msg.message }} style={{ width: 200, height: 200, borderRadius: 10 }} resizeMode="cover" />
-                    </TouchableOpacity>
-                  ) : msg.messageType === 'file' ? (
-                    <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }} onPress={() => Linking.openURL(msg.message)}>
-                      <FileText size={20} color={isMe ? '#FFFFFF' : colors.primary} />
-                      <Text style={[{ flex: 1, textDecorationLine: 'underline' }, isMe ? styles.myMsgText : { color: textColor }]} numberOfLines={1}>
-                        {decodeURIComponent((msg.message.split('/').pop() || 'file').split('?')[0].replace(/^\d+-\d+-/, ''))}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <Text style={[styles.msgText, isMe ? styles.myMsgText : { color: textColor }]}>{msg.message}</Text>
-                  )}
-
-                  <View style={styles.msgFooter}>
-                    <Text style={[styles.msgTime, isMe ? styles.myMsgTime : { color: textMuted }]}>
-                      {msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                    <MessageStatus message={msg} />
-                  </View>
-                </View>
-              </View>
-            </View>
+            <MessageRow
+              msg={msg}
+              isNewDay={isNewDay}
+              isMe={isMe}
+              senderName={senderName}
+              colors={colors}
+              isDark={isDark}
+              surfaceColor={surfaceColor}
+              textColor={textColor}
+              textMuted={textMuted}
+              userType={user?.userType}
+              onPayBill={handlePayBill}
+            />
           );
-        })}
-      </ScrollView>
+        }}
+      />
 
       {/* Subscription Bar */}
       {customerSubscriptions.length > 0 && (

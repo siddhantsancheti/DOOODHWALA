@@ -15,6 +15,7 @@ import {
   Mukta_700Bold
 } from '@expo-google-fonts/mukta';
 import { LanguageProvider } from './src/contexts/LanguageContext';
+import { ToastProvider } from './src/components/Toast';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Global error boundary to catch and display crashes
@@ -108,8 +109,10 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
-          <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-          <AppWrapper />
+          <ToastProvider>
+            <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+            <AppWrapper />
+          </ToastProvider>
         </LanguageProvider>
       </QueryClientProvider>
     </ErrorBoundary>
