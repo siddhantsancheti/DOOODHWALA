@@ -1,0 +1,11 @@
+# Caddy reverse proxy for DOOODHWALA backend.
+# Caddy gets + renews HTTPS (Let's Encrypt) automatically — no certbot needed.
+# Replace api.dooodhwala.com with your real subdomain (DNS A record → server IP).
+#
+# Place at /etc/caddy/Caddyfile, then: sudo systemctl reload caddy
+
+api.dooodhwala.com {
+    encode gzip
+    # WebSocket + HTTP both proxy transparently to the Node app on :5001.
+    reverse_proxy 127.0.0.1:5001
+}

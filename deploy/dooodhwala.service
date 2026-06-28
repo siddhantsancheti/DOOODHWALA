@@ -1,0 +1,24 @@
+# systemd unit to keep the DOOODHWALA backend running + auto-restart on crash/reboot.
+# Install: sudo cp deploy/dooodhwala.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable --now dooodhwala
+# Logs:    journalctl -u dooodhwala -f
+
+[Unit]
+Description=DOOODHWALA backend
+After=network.target
+
+[Service]
+Type=simple
+User=dooodhwala
+WorkingDirectory=/home/dooodhwala/DOOODHWALA
+# Secrets live in this file (chmod 600). Never commit it.
+EnvironmentFile=/home/dooodhwala/DOOODHWALA/.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=5
+# Bind to localhost; Caddy terminates TLS and proxies in.
+Environment=NODE_ENV=production
+Environment=PORT=5001
+
+[Install]
+WantedBy=multi-user.target
