@@ -3,14 +3,18 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 
+// Vite exposes env vars via import.meta.env (NOT process.env). The web Firebase
+// config is non-secret (it ships to the browser) — set these as VITE_FIREBASE_*
+// build-time env vars (in Render). Get the values from Firebase Console →
+// Project Settings → Your apps → Web app config.
+const env: any = (import.meta as any).env || {};
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "dooodhwala-7dce6.firebaseapp.com",
+  projectId: env.VITE_FIREBASE_PROJECT_ID || "dooodhwala-7dce6",
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "dooodhwala-7dce6.firebasestorage.app",
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase

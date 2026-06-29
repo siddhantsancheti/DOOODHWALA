@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation, useRoute } from "wouter";
 import { Loader2, Milk, Phone, ArrowRight, RotateCcw } from "lucide-react";
 import logoImage from "@/assets/logo.png";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "../../../firebase-config";
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 
 
 export default function Login() {
@@ -77,7 +79,17 @@ export default function Login() {
     setPhone(formatted);
   };
 
-  const { login, sendOtp, isOtpLoading, isLoginLoading } = useAuth();
+  const { firebaseLogin, isOtpLoading, isLoginLoading } = useAuth();
+
+  // Firebase web phone-auth: invisible reCAPTCHA + the SMS confirmation handle.
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const getRecaptcha = () => {
+    if (!recaptchaRef.current) {
+      recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
+    }
+    return recaptchaRef.current;
+  };
 
   const handleSendOTP = async () => {
     if (!phone || phone.length < 10) {
@@ -95,30 +107,19 @@ export default function Login() {
       const cleanPhone = phone.replace(/\D/g, '');
       const e164Phone = `+91${cleanPhone}`; // India country code
 
-      const data = await sendOtp({ phone: e164Phone });
-
-      if (data.success) {
-        toast({
-          title: "OTP Sent",
-          description: (data as any).debugCode
-            ? `Your code is: ${(data as any).debugCode}`
-            : "Please check your phone for the verification code.",
-        });
-        setStep("otp");
-        // Start resend timer (5 minutes as per rate limit)
-        setResendTimer(300);
-        setCanResend(false);
-      } else {
-        toast({
-          title: "Failed to Send OTP",
-          description: data.message || "Please check your phone number and try again.",
-          variant: "destructive",
-        });
-      }
+      // Firebase web phone-auth: sends a real SMS via Firebase (invisible reCAPTCHA).
+      confirmationRef.current = await signInWithPhoneNumber(auth, e164Phone, getRecaptcha());
+      toast({
+        title: "OTP Sent",
+        description: "Please check your phone for the verification code.",
+      });
+      setStep("otp");
+      setResendTimer(300);
+      setCanResend(false);
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Network error. Please check your connection and try again.",
+        title: "Failed to Send OTP",
+        description: error.message || "Please check your phone number and try again.",
         variant: "destructive",
       });
     } finally {
@@ -132,28 +133,18 @@ export default function Login() {
       const cleanPhone = phone.replace(/\D/g, '');
       const e164Phone = `+91${cleanPhone}`;
 
-      const data = await sendOtp({ phone: e164Phone });
-
-      if (data.success) {
-        toast({
-          title: "OTP Resent",
-          description: "A new verification code has been sent to your phone.",
-        });
-        // Reset timer (5 minutes)
-        setResendTimer(300);
-        setCanResend(false);
-        setOtp(""); // Clear previous OTP
-      } else {
-        toast({
-          title: "Failed to Resend OTP",
-          description: data.message || "Please wait and try again.",
-          variant: "destructive",
-        });
-      }
+      confirmationRef.current = await signInWithPhoneNumber(auth, e164Phone, getRecaptcha());
+      toast({
+        title: "OTP Resent",
+        description: "A new verification code has been sent to your phone.",
+      });
+      setResendTimer(300);
+      setCanResend(false);
+      setOtp("");
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Network error. Please check your connection and try again.",
+        title: "Failed to Resend OTP",
+        description: error.message || "Please wait and try again.",
         variant: "destructive",
       });
     } finally {
@@ -167,40 +158,23 @@ export default function Login() {
       console.log('OTP verification already in progress, skipping duplicate request');
       return;
     }
+    if (!confirmationRef.current) {
+      toast({ title: "Error", description: "Please request a new code.", variant: "destructive" });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const cleanPhone = phone.replace(/\D/g, '');
-      const e164Phone = `+91${cleanPhone}`;
+      // Confirm the OTP with Firebase, then exchange the verified ID token for
+      // our app JWT via the backend (same /firebase-login the mobile app uses).
+      const credential = await confirmationRef.current.confirm(otp);
+      const idToken = await credential.user.getIdToken();
+      await firebaseLogin({ idToken });
 
-      console.log('Submitting OTP verification:', { phone: e164Phone, otp });
-      const data = await login({ phone: e164Phone, otp: otp });
-      console.log('OTP verification response:', data);
-
-      if (data.success) {
-        toast({
-          title: "Login Successful",
-          description: "Welcome! Setting up your account...",
-        });
-
-        // Clear the OTP field to prevent resubmission
-        setOtp("");
-
-        // Send the user to "/" — App.tsx routes them based on their actual
-        // userType (admin -> /admin, customer -> /customer, milkman -> /milkman,
-        // no userType -> /user-type-selection). The previous hardcoded
-        // /user-type-selection redirect sent admins through onboarding too.
-        setTimeout(() => {
-          setLocation("/");
-        }, 1000);
-      } else {
-        toast({
-          title: "Invalid OTP",
-          description: data.message || "Please check your code and try again.",
-          variant: "destructive",
-        });
-        throw new Error(data?.message || 'Verification failed');
-      }
+      toast({ title: "Login Successful", description: "Welcome! Setting up your account..." });
+      setOtp("");
+      // App.tsx routes by userType (admin/customer/milkman/selection).
+      setTimeout(() => setLocation("/"), 800);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -367,6 +341,8 @@ export default function Login() {
           </div>
         </CardContent>
       </Card>
+      {/* Invisible reCAPTCHA host for Firebase phone auth */}
+      <div id="recaptcha-container" />
     </div>
   );
 }

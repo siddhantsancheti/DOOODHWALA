@@ -153,6 +153,21 @@ export class AuthAPI {
     }
   }
 
+  // Exchange a verified Firebase ID token (from web phone-auth) for our app JWT.
+  async firebaseLogin(idToken: string): Promise<APIResponse> {
+    const response = await this.request("/api/auth/firebase-login", {
+      method: "POST",
+      body: JSON.stringify({ idToken }),
+      credentials: "omit",
+      cache: "no-cache",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `Login failed (HTTP ${response.status})`);
+    }
+    return { success: true, data, message: "ok" };
+  }
+
   async verifyOTP(phone: string, otp: string): Promise<APIResponse> {
     const cleanPhone = phone.replace(/[^0-9]/g, '').replace(/^\+?91/, '');
 
