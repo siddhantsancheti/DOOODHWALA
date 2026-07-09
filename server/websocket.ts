@@ -107,7 +107,7 @@ export function broadcast(message: WebSocketMessage, targetUserIds?: (string | n
     });
 }
 
-export function sendToUser(userId: number, message: WebSocketMessage) {
+export function sendToUser(userId: string, message: WebSocketMessage) {
     if (!wss) return;
 
     wss.clients.forEach((client: WebSocket) => {

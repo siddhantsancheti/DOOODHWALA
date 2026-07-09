@@ -656,6 +656,11 @@ router.post("/stripe/webhook", async (req, res) => {
         return res.status(400).send(`Webhook Error: Missing secret or signature`);
     }
 
+    if (!stripe) {
+        console.warn("Stripe webhook received but Stripe is not configured (missing STRIPE_SECRET_KEY).");
+        return res.status(503).send("Webhook Error: Stripe not configured");
+    }
+
     try {
         // Important: this requires req.body to be the raw buffer, which requires index.ts changes
         // For standard express.json(), Stripe signature verification will fail.
