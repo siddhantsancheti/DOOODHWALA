@@ -50,12 +50,10 @@ export async function pickFromCamera(): Promise<PickedMedia | null> {
 }
 
 // Open the photo library and return the picked photo.
+// Uses the Android system photo picker (and iOS limited-library picker), which
+// needs NO storage permission — so we do NOT request READ_MEDIA_IMAGES. This
+// keeps us compliant with Google Play's photo/video permissions policy.
 export async function pickFromGallery(): Promise<PickedMedia | null> {
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) {
-    Alert.alert('Photos permission needed', 'Please allow photo access in Settings.');
-    return null;
-  }
   const r = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, mediaTypes: ImagePicker.MediaTypeOptions.Images });
   if (r.canceled || !r.assets?.[0]) return null;
   const a = r.assets[0];
