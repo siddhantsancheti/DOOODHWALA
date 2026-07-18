@@ -82,6 +82,7 @@
     "plugins": [
       "./plugins/withUpiQueries",
       "./plugins/withIosFirebaseAuth",
+      "./plugins/withFirebaseNotificationFix",
       "@react-native-firebase/app",
       [
         "expo-build-properties",
