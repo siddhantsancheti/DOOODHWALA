@@ -36,6 +36,44 @@ try {
 
 const { width } = Dimensions.get('window');
 
+/**
+ * Square dashboard tile. Fixed height with the label pinned to the bottom, so
+ * a one-word English label and a wrapped Hindi/Marathi one produce the same
+ * tile — the grid stays even whatever the translation does.
+ */
+function ActionTile({ icon, tint, value, label, caption, badge, badgeColor, onPress, styles }: {
+  icon: React.ReactNode;
+  tint: string;
+  value: string;
+  label: string;
+  caption?: string;
+  badge?: number;
+  badgeColor?: string;
+  onPress: () => void;
+  styles: any;
+}) {
+  return (
+    <TouchableOpacity style={styles.tile} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.tileTop}>
+        <View style={[styles.tileIcon, { backgroundColor: tint }]}>{icon}</View>
+        {!!badge && badge > 0 && (
+          <View style={[styles.tileBadge, { backgroundColor: badgeColor || '#EF4444' }]}>
+            <Text style={styles.tileBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* adjustsFontSizeToFit keeps a five-digit rupee total inside the tile
+          instead of clipping it. */}
+      <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+        {value}
+      </Text>
+      <Text style={styles.tileLabel} numberOfLines={2}>{label}</Text>
+      {!!caption && <Text style={styles.tileCaption} numberOfLines={1}>{caption}</Text>}
+    </TouchableOpacity>
+  );
+}
+
 export default function MilkmanDashboardScreen({ navigation }: any) {
   const { user } = useAuth();
   const { t, language, setLanguage, fontFamily, fontFamilyBold, colors, isDark, themeMode, setThemeMode } = useTranslation();
@@ -422,6 +460,14 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
   }, [orders, todaysDateString]);
   const pendingOrders = useMemo(() => todaysOrders.filter((o) => o.status !== 'delivered'), [todaysOrders]);
   const completedOrders = useMemo(() => todaysOrders.filter((o) => o.status === 'delivered'), [todaysOrders]);
+  // What customers still owe — the number the Hisaab tile leads with.
+  const pendingBillsTotal = useMemo(() => (
+    Array.isArray(milkmanBills)
+      ? milkmanBills
+          .filter((b: any) => b.status === 'pending')
+          .reduce((sum: number, b: any) => sum + parseFloat(b.totalAmount || '0'), 0)
+      : 0
+  ), [milkmanBills]);
   const todaysEarnings = useMemo(() => completedOrders.reduce((s, o) => s + Number(o.totalAmount || 0), 0), [completedOrders]);
   const totalCustomersCount = Array.isArray(customers) ? customers.length : 0;
   const progressPerc = todaysOrders.length > 0 ? (completedOrders.length / todaysOrders.length) * 100 : 0;
@@ -628,9 +674,9 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
                 {milkmanProfile.businessName?.charAt(0).toUpperCase()}
               </Text>
             </View>
-            <View>
-              <Text style={[styles.greeting, { color: textMuted, fontFamily }]}>{t('welcomeBack')}</Text>
-              <Text style={[styles.businessName, { color: textColor, fontFamily: fontFamilyBold }]}>{milkmanProfile.businessName || t('imMilkman')}</Text>
+            <View style={styles.headerTextCol}>
+              <Text style={[styles.greeting, { color: textMuted, fontFamily }]} numberOfLines={1}>{t('welcomeBack')}</Text>
+              <Text style={[styles.businessName, { color: textColor, fontFamily: fontFamilyBold }]} numberOfLines={1}>{milkmanProfile.businessName || t('imMilkman')}</Text>
             </View>
           </View>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
@@ -730,8 +776,35 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
 
                   <View style={[styles.dropdownSeparator, { backgroundColor: borderColor }]} />
 
-                  <TouchableOpacity 
-                    style={styles.dropdownItem} 
+                  {/* Products and Earnings live here now that the dashboard
+                      grid is the five primary actions — reached in one tap
+                      from the header rather than competing for a tile. */}
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setShowSettingsDropdown(false);
+                      setShowInventoryModal(true);
+                    }}
+                  >
+                    <Truck size={18} color={textMuted} style={styles.dropdownIcon} />
+                    <Text style={[styles.dropdownItemText, { color: textColor, fontFamily }]} numberOfLines={1}>{t('productsPricing')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setShowSettingsDropdown(false);
+                      setShowEarningsModal(true);
+                    }}
+                  >
+                    <IndianRupee size={18} color={textMuted} style={styles.dropdownIcon} />
+                    <Text style={[styles.dropdownItemText, { color: textColor, fontFamily }]} numberOfLines={1}>{t('todaysEarnings')}</Text>
+                  </TouchableOpacity>
+
+                  <View style={[styles.dropdownSeparator, { backgroundColor: borderColor }]} />
+
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
                     onPress={() => {
                       setShowSettingsDropdown(false);
                       navigation.navigate('Profile');
@@ -870,225 +943,138 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
           </TouchableOpacity>
         </Modal>
 
-        {/* Start Route Action Hero */}
+        {/* ── Start today's route ───────────────────────────────────────
+            The one thing a milkman does first every morning, so it owns the
+            top of the screen. Today's progress lives inside it rather than in
+            a separate card — it is the status of this exact action. */}
         <LinearGradient
-          colors={isBroadcasting ? ['#22C55E', '#16A34A'] : ['#2563EB', '#1D4ED8']}
+          colors={isBroadcasting ? ['#16A34A', '#15803D'] : ['#2563EB', '#1D4ED8']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
         >
           <View style={styles.heroTextRow}>
-            <Text style={[styles.heroTitle, { fontFamily: fontFamilyBold, color: '#FFFFFF' }]}>{isBroadcasting ? t('routeInProgress') : t('startRoute')}</Text>
+            <Text style={styles.heroTitle} numberOfLines={2}>
+              {isBroadcasting ? t('routeInProgress') : t('startRoute')}
+            </Text>
             {isBroadcasting && <View style={[styles.liveDot, { opacity: pulseAnim }]} />}
           </View>
-          <Text style={[styles.heroSubtitle, { fontFamily, color: 'rgba(255,255,255,0.8)' }]}>
+          <Text style={styles.heroSubtitle} numberOfLines={2}>
             {isBroadcasting ? t('customersCanTrack') : t('turnOnLocation')}
           </Text>
-          <TouchableOpacity 
-            style={[styles.heroButton, isBroadcasting && { backgroundColor: '#FFFFFF', borderWidth: 0 }]} 
+
+          {todaysOrders.length > 0 && (
+            <View style={styles.heroProgress}>
+              <View style={styles.heroProgressLabels}>
+                <Text style={styles.heroProgressText} numberOfLines={1}>
+                  {completedOrders.length}/{todaysOrders.length} {t('ordersCompleted')}
+                </Text>
+                <Text style={styles.heroProgressPct}>{Math.round(progressPerc)}%</Text>
+              </View>
+              <View style={styles.heroProgressTrack}>
+                <View style={[styles.heroProgressFill, { width: `${progressPerc}%` as any }]} />
+              </View>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.heroButton, isBroadcasting && styles.heroButtonStop]}
             onPress={() => isBroadcasting ? stopBroadcast() : setShowMapModal(true)}
             activeOpacity={0.9}
           >
             {isBroadcasting ? <X size={20} color="#16A34A" /> : <Navigation size={20} color="#2563EB" />}
-            <Text style={[styles.heroButtonText, isBroadcasting && { color: '#16A34A' }, { fontFamily: fontFamilyBold }]}>
+            <Text
+              style={[styles.heroButtonText, isBroadcasting && { color: '#16A34A' }]}
+              numberOfLines={1}
+            >
               {isBroadcasting ? t('stopRoute') : t('startRoute')}
             </Text>
           </TouchableOpacity>
         </LinearGradient>
 
-        {/* Stats Grid */}
-        <View style={styles.webGridContainer}>
-          <TouchableOpacity 
-            style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]} 
-            onPress={() => setShowDeliveriesModal(true)} 
-            activeOpacity={0.8}
-          >
-            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE' }]}>
-              <Package size={20} color="#2563EB" />
-            </View>
-            <View>
-              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>{pendingOrders.length}</Text>
-              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('pendingDeliveries')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]} 
-            onPress={() => setShowEarningsModal(true)} 
-            activeOpacity={0.8}
-          >
-            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7' }]}>
-              <DollarSign size={20} color="#16A34A" />
-            </View>
-            <View>
-              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>₹{todaysEarnings.toFixed(0)}</Text>
-              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('todaysEarnings')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]} 
-             onPress={() => setShowCustomersModal(true)} 
-             activeOpacity={0.8}
-          >
-            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#F3E8FF' }]}>
-              <Users size={20} color="#9333EA" />
-            </View>
-            <View>
-              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>{totalCustomersCount}</Text>
-              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('activeCustomers')}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          {/* Accept Service Requests */}
-          <TouchableOpacity
-             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]}
-             onPress={() => setShowRequestsModal(true)}
-             activeOpacity={0.8}
-          >
-            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE' }]}>
-              <ClipboardList size={20} color="#2563EB" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>{pendingRequestsCount}</Text>
-              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('acceptServiceRequests') || 'Accept Service Requests'}</Text>
-            </View>
-            {pendingRequestsCount > 0 && (
-              <View style={{ backgroundColor: '#EF4444', minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: fontFamilyBold }}>{pendingRequestsCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+        {/* ── Action tiles ──────────────────────────────────────────────
+            Four square tiles, then Orders full width. Each tile leads with
+            its number because that is what the milkman scans for. */}
+        <View style={styles.tileGrid}>
+          <ActionTile
+            icon={<Users size={22} color="#9333EA" />}
+            tint={isDark ? 'rgba(147,51,234,0.18)' : '#F3E8FF'}
+            value={String(totalCustomersCount)}
+            label={t('myCustomers')}
+            onPress={() => setShowCustomersModal(true)}
+            styles={styles}
+          />
+          <ActionTile
+            icon={<Receipt size={22} color="#16A34A" />}
+            tint={isDark ? 'rgba(22,163,74,0.18)' : '#DCFCE7'}
+            value={`₹${pendingBillsTotal.toFixed(0)}`}
+            label={t('hisaab')}
+            caption={t('pendingDues')}
+            onPress={() => setShowBillsModal(true)}
+            styles={styles}
+          />
+          <ActionTile
+            icon={<ClipboardList size={22} color="#2563EB" />}
+            tint={isDark ? 'rgba(37,99,235,0.18)' : '#DBEAFE'}
+            value={String(pendingRequestsCount)}
+            label={t('acceptServiceRequests') || 'Service Requests'}
+            badge={pendingRequestsCount}
+            badgeColor="#EF4444"
+            onPress={() => setShowRequestsModal(true)}
+            styles={styles}
+          />
+          <ActionTile
+            icon={<Banknote size={22} color="#CA8A04" />}
+            tint={isDark ? 'rgba(234,179,8,0.18)' : '#FEF9C3'}
+            value={String(codPayments.length)}
+            label={t('acceptPayments')}
+            badge={codPayments.length}
+            badgeColor="#16A34A"
+            onPress={() => setShowCODModal(true)}
+            styles={styles}
+          />
+        </View>
 
-          {/* Accept Payment (COD) — enter customer's OTP to confirm cash payment */}
-          <TouchableOpacity
-             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]}
-             onPress={() => setShowCODModal(true)}
-             activeOpacity={0.8}
-          >
-            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#DCFCE7' }]}>
-              <Banknote size={20} color="#16A34A" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>{codPayments.length}</Text>
-              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('codVerification')}</Text>
-            </View>
-            {codPayments.length > 0 && (
-              <View style={{ backgroundColor: '#16A34A', minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: fontFamilyBold }}>{codPayments.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-             style={[styles.webStatCard, { backgroundColor: surfaceColor, borderColor }]}
-             onPress={() => setShowInventoryModal(true)}
-             activeOpacity={0.8}
-          >
-            <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(234, 179, 8, 0.2)' : '#FEF08A' }]}>
-              <Truck size={20} color="#CA8A04" />
-            </View>
-            <View>
-              <Text style={[styles.statValue, { color: textColor, fontFamily: fontFamilyBold }]}>{milkmanProfile.dairyItems?.filter((i:any)=>i.isAvailable).length || 0}</Text>
-              <Text style={[styles.statLabel, { color: textMuted, fontFamily }]}>{t('availableItems')}</Text>
-            </View>
-          </TouchableOpacity>
-
-          {hasNewActivity && (
-            <View style={[styles.webStatCard, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#EFF6FF', borderColor: '#2563EB', borderWidth: 1.5, marginBottom: 12 }]}>
-              <View style={[styles.statIconWrap, { backgroundColor: isDark ? 'rgba(37,99,235,0.3)' : '#DBEAFE' }]}>
-                <Bell size={20} color="#2563EB" />
-              </View>
-              <View>
-                <Text style={[styles.statValue, { color: '#2563EB', fontFamily: fontFamilyBold }]}>{t('newActivity')}</Text>
-                <Text style={[styles.statLabel, { color: '#2563EB', fontFamily }]}>{t('checkRequests')}</Text>
-              </View>
+        {/* Orders — full width: the list, not a number, is the point here. */}
+        <TouchableOpacity
+          style={[styles.wideTile, { backgroundColor: surfaceColor, borderColor }]}
+          onPress={() => setShowDeliveriesModal(true)}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.tileIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.18)' : '#DBEAFE' }]}>
+            <Package size={22} color="#2563EB" />
+          </View>
+          <View style={styles.wideTileText}>
+            <Text style={[styles.wideTileTitle, { color: textColor }]} numberOfLines={1}>
+              {t('orders')}
+            </Text>
+            <Text style={[styles.wideTileSub, { color: textMuted }]} numberOfLines={1}>
+              {pendingOrders.length > 0
+                ? `${pendingOrders.length} ${t('pendingDeliveries')}`
+                : t('noPendingDeliveries')}
+            </Text>
+          </View>
+          {pendingOrders.length > 0 && (
+            <View style={styles.wideTileBadge}>
+              <Text style={styles.tileBadgeText}>{pendingOrders.length}</Text>
             </View>
           )}
-        </View>
+          <ChevronRight size={20} color={textMuted} />
+        </TouchableOpacity>
 
-        {/* Daily Progress */}
-        <View style={[styles.card, { backgroundColor: surfaceColor, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 16, fontFamily: fontFamilyBold }]}>{t('todaysProgress')}</Text>
-          <View style={styles.progressRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.progressCount, { color: textColor, fontFamily: fontFamilyBold }]}>{completedOrders.length} / {todaysOrders.length}</Text>
-              <Text style={{ fontSize: 13, color: textMuted, fontFamily }}>{t('ordersCompleted')}</Text>
-            </View>
-            <View style={styles.progressCircle}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: '#2563EB', fontFamily: fontFamilyBold }}>{Math.round(progressPerc)}%</Text>
-            </View>
-          </View>
-          <View style={[styles.progressBarBg, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
-            <View style={[styles.progressBarFill, { width: `${progressPerc}%` as any }]} />
-          </View>
-        </View>
-
-        {/* My Customers & Quick Chat */}
-        <View style={styles.headerRow}>
-          <Text style={[styles.sectionTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('myCustomers')}</Text>
-          <TouchableOpacity onPress={() => setShowCustomersModal(true)}>
-            <Text style={{ fontSize: 14, color: '#2563EB', fontWeight: '600', fontFamily: fontFamilyBold }}>{t('manageAll')}</Text>
+        {hasNewActivity && (
+          <TouchableOpacity
+            style={[styles.activityBanner, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#EFF6FF' }]}
+            onPress={() => setShowRequestsModal(true)}
+            activeOpacity={0.85}
+          >
+            <Bell size={18} color="#2563EB" />
+            <Text style={styles.activityBannerText} numberOfLines={2}>
+              {t('newActivity')} — {t('checkRequests')}
+            </Text>
           </TouchableOpacity>
-        </View>
-
-        {customers?.slice(0, 5).map((c: any) => {
-          const hasPending = pendingOrders.some(o => o.customerId === c.id);
-          return (
-            <TouchableOpacity 
-              key={c.id} 
-              style={[styles.listCard, { backgroundColor: surfaceColor, borderColor }]} 
-              onPress={() => navigation.navigate('Chat', { customerId: c.id, milkmanId: milkmanProfile?.id })}
-              activeOpacity={0.8}
-            >
-              <View style={styles.listCardLeft}>
-                 <View style={[styles.listAvatar, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#DBEAFE' }]}>
-                   <User size={20} color="#2563EB" />
-                 </View>
-                 <View style={{ flex: 1 }}>
-                   <Text style={[styles.listName, { color: textColor, fontFamily: fontFamilyBold }]}>{c.name}</Text>
-                   <Text style={{ fontSize: 12, color: textMuted, marginTop: 2, fontFamily }} numberOfLines={1}>{c.address}</Text>
-                 </View>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                 {hasPending && (
-                   <View style={{ backgroundColor: '#FDE047', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                     <Text style={{ fontSize: 10, fontWeight: '700', color: '#854D0E', fontFamily: fontFamilyBold }}>{t('pendingLabel')}</Text>
-                   </View>
-                 )}
-                 <MessageSquare size={20} color="#2563EB" />
-                 <ChevronRight size={18} color={textMuted} />
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-        
-        {pendingOrders.length === 0 && (
-          <View style={[styles.emptyList, { backgroundColor: surfaceColor, borderColor }]}>
-            <CheckCircle size={32} color="#16A34A" />
-            <Text style={[styles.emptyListTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('allCaughtUp')}</Text>
-            <Text style={[styles.emptyListSub, { color: textMuted, fontFamily }]}>{t('noPendingDeliveries')}</Text>
-          </View>
         )}
 
-        {/* Route Map Section */}
-        <View style={[styles.card, { backgroundColor: surfaceColor, borderColor, marginTop: 8 }]}>
-           <View style={{ marginBottom: 16 }}>
-             <Text style={[styles.sectionTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('routeMap')}</Text>
-           </View>
-           <View style={styles.routePreview}>
-             {customers?.slice(0, 3).map((c: any, idx: number) => (
-               <View key={`route-${idx}`} style={styles.routeItem}>
-                 <View style={[styles.routeDot, { backgroundColor: (idx === 0 && isBroadcasting) ? '#22C55E' : '#2563EB' }]} />
-                 {idx < 2 && <View style={styles.routeLine} />}
-                 <Text style={[styles.routeText, { color: textColor, fontFamily }]} numberOfLines={1}>{c.address}</Text>
-               </View>
-             ))}
-             {customers?.length > 3 && (
-               <Text style={{ color: textMuted, fontSize: 12, marginTop: 8, marginLeft: 16, fontFamily }}>+ {customers.length - 3} {t('moreStops')}</Text>
-             )}
-           </View>
-        </View>
 
       </ScrollView>
 
@@ -1998,7 +1984,10 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
 
   // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // flex + minWidth:0 is what stops a long business name from pushing the
+  // notification and settings buttons off the right edge.
+  headerLeft: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerTextCol: { flex: 1, minWidth: 0 },
   avatarBox: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
   greeting: { fontSize: 14, marginBottom: 2, fontFamily },
   businessName: { fontSize: 20, fontWeight: '700', fontFamily: fontFamilyBold },
@@ -2047,7 +2036,64 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     elevation: 8,
   },
   heroTextRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  heroTitle: { fontSize: 24, fontWeight: '700', color: '#FFFFFF', fontFamily: fontFamilyBold },
+  heroTitle: { flex: 1, fontSize: 24, fontWeight: '700', color: '#FFFFFF', fontFamily: fontFamilyBold, lineHeight: 30 },
+
+  // Progress inside the hero
+  heroProgress: { marginBottom: 18 },
+  heroProgressLabels: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 },
+  heroProgressText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.9)', fontFamily },
+  heroProgressPct: { fontSize: 13, color: '#FFFFFF', fontWeight: '700', fontFamily: fontFamilyBold },
+  heroProgressTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' },
+  heroProgressFill: { height: '100%', borderRadius: 3, backgroundColor: '#FFFFFF' },
+  heroButtonStop: { backgroundColor: '#FFFFFF', borderWidth: 0 },
+
+  // ── Action tiles ──────────────────────────────────────────────────────
+  tileGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  tile: {
+    // Two per row, whatever the screen width. Fixed height keeps the grid
+    // even when a translated label wraps to two lines.
+    width: (width - 32 - 12) / 2,
+    minHeight: 132,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    justifyContent: 'flex-start',
+  },
+  tileTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 },
+  tileIcon: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  tileBadge: {
+    minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  tileBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700', fontFamily: fontFamilyBold },
+  tileValue: { fontSize: 26, fontWeight: '700', color: colors.foreground, fontFamily: fontFamilyBold, marginBottom: 2 },
+  tileLabel: { fontSize: 13, fontWeight: '600', color: colors.mutedForeground, fontFamily, lineHeight: 17 },
+  tileCaption: { fontSize: 11, color: colors.mutedForeground, opacity: 0.75, fontFamily, marginTop: 1 },
+
+  // Orders row
+  wideTile: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12,
+  },
+  wideTileText: { flex: 1, minWidth: 0 },
+  wideTileTitle: { fontSize: 16, fontWeight: '700', fontFamily: fontFamilyBold },
+  wideTileSub: { fontSize: 13, fontFamily, marginTop: 2 },
+  wideTileBadge: {
+    minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7,
+    backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center',
+  },
+  activityBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#2563EB', marginBottom: 12,
+  },
+  activityBannerText: { flex: 1, fontSize: 13, color: '#2563EB', fontWeight: '600', fontFamily: fontFamilyBold },
   liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFFFFF', alignSelf: 'center' },
   heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 20, lineHeight: 20, fontFamily },
   heroButton: {
@@ -2063,30 +2109,12 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2,
   },
   sectionTitle: { fontSize: 18, fontWeight: '700', fontFamily: fontFamilyBold },
-  progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  progressCount: { fontSize: 28, fontWeight: '800', marginBottom: 4, fontFamily: fontFamilyBold },
-  progressCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(37, 99, 235, 0.1)', justifyContent: 'center', alignItems: 'center' },
-  progressBarBg: { height: 8, borderRadius: 4, width: '100%' },
-  progressBarFill: { height: '100%', borderRadius: 4, backgroundColor: '#2563EB' },
 
   // Web Grid Container
-  webGridContainer: { flexDirection: 'column', gap: 12, marginBottom: 24 },
-  webStatCard: { flex: 1, padding: 16, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  statIconWrap: { width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  statValue: { fontSize: 22, fontWeight: '700', marginBottom: 4, fontFamily: fontFamilyBold },
-  statLabel: { fontSize: 12, fontWeight: '500', fontFamily },
 
   // Section Header Generic
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
 
   // List Cards
-  listCard: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12,
-  },
-  listCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  listAvatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  listName: { fontSize: 16, fontWeight: '600', fontFamily: fontFamilyBold },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
   statusBadgeText: { fontSize: 10, fontWeight: '700', fontFamily: fontFamilyBold },
   
@@ -2168,11 +2196,6 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     borderWidth: 1,
     marginBottom: 24,
   },
-  routePreview: { marginTop: 8 },
-  routeItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, height: 24 },
-  routeDot: { width: 8, height: 8, borderRadius: 4, marginRight: 12, zIndex: 1 },
-  routeLine: { position: 'absolute', left: 3, top: 12, width: 2, height: 20, backgroundColor: '#E5E7EB' },
-  routeText: { fontSize: 14, flex: 1, fontFamily },
   pricingLabel: {
     fontSize: 14,
     color: '#6B7280',
