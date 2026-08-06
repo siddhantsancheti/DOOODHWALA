@@ -48,6 +48,20 @@ export const users = pgTable("users", {
   lastActiveAt: timestamp("last_active_at"),
 });
 
+// Terms & Conditions acceptance — append-only consent log.
+// Legal proof of consent (IT Act s.10A / DPDP Act 2023), so rows are never
+// updated or deleted: a new version means a new row, and the old acceptance
+// stays provable.
+export const termsAcceptances = pgTable("terms_acceptances", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  role: varchar("role").notNull(),          // "customer" | "milkman"
+  version: varchar("version").notNull(),    // e.g. "customer-2026-08-07"
+  acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+});
+
 // OTP verification table
 export const otpCodes = pgTable("otp_codes", {
   id: serial("id").primaryKey(),

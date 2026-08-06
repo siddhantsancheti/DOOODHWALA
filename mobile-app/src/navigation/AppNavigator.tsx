@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import LoginScreen from '../screens/LoginScreen';
 import UserTypeSelectionScreen from '../screens/UserTypeSelectionScreen';
+import TermsScreen from '../screens/TermsScreen';
 import CustomerProfileSetupScreen from '../screens/CustomerProfileSetupScreen';
 import MilkmanProfileSetupScreen from '../screens/MilkmanProfileSetupScreen';
 
@@ -77,6 +78,7 @@ export default function AppNavigator() {
                 ) : (needsOnboarding || needsCustomerSetup || needsMilkmanSetup) ? (
                     <Stack.Group>
                         <Stack.Screen name="UserTypeSelection" component={UserTypeSelectionScreen} />
+                        <Stack.Screen name="Terms" component={TermsScreen} />
                         <Stack.Screen name="CustomerProfileSetup" component={CustomerProfileSetupScreen} />
                         <Stack.Screen name="MilkmanProfileSetup" component={MilkmanProfileSetupScreen} />
                     </Stack.Group>

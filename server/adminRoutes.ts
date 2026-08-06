@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "./db";
-import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications, products, subscriptions, adTracking } from "@shared/schema";
+import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications, products, subscriptions, adTracking, termsAcceptances } from "@shared/schema";
 import { count, eq, sql, desc, sum, and, inArray, or } from "drizzle-orm";
 import { BillingService } from "./services/billingService";
 
@@ -213,6 +213,9 @@ export async function deleteUserAndData(userId: string): Promise<boolean> {
             )
         );
         await db.delete(notifications).where(eq(notifications.userId, userId));
+        // Consent log is erased with the account (DPDP right to erasure), and
+        // must go before the user row or its foreign key blocks the delete.
+        await db.delete(termsAcceptances).where(eq(termsAcceptances.userId, userId));
 
         // 4. Family chats: remove the chats' members (any user) then the chats.
         const chatRows = await db
