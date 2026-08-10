@@ -477,6 +477,10 @@ router.post("/messages/:id/delivered", async (req, res) => {
             return res.status(400).json({ message: "Invalid message ID" });
         }
 
+        // Only an undelivered order can be delivered. Once it is done it is
+        // frozen: a double tap, a retry or a replay must not run the
+        // order-status sync below a second time, because that would consume
+        // another still-pending order and mark it delivered by mistake.
         const [updatedMessage] = await db
             .update(chatMessages)
             .set({
@@ -484,11 +488,25 @@ router.post("/messages/:id/delivered", async (req, res) => {
                 deliveredAt: new Date(),
                 isEditable: false,
             })
-            .where(eq(chatMessages.id, messageId))
+            .where(and(
+                eq(chatMessages.id, messageId),
+                eq(chatMessages.isDelivered, false),
+            ))
             .returning();
 
         if (!updatedMessage) {
-            return res.status(404).json({ message: "Message not found" });
+            // Either no such message, or it was already delivered — return the
+            // current state so the client still settles on the third tick.
+            const [existing] = await db
+                .select()
+                .from(chatMessages)
+                .where(eq(chatMessages.id, messageId))
+                .limit(1);
+
+            if (!existing) {
+                return res.status(404).json({ message: "Message not found" });
+            }
+            return res.json(existing);
         }
 
         res.json(updatedMessage);
@@ -515,21 +533,32 @@ router.post("/messages/:id/delivered", async (req, res) => {
         const isOrderMessage = !!updatedMessage.orderQuantity || deliveredItems.length > 0;
 
         if (isOrderMessage && updatedMessage.customerId !== null) {
-            // Mark the most recent still-pending order for this customer+milkman
-            // delivered (the orders table has no chat-message link, so match the
-            // latest pending one rather than a fragile quantity comparison).
-            const [pendingOrder] = await db
+            // Orders placed from chat are tagged specialInstructions =
+            // "chatMsg:<id>" when they are created, so deliver exactly the order
+            // this message produced. Falling back to "latest pending order for
+            // this customer" would mark the wrong one whenever a customer has
+            // two orders open at once.
+            let [pendingOrder] = await db
                 .select()
                 .from(orders)
-                .where(
-                    and(
-                        eq(orders.milkmanId, updatedMessage.milkmanId),
-                        eq(orders.customerId, updatedMessage.customerId),
-                        eq(orders.status, "pending")
-                    )
-                )
-                .orderBy(desc(orders.createdAt))
+                .where(eq(orders.specialInstructions, `chatMsg:${updatedMessage.id}`))
                 .limit(1);
+
+            if (!pendingOrder) {
+                // Legacy orders created before the tag existed.
+                [pendingOrder] = await db
+                    .select()
+                    .from(orders)
+                    .where(
+                        and(
+                            eq(orders.milkmanId, updatedMessage.milkmanId),
+                            eq(orders.customerId, updatedMessage.customerId),
+                            eq(orders.status, "pending")
+                        )
+                    )
+                    .orderBy(desc(orders.createdAt))
+                    .limit(1);
+            }
 
             if (pendingOrder) {
                 await db

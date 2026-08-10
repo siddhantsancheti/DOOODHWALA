@@ -66,9 +66,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
 
   const styles = useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
-  const [showDeliveriesModal, setShowDeliveriesModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [showCustomersModal, setShowCustomersModal] = useState(false);
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [quotingServices, setQuotingServices] = useState<any>({});
@@ -77,8 +75,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
   const [editingPricing, setEditingPricing] = useState<any>(null);
   const [showCODModal, setShowCODModal] = useState(false);
   const [codOtp, setCodOtp] = useState("");
-  const [showBillsModal, setShowBillsModal] = useState(false);
-  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [selectedAnalyticsCustomer, setSelectedAnalyticsCustomer] = useState<any>(null);
@@ -816,7 +812,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             tint={isDark ? 'rgba(147,51,234,0.18)' : '#F3E8FF'}
             value={String(totalCustomersCount)}
             label={t('myCustomers')}
-            onPress={() => setShowCustomersModal(true)}
+            onPress={() => navigation.navigate('MilkmanCustomers', { milkmanId: milkmanProfile?.id })}
             styles={styles}
           />
           <ActionTile
@@ -825,7 +821,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             value={`₹${pendingBillsTotal.toFixed(0)}`}
             label={t('hisaab')}
             caption={t('pendingDues')}
-            onPress={() => setShowBillsModal(true)}
+            onPress={() => navigation.navigate('Hisaab', { milkmanId: milkmanProfile?.id })}
             styles={styles}
           />
           <ActionTile
@@ -853,7 +849,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
         {/* Orders — full width: the list, not a number, is the point here. */}
         <TouchableOpacity
           style={[styles.wideTile, { backgroundColor: surfaceColor, borderColor }]}
-          onPress={() => setShowDeliveriesModal(true)}
+          onPress={() => navigation.navigate('OrdersSummary')}
           activeOpacity={0.85}
         >
           <View style={[styles.tileIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.18)' : '#DBEAFE' }]}>
@@ -947,56 +943,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
         </View>
       </Modal>
 
-      {/* Deliveries Modal */}
-      <Modal visible={showDeliveriesModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
-            <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('todaysDeliveries')}</Text>
-            <TouchableOpacity onPress={() => setShowDeliveriesModal(false)} style={styles.closeBtn}>
-              <X size={24} color={textColor} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
-            {todaysOrders.map((order) => {
-              const cust = customers?.find((c: any) => c.id === order.customerId);
-              return (
-                <View key={order.id} style={[styles.modalCard, { backgroundColor: surfaceColor, borderColor }]}>
-                  <View style={styles.mOrderTop}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.mOrderName, { color: textColor, fontFamily: fontFamilyBold }]}>{cust?.name || `${t('order')} #${order.id}`}</Text>
-                      <Text style={[styles.mOrderItem, { color: textMuted, fontFamily }]}>{order.itemName || t('milk')} • {order.quantity}L</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[styles.mOrderAmount, { color: '#16A34A', fontFamily: fontFamilyBold }]}>₹{order.totalAmount}</Text>
-                      <View style={[styles.mOrderBadge, { backgroundColor: isDark ? 'rgba(234, 179, 8, 0.2)' : '#FEF08A' }]}>
-                        <Text style={[styles.mOrderBadgeText, { color: isDark ? '#FDE047' : '#B45309', fontFamily: fontFamilyBold }]}>{t(order.status)}</Text>
-                      </View>
-                    </View>
-                  </View>
-                  <Text style={[styles.mOrderAddr, { color: textMuted, fontFamily }]}>{order.deliveryAddress || cust?.address}</Text>
-                  <View style={styles.mOrderActions}>
-                    {['pending', 'accepted'].includes(order.status) && (
-                      <TouchableOpacity style={[styles.mActionBtn, { backgroundColor: '#F59E0B' }]}
-                        onPress={() => updateOrderStatusMutation.mutate({ orderId: order.id, status: 'out_for_delivery' })}>
-                        <Text style={[styles.mActionText, { fontFamily: fontFamilyBold }]}>{t('startDelivery')}</Text>
-                      </TouchableOpacity>
-                    )}
-                    {order.status === 'out_for_delivery' && (
-                      <TouchableOpacity style={[styles.mActionBtn, { backgroundColor: '#16A34A' }]}
-                        onPress={() => updateOrderStatusMutation.mutate({ orderId: order.id, status: 'delivered' })}>
-                        <CheckCircle size={16} color="#FFFFFF" />
-                        <Text style={[styles.mActionText, { fontFamily: fontFamilyBold }]}>{t('markDelivered')}</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-            {todaysOrders.length === 0 && <Text style={[styles.modalEmpty, { color: textMuted, fontFamily }]}>{t('noOrdersToday')}</Text>}
-          </ScrollView>
-        </View>
-      </Modal>
-
       {/* Service Requests Modal — accept & set pricing */}
       <Modal visible={showRequestsModal} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
@@ -1074,109 +1020,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                 <Text style={[styles.emptyListSub, { color: textMuted, fontFamily }]}>New service requests from customers will appear here.</Text>
               </View>
             )}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Customers Modal */}
-      <Modal visible={showCustomersModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
-            <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('myCustomers')}</Text>
-            <TouchableOpacity onPress={() => setShowCustomersModal(false)} style={styles.closeBtn}>
-              <X size={24} color={textColor} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
-            {/* Pending Requests Section */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 12, fontSize: 16, fontFamily: fontFamilyBold }]}>{t('enrollmentRequests')}</Text>
-              {serviceRequests.filter((r: any) => r.status === 'pending').map((r: any) => (
-                <View key={`sr-${r.id}`} style={[styles.modalCard, { backgroundColor: surfaceColor, borderColor, padding: 16, marginBottom: 16 }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: '700', color: textColor, fontSize: 15, fontFamily: fontFamilyBold }}>{r.customerName || t('newCustomer')}</Text>
-                      <Text style={{ color: textMuted, fontSize: 12, marginTop: 2, fontFamily }}>{r.address}</Text>
-                    </View>
-                    <View style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ color: '#2563EB', fontSize: 10, fontWeight: '700', fontFamily: fontFamilyBold }}>{t('newLabel')}</Text>
-                    </View>
-                  </View>
-                  <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: borderColor, paddingTop: 12 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: textColor, marginBottom: 8, fontFamily: fontFamilyBold }}>{t('setCustomPricing')}</Text>
-                    {milkmanProfile.dairyItems?.map((item: any, idx: number) => (
-                       <View key={`price-set-${r.id}-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                         <Text style={{ color: textMuted, fontSize: 13, fontFamily }}>{item.name}</Text>
-                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                           <Text style={{ color: textMuted, fontSize: 12, fontFamily }}>₹</Text>
-                           <TextInput
-                             style={{ color: textColor, fontWeight: '700', borderBottomWidth: 1, borderColor, width: 40, textAlign: 'right', padding: 2, fontFamily: fontFamilyBold }}
-                             placeholder={String(item.price)}
-                             defaultValue={String(item.price)}
-                             keyboardType="numeric"
-                             onChangeText={(v) => {
-                               const updated = [...(quotingServices[r.id] || milkmanProfile.dairyItems)];
-                               updated[idx] = { ...updated[idx], price: v };
-                               setQuotingServices({ ...quotingServices, [r.id]: updated });
-                             }}
-                           />
-                         </View>
-                       </View>
-                    ))}
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
-                    <TouchableOpacity 
-                      style={[styles.actionButton, styles.acceptButton]}
-                      onPress={() => {
-                        const services = (quotingServices[r.id] || milkmanProfile.dairyItems).map((i: any) => ({ 
-                          name: i.name, 
-                          price: i.price 
-                        }));
-                        acceptSrMutation.mutate({ requestId: r.id, services });
-                      }}
-                    >
-                      <Text style={{ color: '#FFFFFF', fontWeight: '700', fontFamily: fontFamilyBold }}>{t('acceptEnroll')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-              {serviceRequests.filter((r: any) => r.status === 'pending').length === 0 && (
-                <Text style={{ color: textMuted, fontSize: 13, fontStyle: 'italic', marginLeft: 4, fontFamily }}>{t('noPendingRequests')}</Text>
-              )}
-            </View>
-
-            <View style={{ height: 1, backgroundColor: borderColor, marginBottom: 24 }} />
-            <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 12, fontSize: 16, fontFamily: fontFamilyBold }]}>{t('activeCustomers')}</Text>
-            {Array.isArray(customers) && customers.map((c: any) => (
-              <TouchableOpacity
-                key={c.id}
-                style={[styles.modalCard, { backgroundColor: surfaceColor, borderColor }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  setShowCustomersModal(false);
-                  navigation.navigate('Chat', { customerId: c.id, milkmanId: milkmanProfile?.id });
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={[styles.mCustAvatar, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE' }]}>
-                    <Users size={20} color="#2563EB" />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={[styles.mCustName, { color: textColor, fontFamily: fontFamilyBold }]}>{c.name}</Text>
-                    <Text style={[styles.mCustPhone, { color: textMuted, fontFamily }]}>{c.phone}</Text>
-                  </View>
-                  <MessageSquare size={22} color="#2563EB" />
-                  {/* Chevron opens the customer detail view */}
-                  <TouchableOpacity
-                    style={{ padding: 6, marginLeft: 8 }}
-                    onPress={() => { setSelectedDetailCustomer(c); setShowDetailModal(true); }}
-                  >
-                    <ChevronRight size={20} color={textMuted} />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            ))}
-            {(!customers || customers.length === 0) && <Text style={[styles.modalEmpty, { color: textMuted, fontFamily }]}>{t('noCustomersYet')}</Text>}
           </ScrollView>
         </View>
       </Modal>
@@ -1411,205 +1254,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
         </View>
       </Modal>
 
-      {/* Bills Modal */}
-      <Modal visible={showBillsModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
-            <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('billsManagement')}</Text>
-            <TouchableOpacity onPress={() => setShowBillsModal(false)} style={styles.closeBtn}>
-              <X size={24} color={textColor} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
-            {/* Global Billing Summary */}
-            <LinearGradient
-              colors={['#6366F1', '#4F46E5']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={{ borderRadius: 12, padding: 20, marginBottom: 24 }}
-            >
-              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 4, fontFamily }}>{t('totalOutstanding')}</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 32, fontWeight: '800', fontFamily: fontFamilyBold }}>
-                ₹{Array.isArray(milkmanBills) ? milkmanBills.filter((b: any) => b.status === 'pending').reduce((s: number, b: any) => s + parseFloat(b.totalAmount || '0'), 0).toFixed(2) : '0.00'}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
-                 <View>
-                   <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontFamily }}>{t('paidThisMonth')}</Text>
-                   <Text style={{ color: '#FFFFFF', fontWeight: '700', fontFamily: fontFamilyBold }}>₹{Array.isArray(milkmanBills) ? milkmanBills.filter((b: any) => b.status === 'paid' && new Date(b.updatedAt).getMonth() === new Date().getMonth()).reduce((s: number, b: any) => s + parseFloat(b.totalAmount || '0'), 0).toFixed(0) : '0'}</Text>
-                 </View>
-                 <View>
-                   <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontFamily }}>{t('customersPending')}</Text>
-                   <Text style={{ color: '#FFFFFF', fontWeight: '700', fontFamily: fontFamilyBold }}>{new Set(milkmanBills?.filter((b:any)=>b.status==='pending').map((b:any)=>b.customerId)).size}</Text>
-                 </View>
-              </View>
-            </LinearGradient>
-
-            <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 16, fontFamily: fontFamilyBold }]}>{t('recentActivity')}</Text>
-            {milkmanBills?.slice(0, 5).map((bill: any) => {
-              const cust = customers?.find((c: any) => c.id === bill.customerId);
-              return (
-                <View key={`bill-act-${bill.id}`} style={[styles.tinyCard, { backgroundColor: surfaceColor, borderColor, paddingVertical: 14 }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#374151' : '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
-                      <User size={18} color={textMuted} />
-                    </View>
-                    <View>
-                      <Text style={{ fontWeight: '600', color: textColor, fontFamily: fontFamilyBold }}>{cust?.name || t('customer')}</Text>
-                      <Text style={{ fontSize: 12, color: textMuted, fontFamily }}>{bill.status === 'paid' ? t('settledOn') : t('generatedOn')} {new Date(bill.updatedAt || bill.createdAt).toLocaleDateString()}</Text>
-                    </View>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontWeight: '700', color: bill.status === 'paid' ? '#16A34A' : textColor, fontFamily: fontFamilyBold }}>₹{bill.totalAmount}</Text>
-                    <Text style={{ fontSize: 10, color: bill.status === 'paid' ? '#16A34A' : '#CA8A04', fontWeight: '700', fontFamily: fontFamilyBold }}>{t(bill.status).toUpperCase()}</Text>
-                  </View>
-                </View>
-              );
-            })}
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 16 }}>
-              <Text style={[styles.sectionTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('manageByCustomer')}</Text>
-              <TouchableOpacity onPress={() => Alert.alert(t('bulkActionLabel'), t('bulkActionDesc'), [
-                { text: t('cancelLabel'), style: "cancel" },
-                { text: t('generateAllLabel'), onPress: () => Alert.alert(t('success'), t('bulkStarted')) }
-              ])}>
-                <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 14, fontFamily: fontFamilyBold }}>{t('generateAllLabel')}</Text>
-              </TouchableOpacity>
-            </View>
-            {Array.isArray(customers) && customers.map((c: any) => {
-              const cBills = Array.isArray(milkmanBills) ? milkmanBills.filter((b: any) => b.customerId === c.id) : [];
-              const pendingAmt = cBills.filter((b: any) => b.status === 'pending').reduce((s: number, b: any) => s + parseFloat(b.totalAmount || '0'), 0);
-              return (
-                <View key={c.id} style={[styles.modalCard, { backgroundColor: surfaceColor, borderColor }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <View>
-                      <Text style={[styles.mOrderName, { color: textColor, fontFamily: fontFamilyBold }]}>{c.name}</Text>
-                      <Text style={{ color: textMuted, fontSize: 13, fontFamily }}>{cBills.length} {t('billsLabel')} • ₹{pendingAmt.toFixed(2)} {t('pendingLabel')}</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={{ backgroundColor: '#6366F1', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
-                      onPress={() => generateBillsMutation.mutate(c.id)}
-                      disabled={generateBillsMutation.isPending}
-                    >
-                      <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13, fontFamily: fontFamilyBold }}>{t('confirm')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {cBills.map((b: any) => {
-                    const isCash = b.paymentMethod === 'cash' || !b.paymentMethod;
-                    return (
-                      <TouchableOpacity 
-                        key={b.id} 
-                        style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: borderColor }}
-                        onPress={() => {
-                          if (b.status === 'pending' && isCash) {
-                            Alert.alert(t('cashSettlement'), `${t('cashSettlementDesc')} ₹${b.totalAmount}.`, [
-                              { text: t('cancelLabel'), style: "cancel" },
-                              { text: t('enterOtpPrompt'), onPress: () => { setSelectedRequest({ id: b.id, type: 'bill' }); setShowCODModal(true); } }
-                            ]);
-                          }
-                        }}
-                      >
-                        <View>
-                          <Text style={{ color: textMuted, fontSize: 13, fontFamily }}>{new Date(b.createdAt).toLocaleDateString(language === 'English' ? 'en-IN' : 'mr-IN', { month: 'short', year: 'numeric' })}</Text>
-                          <Text style={{ color: isCash ? '#CA8A04' : '#16A34A', fontSize: 10, fontWeight: '700', marginTop: 2, fontFamily: fontFamilyBold }}>
-                            {isCash ? t('cashPayment') : t('onlinePaid')}
-                          </Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                          <Text style={{ color: textColor, fontWeight: '700', fontFamily: fontFamilyBold }}>₹{b.totalAmount}</Text>
-                          <View style={{ backgroundColor: b.status === 'paid' ? '#DCFCE7' : (isCash ? '#FEF9C3' : '#DBEAFE'), borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                            <Text style={{ color: b.status === 'paid' ? '#16A34A' : (isCash ? '#CA8A04' : '#2563EB'), fontSize: 11, fontWeight: '700', fontFamily: fontFamilyBold }}>
-                              {b.status === 'paid' ? t('settled') : (isCash ? t('payCash') : t('pendingLabel'))}
-                            </Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              );
-            })}
-            {(!customers || customers.length === 0) && <Text style={[styles.modalEmpty, { color: textMuted, fontFamily }]}>{t('noCustomersYet')}</Text>}
-          </ScrollView>
-        </View>
-      </Modal>
-
-    <Modal visible={showAnalyticsModal} animationType="slide" presentationStyle="pageSheet">
-      <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
-        <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
-          <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{selectedAnalyticsCustomer?.name} — {t('analytics')}</Text>
-          <TouchableOpacity onPress={() => setShowAnalyticsModal(false)} style={styles.closeBtn}>
-            <X size={24} color={textColor} />
-          </TouchableOpacity>
-        </View>
-        <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-            {Array.from({ length: 6 }, (_, i) => {
-              const d = new Date();
-              d.setMonth(d.getMonth() - i);
-              const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-              const label = d.toLocaleDateString(language === 'English' ? 'en-IN' : 'mr-IN', { month: 'short', year: '2-digit' });
-              return (
-                <TouchableOpacity
-                  key={val}
-                  onPress={() => setSelectedMonth(val)}
-                  style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, backgroundColor: selectedMonth === val ? '#2563EB' : (isDark ? '#374151' : '#F3F4F6'), borderWidth: 1, borderColor: selectedMonth === val ? '#2563EB' : borderColor }}
-                >
-                  <Text style={{ color: selectedMonth === val ? '#FFFFFF' : textColor, fontWeight: '600', fontSize: 13, fontFamily }}>{label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {selectedAnalyticsCustomer && (
-            <View>
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
-                <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, borderRadius: 16, padding: 16 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 4, fontFamily }}>{t('revenue')}</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '800', fontFamily: fontFamilyBold }}>₹{getCustomerMonthlyAnalytics(selectedAnalyticsCustomer.id).total.toFixed(0)}</Text>
-                </LinearGradient>
-                <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, borderRadius: 16, padding: 16 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 4, fontFamily }}>{t('volume')}</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '800', fontFamily: fontFamilyBold }}>{Object.values(getCustomerMonthlyAnalytics(selectedAnalyticsCustomer.id).byDate).reduce((a:number, b:number) => a + b, 0).toFixed(1)}L</Text>
-                </LinearGradient>
-              </View>
-
-              <View style={[styles.modalCard, { backgroundColor: surfaceColor, borderColor, padding: 16, marginBottom: 20 }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View>
-                    <Text style={{ color: textMuted, fontSize: 12, fontFamily }}>{t('topProduct')}</Text>
-                    <Text style={{ color: textColor, fontWeight: '700', fontSize: 16, fontFamily: fontFamilyBold }}>{t('buffaloMilk')}</Text>
-                  </View>
-                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isDark ? 'rgba(234, 179, 8, 0.15)' : '#FEF3C7', justifyContent: 'center', alignItems: 'center' }}>
-                    <TrendingUp size={20} color="#D97706" />
-                  </View>
-                </View>
-              </View>
-
-              <Text style={[styles.sectionTitle, { color: textColor, fontSize: 15, marginBottom: 16, fontFamily: fontFamilyBold }]}>{t('deliveryHistory')}</Text>
-              {Object.keys(getCustomerMonthlyAnalytics(selectedAnalyticsCustomer.id).byDate).length > 0 ? (
-                Object.entries(getCustomerMonthlyAnalytics(selectedAnalyticsCustomer.id).byDate).sort((a, b) => b[0].localeCompare(a[0])).map(([date, qty]) => (
-                  <View key={date} style={[styles.tinyCard, { backgroundColor: surfaceColor, borderColor, paddingVertical: 12 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Calendar size={16} color={textMuted} />
-                      <Text style={{ color: textColor, fontWeight: '500', fontFamily }}>{date}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ color: textColor, fontWeight: '700', fontFamily: fontFamilyBold }}>{qty as any}L</Text>
-                      <CheckCircle size={14} color="#16A34A" />
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View style={[styles.emptyList, { borderColor }]}>
-                  <Calendar size={32} color={textMuted} />
-                  <Text style={[styles.emptyListTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('noOrdersLabel')}</Text>
-                  <Text style={[styles.emptyListSub, { color: textMuted, fontFamily }]}>{t('noOrdersFound')}</Text>
-                </View>
-              )}
-            </View>
-          )}
-        </ScrollView>
-      </View>
-    </Modal>
     </View>
   );
 }
