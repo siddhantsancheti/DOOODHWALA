@@ -10,29 +10,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  CheckCircle, X, Phone, MessageCircle, MapPin, ChevronRight, TrendingUp, BarChart3, AlertCircle,
+  CheckCircle, X, Phone, MessageCircle, ChevronRight, TrendingUp, BarChart3, AlertCircle,
   Clock, Send, MessageSquare, Bell, Plus, IndianRupee, Edit, Trash2, Banknote, Receipt, Calendar, Wifi, WifiOff,
   Moon, Sun, Languages, LogOut, Headset, Check, Truck, Settings, User, Navigation, Package, DollarSign, Users, ClipboardList
 } from 'lucide-react-native';
-import * as Location from 'expo-location';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { Language } from '../../lib/translations';
-
-// ── Mapbox (native only) ────────────────────────────────────────────────────
-let MapboxGL: any = null;
-let mbxDirections: any = null;
-let mbxOptimization: any = null;
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
-try {
-  MapboxGL = require('@rnmapbox/maps').default;
-  if (MAPBOX_TOKEN) MapboxGL.setAccessToken(MAPBOX_TOKEN);
-  const mbxDir = require('@mapbox/mapbox-sdk/services/directions').default;
-  mbxDirections = mbxDir({ accessToken: MAPBOX_TOKEN });
-  const mbxOpt = require('@mapbox/mapbox-sdk/services/optimization').default;
-  mbxOptimization = mbxOpt({ accessToken: MAPBOX_TOKEN });
-} catch (_) {}
 
 const { width } = Dimensions.get('window');
 
@@ -93,7 +78,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
   const [showCODModal, setShowCODModal] = useState(false);
   const [codOtp, setCodOtp] = useState("");
   const [showBillsModal, setShowBillsModal] = useState(false);
-  const [showMapModal, setShowMapModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -169,15 +153,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
 
   // WebSocket for real-time updates
   const { isConnected, addMessageHandler, removeMessageHandler } = useWebSocket();
-
-  // The delivery-run screen sends the milkman back here to open the live route
-  // map, which owns the broadcast controls.
-  useEffect(() => {
-    if (route?.params?.openMap) {
-      setShowMapModal(true);
-      navigation.setParams({ openMap: false });
-    }
-  }, [route?.params?.openMap]);
 
   useEffect(() => {
     const handler = (data: any) => {
@@ -481,167 +456,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
   const totalCustomersCount = Array.isArray(customers) ? customers.length : 0;
   const progressPerc = todaysOrders.length > 0 ? (completedOrders.length / todaysOrders.length) * 100 : 0;
 
-  // Location broadcasting
-  const locationSub = useRef<Location.LocationSubscription | null>(null);
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [pulseAnim, setPulseAnim] = useState(1);
-
-  // Milkman map state
-  const [myCoord, setMyCoord] = useState<number[] | null>(null);
-  const [routeStops, setRouteStops] = useState<Array<{ coord: number[]; name: string; address: string; customerId?: number }>>([]);
-  const [mapRouteGeoJSON, setMapRouteGeoJSON] = useState<any | null>(null);
-  const milkmanMapCamRef = useRef<any>(null);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-
-  // ── Optimize route order via Mapbox Optimization API ─────────────────────
-  const optimizeRoute = async () => {
-    if (!myCoord || routeStops.length < 2 || !mbxOptimization) {
-      Alert.alert('Not Ready', routeStops.length < 2 ? 'Need at least 2 stops to optimize.' : 'Get your GPS location first by starting the route.');
-      return;
-    }
-    if (routeStops.length > 11) {
-      Alert.alert('Too Many Stops', 'Optimization supports up to 11 stops. Showing manual order.');
-      return;
-    }
-    setIsOptimizing(true);
-    try {
-      // Build waypoints: milkman start + all customer stops
-      const waypoints = [
-        { coordinates: myCoord as [number, number] },
-        ...routeStops.map(s => ({ coordinates: s.coord as [number, number] })),
-      ];
-      const res = await mbxOptimization.getOptimization({
-        profile: 'driving',
-        waypoints,
-        roundtrip: false,
-        source: 'first',
-        destination: 'last',
-        geometries: 'geojson',
-      }).send();
-
-      const body = res?.body;
-      if (!body?.waypoints || body.code !== 'Ok') {
-        Alert.alert('Optimization Failed', 'Could not calculate the optimal route. Please try again.');
-        return;
-      }
-
-      // body.waypoints[i].waypoint_index gives the optimized visit order
-      // Skip index 0 (that's the milkman start point)
-      const optimizedIndices: number[] = body.waypoints
-        .filter((w: any) => w.waypoint_index > 0)
-        .sort((a: any, b: any) => a.trips_index !== undefined ? a.trips_index - b.trips_index : 0)
-        .map((w: any) => w.waypoint_index - 1); // subtract 1 to get routeStops index
-
-      // Reorder routeStops according to optimized indices
-      const reordered = optimizedIndices.map(i => routeStops[i]).filter(Boolean);
-      if (reordered.length !== routeStops.length) {
-        // Fallback: use trip waypoints order directly
-        reordered.splice(0);
-        body.waypoints
-          .slice(1) // skip milkman origin
-          .forEach((w: any) => {
-            const stop = routeStops[w.waypoint_index - 1];
-            if (stop) reordered.push(stop);
-          });
-      }
-
-      setRouteStops(reordered);
-
-      // Update the route polyline with optimized geometry
-      if (body.trips?.[0]?.geometry) {
-        setMapRouteGeoJSON(body.trips[0].geometry);
-      }
-
-      // Persist the new order to the server
-      const orderedIds = reordered.map(s => s.customerId).filter(Boolean) as number[];
-      if (orderedIds.length > 0) {
-        apiRequest({
-          url: '/api/milkmen/routes',
-          method: 'PATCH',
-          body: { orderedCustomerIds: orderedIds },
-        }).catch(() => {}); // best-effort save
-      }
-
-      Alert.alert('Route Optimized! ✨', `Reordered ${reordered.length} stops for the shortest total distance.`);
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Optimization request failed.');
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
-
-  useEffect(() => {
-    let interval: any;
-    if (isBroadcasting) {
-      interval = setInterval(() => {
-        setPulseAnim(prev => (prev === 1 ? 0.4 : 1));
-      }, 800);
-    } else {
-      setPulseAnim(1);
-    }
-    return () => clearInterval(interval);
-  }, [isBroadcasting]);
-
-  // Build route stops from customers whenever map modal opens
-  useEffect(() => {
-    if (!showMapModal || !Array.isArray(customers)) return;
-    const stops = customers
-      .filter((c: any) => c.latitude && c.longitude)
-      .sort((a: any, b: any) => (a.routeOrder ?? 0) - (b.routeOrder ?? 0))
-      .map((c: any) => ({
-        coord: [parseFloat(c.longitude), parseFloat(c.latitude)] as number[],
-        name: c.name || 'Customer',
-        address: c.address || '',
-        customerId: c.id,
-      }));
-    setRouteStops(stops);
-
-    // Fetch multi-stop driving route via Mapbox Directions
-    if (stops.length >= 1 && mbxDirections && myCoord) {
-      const allWaypoints = [
-        { coordinates: myCoord },
-        ...stops.map(s => ({ coordinates: s.coord })),
-      ];
-      mbxDirections.getDirections({
-        profile: 'driving',
-        waypoints: allWaypoints,
-        geometries: 'geojson',
-      }).send().then((res: any) => {
-        const route = res?.body?.routes?.[0];
-        if (route) setMapRouteGeoJSON(route.geometry);
-      }).catch(() => {});
-    }
-  }, [showMapModal, customers, myCoord]);
-
-  const startBroadcast = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') { Alert.alert('Permission denied'); return; }
-      locationSub.current = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 8000, distanceInterval: 8 },
-        (loc) => {
-          const coord = [loc.coords.longitude, loc.coords.latitude];
-          setMyCoord(coord);
-          apiRequest({
-            url: '/api/delivery/location', method: 'POST',
-            body: { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
-          }).catch(() => {});
-        }
-      );
-      setIsBroadcasting(true);
-
-      // Notify the first customer in the route to place their order.
-      // Subsequent customers are nudged automatically as the milkman's GPS
-      // reaches each previous delivery stop.
-      apiRequest({ url: '/api/delivery/start-route', method: 'POST' }).catch(() => {});
-    } catch (e) { console.error(e); }
-  };
-  const stopBroadcast = () => {
-    locationSub.current?.remove();
-    locationSub.current = null;
-    setIsBroadcasting(false);
-  };
-  useEffect(() => () => stopBroadcast(), []);
 
   const isLoading = isProfileLoading || isOrdersLoading || isCustomersLoading;
 
@@ -957,19 +771,16 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             top of the screen. Today's progress lives inside it rather than in
             a separate card — it is the status of this exact action. */}
         <LinearGradient
-          colors={isBroadcasting ? ['#16A34A', '#15803D'] : ['#2563EB', '#1D4ED8']}
+          colors={['#2563EB', '#1D4ED8']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
         >
           <View style={styles.heroTextRow}>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {isBroadcasting ? t('routeInProgress') : t('startRoute')}
-            </Text>
-            {isBroadcasting && <View style={[styles.liveDot, { opacity: pulseAnim }]} />}
+            <Text style={styles.heroTitle} numberOfLines={2}>{t('startRoute')}</Text>
           </View>
           <Text style={styles.heroSubtitle} numberOfLines={2}>
-            {isBroadcasting ? t('customersCanTrack') : t('turnOnLocation')}
+            {t('turnOnLocation')}
           </Text>
 
           {todaysOrders.length > 0 && (
@@ -987,19 +798,12 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
           )}
 
           <TouchableOpacity
-            style={[styles.heroButton, isBroadcasting && styles.heroButtonStop]}
-            onPress={() => isBroadcasting
-              ? stopBroadcast()
-              : navigation.navigate('DeliveryRun', { milkmanId: milkmanProfile?.id, isBroadcasting })}
+            style={styles.heroButton}
+            onPress={() => navigation.navigate('DeliveryRun', { milkmanId: milkmanProfile?.id })}
             activeOpacity={0.9}
           >
-            {isBroadcasting ? <X size={20} color="#16A34A" /> : <Navigation size={20} color="#2563EB" />}
-            <Text
-              style={[styles.heroButtonText, isBroadcasting && { color: '#16A34A' }]}
-              numberOfLines={1}
-            >
-              {isBroadcasting ? t('stopRoute') : t('startRoute')}
-            </Text>
+            <Navigation size={20} color="#2563EB" />
+            <Text style={styles.heroButtonText} numberOfLines={1}>{t('startRoute')}</Text>
           </TouchableOpacity>
         </LinearGradient>
 
@@ -1088,177 +892,6 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
 
 
       </ScrollView>
-
-      {/* Map Modal — Real Mapbox route map */}
-      <Modal visible={showMapModal} animationType="slide" presentationStyle="fullScreen">
-        <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
-          {/* Header */}
-          <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('deliveryRoute')}</Text>
-              <Text style={{ fontSize: 12, color: textMuted, fontFamily, marginTop: 2 }}>
-                {isBroadcasting ? '🟢 Broadcasting your location to customers' : '⚪ Start route to begin broadcasting'}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => setShowMapModal(false)} style={styles.closeBtn}>
-              <X size={24} color={textColor} />
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Map ── */}
-          <View style={{ flex: 1 }}>
-            {MapboxGL ? (
-              <MapboxGL.MapView
-                style={{ flex: 1 }}
-                styleURL="mapbox://styles/mapbox/streets-v12"
-                logoEnabled={false}
-                attributionEnabled={false}
-                compassEnabled
-              >
-                <MapboxGL.Camera
-                  ref={milkmanMapCamRef}
-                  zoomLevel={16}
-                  centerCoordinate={myCoord || [78.9629, 20.5937]}
-                  animationMode="flyTo"
-                  animationDuration={800}
-                />
-
-                {/* My position — green truck */}
-                {myCoord && (
-                  <MapboxGL.PointAnnotation id="my-pos" coordinate={myCoord}>
-                    <View style={{
-                      width: 38, height: 38, borderRadius: 19, backgroundColor: '#16A34A',
-                      justifyContent: 'center', alignItems: 'center',
-                      borderWidth: 3, borderColor: '#fff',
-                      shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
-                    }}>
-                      <Truck size={18} color="#fff" />
-                    </View>
-                  </MapboxGL.PointAnnotation>
-                )}
-
-                {/* Customer delivery stops — numbered blue pins */}
-                {routeStops.map((stop, idx) => (
-                  <MapboxGL.PointAnnotation key={`stop-${idx}`} id={`stop-${idx}`} coordinate={stop.coord}>
-                    <View style={{
-                      width: 32, height: 32, borderRadius: 16,
-                      backgroundColor: idx === 0 ? '#D97706' : '#2563EB',
-                      justifyContent: 'center', alignItems: 'center',
-                      borderWidth: 2.5, borderColor: '#fff',
-                      shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, elevation: 5,
-                    }}>
-                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12, fontFamily: fontFamilyBold }}>
-                        {idx + 1}
-                      </Text>
-                    </View>
-                  </MapboxGL.PointAnnotation>
-                ))}
-
-                {/* Driving route polyline through all stops */}
-                {mapRouteGeoJSON && (
-                  <MapboxGL.ShapeSource id="mk-route" shape={mapRouteGeoJSON}>
-                    <MapboxGL.LineLayer
-                      id="mk-route-halo"
-                      style={{ lineColor: '#93C5FD', lineWidth: 8, lineOpacity: 0.4, lineCap: 'round', lineJoin: 'round' }}
-                    />
-                    <MapboxGL.LineLayer
-                      id="mk-route-line"
-                      style={{ lineColor: '#2563EB', lineWidth: 5, lineOpacity: 1, lineCap: 'round', lineJoin: 'round' }}
-                    />
-                  </MapboxGL.ShapeSource>
-                )}
-              </MapboxGL.MapView>
-            ) : (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#111827' : '#F3F4F6' }}>
-                <MapPin size={48} color={colors.primary} />
-                <Text style={{ marginTop: 12, color: textColor, fontWeight: '600', fontFamily: fontFamilyBold }}>{t('liveTracker')}</Text>
-                <Text style={{ fontSize: 12, color: textMuted, textAlign: 'center', marginTop: 6, fontFamily }}>Map requires a real device build</Text>
-              </View>
-            )}
-
-            {/* ── Upcoming deliveries sheet ── */}
-            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: 280 }}>
-              <View style={[styles.modalContent, { backgroundColor: surfaceColor, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor }]}>
-                <Text style={{ fontWeight: '700', color: textColor, marginBottom: 14, fontSize: 15, fontFamily: fontFamilyBold }}>
-                  {t('upcomingDeliveries')} ({pendingOrders.length})
-                </Text>
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  {pendingOrders.length > 0 ? (
-                    pendingOrders.map((order: any, idx: number) => {
-                      const cust = customers?.find((c: any) => c.id === order.customerId);
-                      return (
-                        <View key={order.id} style={{
-                          flexDirection: 'row', alignItems: 'center', marginBottom: 12,
-                          paddingBottom: 12,
-                          borderBottomWidth: idx < pendingOrders.length - 1 ? StyleSheet.hairlineWidth : 0,
-                          borderBottomColor: borderColor,
-                        }}>
-                          <View style={{
-                            width: 30, height: 30, borderRadius: 15,
-                            backgroundColor: idx === 0 ? '#D97706' : '#2563EB',
-                            justifyContent: 'center', alignItems: 'center', marginRight: 12,
-                          }}>
-                            <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 12, fontFamily: fontFamilyBold }}>{idx + 1}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontWeight: '600', color: textColor, fontFamily: fontFamilyBold }}>{cust?.name || t('customer')}</Text>
-                            <Text style={{ fontSize: 12, color: textMuted, fontFamily }}>{cust?.address || t('nearBy')}</Text>
-                          </View>
-                          <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={{ fontWeight: '700', color: '#16A34A', fontFamily: fontFamilyBold }}>{order.quantity}L</Text>
-                            <Text style={{ fontSize: 11, color: textMuted, fontFamily }}>₹{parseFloat(order.totalAmount || '0').toFixed(0)}</Text>
-                          </View>
-                        </View>
-                      );
-                    })
-                  ) : (
-                    <Text style={{ color: textMuted, textAlign: 'center', padding: 16, fontFamily }}>{t('noPendingDeliveries')}</Text>
-                  )}
-                </ScrollView>
-
-                {/* ── Optimize Route button ── */}
-                {routeStops.length >= 2 && (
-                  <TouchableOpacity
-                    style={[{
-                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      paddingVertical: 12, borderRadius: 12, marginTop: 10,
-                      backgroundColor: isDark ? 'rgba(124,58,237,0.15)' : '#F5F3FF',
-                      borderWidth: 1.5, borderColor: '#7C3AED',
-                      opacity: isOptimizing ? 0.6 : 1,
-                    }]}
-                    onPress={optimizeRoute}
-                    disabled={isOptimizing}
-                    activeOpacity={0.8}
-                  >
-                    {isOptimizing
-                      ? <ActivityIndicator size="small" color="#7C3AED" />
-                      : <TrendingUp size={17} color="#7C3AED" />}
-                    <Text style={{ color: '#7C3AED', fontWeight: '700', fontSize: 14, fontFamily: fontFamilyBold }}>
-                      {isOptimizing ? 'Optimizing…' : '✨ Optimize Route'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Start/Stop Route Button inside sheet */}
-                <TouchableOpacity
-                  style={[{
-                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    paddingVertical: 14, borderRadius: 12, marginTop: 8,
-                    backgroundColor: isBroadcasting ? '#16A34A' : '#2563EB',
-                  }]}
-                  onPress={() => isBroadcasting ? stopBroadcast() : startBroadcast()}
-                  activeOpacity={0.85}
-                >
-                  {isBroadcasting ? <X size={18} color="#fff" /> : <Navigation size={18} color="#fff" />}
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: fontFamilyBold }}>
-                    {isBroadcasting ? t('stopRoute') : t('startRoute')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* COD Verification Modal */}
       <Modal visible={showCODModal} animationType="slide" presentationStyle="pageSheet">
@@ -2056,7 +1689,6 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   heroProgressPct: { fontSize: 13, color: '#FFFFFF', fontWeight: '700', fontFamily: fontFamilyBold },
   heroProgressTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' },
   heroProgressFill: { height: '100%', borderRadius: 3, backgroundColor: '#FFFFFF' },
-  heroButtonStop: { backgroundColor: '#FFFFFF', borderWidth: 0 },
 
   // ── Action tiles ──────────────────────────────────────────────────────
   tileGrid: {
@@ -2105,7 +1737,6 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#2563EB', marginBottom: 12,
   },
   activityBannerText: { flex: 1, fontSize: 13, color: '#2563EB', fontWeight: '600', fontFamily: fontFamilyBold },
-  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFFFFF', alignSelf: 'center' },
   heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 20, lineHeight: 20, fontFamily },
   heroButton: {
     backgroundColor: '#FFFFFF',

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, Alert, RefreshControl,
@@ -7,8 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  ArrowLeft, Check, CheckCheck, MapPin, MessageSquare, Navigation, Package,
+  ArrowLeft, Check, CheckCheck, MapPin, MessageSquare, Package,
 } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { apiRequest } from '../../lib/queryClient';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useTranslation } from '../../contexts/LanguageContext';
@@ -37,8 +38,9 @@ interface OrderMessage {
  */
 export default function DeliveryRunScreen({ navigation, route }: any) {
   const milkmanId = route?.params?.milkmanId;
-  const isBroadcasting = !!route?.params?.isBroadcasting;
   const queryClient = useQueryClient();
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const locationSub = useRef<any>(null);
   const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   const styles = useMemo(
     () => createStyles(colors, isDark, fontFamily, fontFamilyBold),
@@ -93,6 +95,51 @@ export default function DeliveryRunScreen({ navigation, route }: any) {
       queryClient.invalidateQueries({ queryKey: ['/api/orders/milkman'] });
     },
   });
+
+  // Starting the run *is* starting the broadcast — the customer's tracking
+  // screen listens for these location updates, so it begins the moment the
+  // milkman opens this screen and stops when they leave it.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            t('locationPermissionTitle'),
+            t('locationPermissionBody'),
+          );
+          return;
+        }
+        const sub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, timeInterval: 8000, distanceInterval: 8 },
+          (loc) => {
+            apiRequest({
+              url: '/api/delivery/location',
+              method: 'POST',
+              body: { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
+            }).catch(() => {});
+          },
+        );
+        if (cancelled) { sub.remove(); return; }
+        locationSub.current = sub;
+        setIsBroadcasting(true);
+
+        // Nudge the first customer on the route to place their order; the rest
+        // are nudged as the milkman's GPS reaches each previous stop.
+        apiRequest({ url: '/api/delivery/start-route', method: 'POST' }).catch(() => {});
+      } catch (e) {
+        console.error('Could not start location broadcast', e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      locationSub.current?.remove();
+      locationSub.current = null;
+    };
+  }, []);
 
   const summarise = (m: OrderMessage) => {
     const items = Array.isArray(m.orderItems) ? m.orderItems : [];
@@ -233,14 +280,12 @@ export default function DeliveryRunScreen({ navigation, route }: any) {
                   : t('allCaughtUp')}
               </Text>
 
-              <TouchableOpacity
-                style={styles.mapBtn}
-                onPress={() => navigation.navigate('MilkmanHome', { openMap: true })}
-                activeOpacity={0.9}
-              >
-                <Navigation size={18} color="#2563EB" />
-                <Text style={styles.mapBtnText} numberOfLines={1}>{t('routeMap')}</Text>
-              </TouchableOpacity>
+              <View style={styles.liveRow}>
+                <View style={[styles.liveDot, !isBroadcasting && styles.liveDotOff]} />
+                <Text style={styles.liveText} numberOfLines={2}>
+                  {isBroadcasting ? t('customersCanTrack') : t('locationOff')}
+                </Text>
+              </View>
             </LinearGradient>
           </>
         }
@@ -271,12 +316,14 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     hero: { borderRadius: 20, padding: 20, marginBottom: 16 },
     heroTitle: { fontSize: 22, color: '#FFFFFF', fontFamily: fontFamilyBold, fontWeight: '700', lineHeight: 28 },
     heroSub: { fontSize: 14, color: 'rgba(255,255,255,0.85)', fontFamily, marginTop: 4, marginBottom: 16 },
-    mapBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      alignSelf: 'flex-start', backgroundColor: '#FFFFFF',
-      paddingHorizontal: 16, height: 40, borderRadius: 12,
+    liveRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
     },
-    mapBtnText: { color: '#2563EB', fontSize: 14, fontWeight: '700', fontFamily: fontFamilyBold },
+    liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
+    liveDotOff: { backgroundColor: 'rgba(255,255,255,0.45)' },
+    liveText: { flex: 1, fontSize: 12, color: '#FFFFFF', fontFamily },
 
     // Card: text column flexes, buttons keep a fixed width, so a long customer
     // name shortens itself instead of squeezing the actions off the row.
