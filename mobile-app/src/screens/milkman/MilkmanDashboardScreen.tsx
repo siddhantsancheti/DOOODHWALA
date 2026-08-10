@@ -70,7 +70,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [quotingServices, setQuotingServices] = useState<any>({});
-  const [milkmanNotes, setMilkmanNotes] = useState("");
+  const [newProduct, setNewProduct] = useState({ name: "", price: "" });
   const [showEarningsModal, setShowEarningsModal] = useState(false);
   const [editingPricing, setEditingPricing] = useState<any>(null);
   const [showCODModal, setShowCODModal] = useState(false);
@@ -1112,8 +1112,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                   <TextInput
                     style={[styles.input, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
                     placeholder={t('productNamePlaceholder')}
-                    value={isAddingProduct ? milkmanNotes : editingProduct.name}
-                    onChangeText={(val) => isAddingProduct ? setMilkmanNotes(val) : setEditingProduct({...editingProduct, name: val})}
+                    value={isAddingProduct ? newProduct.name : editingProduct.name}
+                    onChangeText={(val) => isAddingProduct ? setNewProduct({ ...newProduct, name: val }) : setEditingProduct({...editingProduct, name: val})}
                   />
                 </View>
 
@@ -1124,8 +1124,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       style={[styles.input, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
                       placeholder="60"
                       keyboardType="numeric"
-                      value={isAddingProduct ? codOtp : editingProduct.price?.toString()}
-                      onChangeText={(val) => isAddingProduct ? setCodOtp(val) : setEditingProduct({...editingProduct, price: val})}
+                      value={isAddingProduct ? newProduct.price : editingProduct.price?.toString()}
+                      onChangeText={(val) => isAddingProduct ? setNewProduct({ ...newProduct, price: val.replace(/[^0-9.]/g, '') }) : setEditingProduct({...editingProduct, price: val})}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -1142,16 +1142,20 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity 
                     style={{ flex: 1, height: 48, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}
-                    onPress={() => { setIsAddingProduct(false); setEditingProduct(null); setMilkmanNotes(""); setCodOtp(""); }}
+                    onPress={() => { setIsAddingProduct(false); setEditingProduct(null); setNewProduct({ name: "", price: "" }); }}
                   >
                     <Text style={{ color: textColor, fontWeight: '600', fontFamily }}>{t('cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={{ flex: 2, height: 48, borderRadius: 8, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' }}
                     onPress={() => {
-                      const updated = [...milkmanProfile.dairyItems];
+                      const updated = [...(milkmanProfile.dairyItems || [])];
                       if (isAddingProduct) {
-                        updated.push({ name: milkmanNotes, price: codOtp, unit: 'liter', quantity: 0, isAvailable: true });
+                        if (!newProduct.name.trim() || !(parseFloat(newProduct.price) > 0)) {
+                          Alert.alert(t('requiredFields'), t('productNamePriceRequired'));
+                          return;
+                        }
+                        updated.push({ name: newProduct.name.trim(), price: newProduct.price, unit: 'liter', quantity: 0, isAvailable: true });
                       } else {
                         updated[editingProduct.index] = { ...editingProduct };
                         delete updated[editingProduct.index].index;
@@ -1159,8 +1163,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       updateInventoryMutation.mutate(updated);
                       setIsAddingProduct(false);
                       setEditingProduct(null);
-                      setMilkmanNotes("");
-                      setCodOtp("");
+                      setNewProduct({ name: "", price: "" });
                     }}
                   >
                     <Text style={{ color: '#FFFFFF', fontWeight: '700', fontFamily: fontFamilyBold }}>
