@@ -371,7 +371,12 @@ app.use((req, res, next) => {
     });
 
     const PORT = process.env.PORT || 5001;
-    server.listen(Number(PORT), "0.0.0.0", () => {
+    // Behind a reverse proxy (Caddy on the self-hosted box) set HOST=127.0.0.1
+    // so the app port is not reachable from the internet even if a firewall
+    // rule is opened by mistake. Defaults to all interfaces for PaaS hosts
+    // that route to the container directly.
+    const HOST = process.env.HOST || "0.0.0.0";
+    server.listen(Number(PORT), HOST, () => {
         log(`serving on port ${PORT}`);
         log(`serving on port ${PORT}`);
         console.log("Server restarted and routes registered - Forcing Update");
