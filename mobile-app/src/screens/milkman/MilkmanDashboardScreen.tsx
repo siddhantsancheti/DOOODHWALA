@@ -74,7 +74,7 @@ function ActionTile({ icon, tint, value, label, caption, badge, badgeColor, onPr
   );
 }
 
-export default function MilkmanDashboardScreen({ navigation }: any) {
+export default function MilkmanDashboardScreen({ navigation, route }: any) {
   const { user } = useAuth();
   const { t, language, setLanguage, fontFamily, fontFamilyBold, colors, isDark, themeMode, setThemeMode } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -169,6 +169,15 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
 
   // WebSocket for real-time updates
   const { isConnected, addMessageHandler, removeMessageHandler } = useWebSocket();
+
+  // The delivery-run screen sends the milkman back here to open the live route
+  // map, which owns the broadcast controls.
+  useEffect(() => {
+    if (route?.params?.openMap) {
+      setShowMapModal(true);
+      navigation.setParams({ openMap: false });
+    }
+  }, [route?.params?.openMap]);
 
   useEffect(() => {
     const handler = (data: any) => {
@@ -979,7 +988,9 @@ export default function MilkmanDashboardScreen({ navigation }: any) {
 
           <TouchableOpacity
             style={[styles.heroButton, isBroadcasting && styles.heroButtonStop]}
-            onPress={() => isBroadcasting ? stopBroadcast() : setShowMapModal(true)}
+            onPress={() => isBroadcasting
+              ? stopBroadcast()
+              : navigation.navigate('DeliveryRun', { milkmanId: milkmanProfile?.id, isBroadcasting })}
             activeOpacity={0.9}
           >
             {isBroadcasting ? <X size={20} color="#16A34A" /> : <Navigation size={20} color="#2563EB" />}

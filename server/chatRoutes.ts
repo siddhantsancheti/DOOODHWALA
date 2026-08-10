@@ -3,7 +3,7 @@ import multer from "multer";
 import { getStorage } from "firebase-admin/storage";
 import { db } from "./db";
 import { chatMessages, users, orders, milkmen, products, notifications, customers } from "@shared/schema";
-import { eq, or, and, asc, desc, gt } from "drizzle-orm";
+import { eq, or, and, asc, desc, gt, isNotNull } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
 import "./services/fcmService"; // ensure firebase-admin is initialized for Storage
@@ -85,6 +85,65 @@ router.get("/messages", async (req, res) => {
         res.json(messages);
     } catch (error) {
         console.error("Get messages error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// GET /api/chat/orders — today's order messages for the signed-in milkman,
+// across every customer, for the delivery-run screen.
+//
+// The milkman is derived from the token rather than taken from a query param,
+// so one milkman can never read another's order book.
+router.get("/orders", async (req: AuthRequest, res) => {
+    try {
+        const [milkman] = await db
+            .select({ id: milkmen.id })
+            .from(milkmen)
+            .where(eq(milkmen.userId, req.user!.id))
+            .limit(1);
+
+        if (!milkman) {
+            return res.status(404).json({ message: "Milkman profile not found" });
+        }
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const rows = await db
+            .select({
+                id: chatMessages.id,
+                customerId: chatMessages.customerId,
+                customerName: customers.name,
+                customerAddress: customers.address,
+                customerPhone: customers.phone,
+                message: chatMessages.message,
+                orderQuantity: chatMessages.orderQuantity,
+                orderProduct: chatMessages.orderProduct,
+                orderTotal: chatMessages.orderTotal,
+                orderItems: chatMessages.orderItems,
+                isAccepted: chatMessages.isAccepted,
+                isDelivered: chatMessages.isDelivered,
+                createdAt: chatMessages.createdAt,
+            })
+            .from(chatMessages)
+            .leftJoin(customers, eq(chatMessages.customerId, customers.id))
+            .where(
+                and(
+                    eq(chatMessages.milkmanId, milkman.id),
+                    gt(chatMessages.createdAt, startOfDay),
+                    // ChatScreen writes orderQuantity, ChatComponent writes
+                    // orderItems — either marks the message as an order.
+                    or(
+                        eq(chatMessages.messageType, "order"),
+                        isNotNull(chatMessages.orderQuantity),
+                    ),
+                )
+            )
+            .orderBy(asc(chatMessages.createdAt));
+
+        res.json(rows);
+    } catch (error) {
+        console.error("Get milkman order messages error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
