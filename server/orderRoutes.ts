@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db } from "./db";
-import { orders, customers, milkmen, notifications } from "@shared/schema";
+import { orders, customers, milkmen, notifications, chatMessages } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
+import { broadcast } from "./websocket";
+import { partyUserIds } from "./services/wsParties";
 
 const router = Router();
 
@@ -107,7 +109,7 @@ router.get("/milkman", async (req: AuthRequest, res) => {
 router.post("/", async (req: AuthRequest, res) => {
     try {
         const userId = req.user!.id;
-        const { milkmanId, quantity, pricePerLiter, deliveryDate, deliveryTime, specialInstructions } = req.body;
+        const { milkmanId, quantity, pricePerLiter, deliveryDate, deliveryTime, specialInstructions, itemName } = req.body;
 
         const [customer] = await db
             .select()
@@ -121,6 +123,27 @@ router.post("/", async (req: AuthRequest, res) => {
 
         const totalAmount = (parseFloat(quantity) * parseFloat(pricePerLiter)).toString();
 
+        // Every order must also appear in the chat conversation. The milkman's
+        // delivery run is built from chat order messages, and the subscription
+        // and daily-preset jobs already post one — an order placed here with no
+        // message would be invisible to the milkman and impossible to mark
+        // delivered.
+        const [orderMessage] = await db
+            .insert(chatMessages)
+            .values({
+                customerId: customer.id,
+                milkmanId,
+                senderId: userId,
+                senderType: "customer",
+                message: `${quantity} ${itemName ? `× ${itemName}` : "L"}`
+                    + (specialInstructions ? ` (${specialInstructions})` : ""),
+                messageType: "order",
+                orderQuantity: quantity.toString(),
+                orderProduct: itemName || null,
+                orderTotal: totalAmount,
+            })
+            .returning();
+
         const [newOrder] = await db
             .insert(orders)
             .values({
@@ -133,11 +156,22 @@ router.post("/", async (req: AuthRequest, res) => {
                 status: "pending",
                 deliveryDate: new Date(deliveryDate),
                 deliveryTime,
-                specialInstructions,
+                // Tag links this order to the message, so marking the message
+                // delivered updates exactly this order. The customer's own note
+                // is kept on the message above rather than lost.
+                specialInstructions: `chatMsg:${orderMessage.id}`,
             })
             .returning();
 
         res.json(newOrder);
+
+        // Let the milkman's delivery run and chat update without a refresh.
+        broadcast({
+            type: "new_message",
+            message: orderMessage,
+            customerId: customer.id,
+            milkmanId,
+        }, await partyUserIds({ customerId: customer.id, milkmanId }));
 
         // Notify Milkman about New Order
         try {
