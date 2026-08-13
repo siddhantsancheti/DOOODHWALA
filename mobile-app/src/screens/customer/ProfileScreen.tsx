@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, TextInput, Alert, Image, Platform,
@@ -8,10 +8,15 @@ import { useAuth } from '../../hooks/useAuth';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '../../lib/queryClient';
 import { User, Phone, Mail, MapPin, Edit3, Save, X, Camera, Map } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
+import { fontSize, fontWeight, borderRadius, spacing, shadows } from '../../theme';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export default function ProfileScreen({ navigation }: any) {
-  const { colors } = useTheme();
+  const { colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
+  const styles = useMemo(
+    () => createStyles(colors, isDark, fontFamily, fontFamilyBold),
+    [colors, isDark, fontFamily, fontFamilyBold],
+  );
   const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ name: '', address: '', email: '', businessName: '', pricePerLiter: '' });
@@ -284,6 +289,11 @@ export default function ProfileScreen({ navigation }: any) {
 }
 
 function InfoRow({ label, value, icon, isBadge, badgeColor, isMono, isVerified, isEditing, editValue, onEdit, multiline }: any) {
+  const { colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
+  const infoStyles = useMemo(
+    () => createInfoStyles(colors, isDark, fontFamily, fontFamilyBold),
+    [colors, isDark, fontFamily, fontFamilyBold],
+  );
   return (
     <View style={infoStyles.row}>
       <Text style={infoStyles.label}>{label}</Text>
@@ -299,8 +309,8 @@ function InfoRow({ label, value, icon, isBadge, badgeColor, isMono, isVerified, 
             placeholder={`Enter ${label.toLowerCase()}`}
           />
         ) : isBadge ? (
-          <View style={[infoStyles.badge, { backgroundColor: badgeColor ? `${badgeColor}20` : '#DBEAFE' }]}>
-            <Text style={[infoStyles.badgeText, { color: badgeColor || '#1E40AF' }]}>{value}</Text>
+          <View style={[infoStyles.badge, { backgroundColor: badgeColor ? `${badgeColor}20` : (isDark ? 'rgba(37,99,235,0.25)' : '#DBEAFE') }]}>
+            <Text style={[infoStyles.badgeText, { color: badgeColor || colors.primary }]}>{value}</Text>
           </View>
         ) : (
           <Text style={[infoStyles.value, isMono && infoStyles.mono]}>{value}</Text>
@@ -316,33 +326,33 @@ function InfoRow({ label, value, icon, isBadge, badgeColor, isMono, isVerified, 
   );
 }
 
-const infoStyles = StyleSheet.create({
+const createInfoStyles = (colors: any, isDark: boolean, fontFamily: string, fontFamilyBold: string) => StyleSheet.create({
   row: { marginBottom: spacing.lg },
-  label: { fontSize: fontSize.sm, fontWeight: '500', color: colors.gray500, marginBottom: 4 },
+  label: { fontSize: fontSize.sm, fontWeight: '500', color: colors.mutedForeground, marginBottom: 4, fontFamily },
   valueContainer: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   iconBox: { marginRight: spacing.sm, marginTop: 2 },
-  value: { fontSize: fontSize.base, color: colors.foreground, fontWeight: '500' },
+  value: { fontSize: fontSize.base, color: colors.foreground, fontWeight: '500', fontFamily },
   mono: { fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: fontSize.sm },
   input: {
     flex: 1, borderWidth: 1, borderColor: colors.input, borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    fontSize: fontSize.base, backgroundColor: colors.surfaceSecondary, color: colors.foreground,
+    fontSize: fontSize.base, backgroundColor: colors.surfaceSecondary, color: colors.foreground, fontFamily,
   },
   badge: {
     paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full,
   },
-  badgeText: { fontSize: fontSize.xs, fontWeight: '600' },
+  badgeText: { fontSize: fontSize.xs, fontWeight: '600', fontFamily: fontFamilyBold },
   verifiedBadge: {
-    marginLeft: spacing.sm, backgroundColor: '#DCFCE7',
+    marginLeft: spacing.sm, backgroundColor: isDark ? 'rgba(22,163,74,0.2)' : '#DCFCE7',
     paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full,
   },
-  verifiedText: { color: '#16A34A', fontSize: fontSize.xs, fontWeight: '600' },
+  verifiedText: { color: '#16A34A', fontSize: fontSize.xs, fontWeight: '600', fontFamily: fontFamilyBold },
 });
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
+const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFamilyBold: string) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 
   // Top Nav
   topNav: {
@@ -351,7 +361,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -364,25 +374,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
+    fontFamily: fontFamilyBold,
   },
-  logoText: { fontSize: fontSize.lg, fontWeight: '900', color: colors.primary, letterSpacing: -0.5 },
+  logoText: { fontSize: fontSize.lg, fontWeight: '900', color: colors.primary, letterSpacing: -0.5, fontFamily: fontFamilyBold },
 
   // Page Header
   pageHeader: { padding: spacing.xl, paddingBottom: spacing.lg },
-  pageTitle: { fontSize: 24, fontWeight: '800', color: colors.foreground, marginBottom: spacing.xl },
+  pageTitle: { fontSize: 24, fontWeight: '800', color: colors.foreground, marginBottom: spacing.xl, fontFamily: fontFamilyBold },
   
   avatarContainer: { alignSelf: 'center', marginBottom: spacing.lg, position: 'relative' },
   avatar: {
     width: 96, height: 96, borderRadius: 48,
     backgroundColor: colors.gray200, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 4, borderColor: colors.white, ...shadows.md, overflow: 'hidden',
+    borderWidth: 4, borderColor: colors.card, ...shadows.md, overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
   cameraBtn: {
     position: 'absolute', bottom: 0, right: 0,
     backgroundColor: colors.primary, width: 32, height: 32, borderRadius: 16,
     justifyContent: 'center', alignItems: 'center', ...shadows.sm,
-    borderWidth: 2, borderColor: colors.white,
+    borderWidth: 2, borderColor: colors.card,
   },
 
   editMainBtn: {
@@ -390,7 +401,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: borderRadius.lg,
     alignItems: 'center', gap: spacing.sm, ...shadows.sm,
   },
-  editMainText: { color: colors.white, fontWeight: '600', fontSize: fontSize.sm },
+  editMainText: { color: '#FFFFFF', fontWeight: '600', fontSize: fontSize.sm, fontFamily: fontFamilyBold },
   
   editActionsTop: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'center' },
   saveTopBtn: {
@@ -398,33 +409,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.lg,
     alignItems: 'center', gap: spacing.sm,
   },
-  saveTopText: { color: colors.white, fontWeight: '600', fontSize: fontSize.sm },
+  saveTopText: { color: '#FFFFFF', fontWeight: '600', fontSize: fontSize.sm, fontFamily: fontFamilyBold },
   cancelTopBtn: {
-    flexDirection: 'row', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadius.lg,
     alignItems: 'center', gap: spacing.sm,
   },
-  cancelTopText: { color: colors.foreground, fontWeight: '600', fontSize: fontSize.sm },
+  cancelTopText: { color: colors.foreground, fontWeight: '600', fontSize: fontSize.sm, fontFamily: fontFamilyBold },
 
   // Cards
   card: {
-    backgroundColor: colors.white, marginHorizontal: spacing.xl, marginBottom: spacing.lg,
-    borderRadius: borderRadius.lg, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', ...shadows.sm,
+    backgroundColor: colors.card, marginHorizontal: spacing.xl, marginBottom: spacing.lg,
+    borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, ...shadows.sm,
   },
   cardHeader: {
     flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.sm,
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  cardTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.foreground },
+  cardTitle: { fontSize: fontSize.lg, fontWeight: '700', color: colors.foreground, fontFamily: fontFamilyBold },
   cardContent: { padding: spacing.lg, paddingBottom: 0 },
 
   // Logout
   logoutBtn: {
-    marginHorizontal: spacing.xl, marginTop: spacing.md, backgroundColor: colors.white,
+    marginHorizontal: spacing.xl, marginTop: spacing.md, backgroundColor: colors.card,
     borderRadius: borderRadius.lg, height: 48, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: colors.destructive,
   },
-  logoutText: { color: colors.destructive, fontSize: fontSize.base, fontWeight: '600' },
+  logoutText: { color: colors.destructive, fontSize: fontSize.base, fontWeight: '600', fontFamily: fontFamilyBold },
   deleteBtn: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
-  deleteText: { color: colors.destructive, fontSize: fontSize.sm, fontWeight: '700', textDecorationLine: 'underline' },
+  deleteText: { color: colors.destructive, fontSize: fontSize.sm, fontWeight: '700', textDecorationLine: 'underline', fontFamily: fontFamilyBold },
 });

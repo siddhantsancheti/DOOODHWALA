@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
@@ -6,8 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../lib/queryClient';
-import { Banknote, CreditCard, Wallet, ShieldCheck, ArrowLeft, Check, Smartphone } from 'lucide-react-native';
-import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
+import { Banknote, ShieldCheck, ArrowLeft, Smartphone } from 'lucide-react-native';
+import { useTranslation } from '../../contexts/LanguageContext';
 // Lazy import to prevent native module crash on startup
 let RazorpayCheckout: any = null;
 try {
@@ -17,7 +17,11 @@ try {
 }
 
 export default function CheckoutScreen({ route, navigation }: any) {
-  const { colors } = useTheme();
+  const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
+  const styles = useMemo(
+    () => createStyles(colors, isDark, fontFamily, fontFamilyBold),
+    [colors, isDark, fontFamily, fontFamilyBold],
+  );
   const { user } = useAuth();
   const amount = route.params?.amount || 100;
   const description = route.params?.description || 'Milk Delivery Payment';
@@ -26,7 +30,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
   const groupId = route.params?.groupId || null;
   const unassignAfter = route.params?.unassignAfter || false;
   const [isProcessing, setIsProcessing] = useState(false);
-  const [tab, setTab] = useState<'cod' | 'razorpay' | 'stripe'>('cod');
+  const [method, setMethod] = useState<'online' | 'cod'>('online');
 
   const { data: groupBill, isLoading: groupLoading } = useQuery<any>({
     queryKey: [`/api/groups/${groupId}/bill`],
@@ -165,306 +169,194 @@ export default function CheckoutScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <ArrowLeft size={16} color={colors.primary} />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.navBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10} activeOpacity={0.7}>
+          <ArrowLeft size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <Text style={styles.navTitle} numberOfLines={1}>{t('payment')}</Text>
+        <View style={{ width: 22 }} />
+      </View>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* What you are paying for, and how much. The amount is the largest
+            thing on the screen because it is the fact being confirmed. */}
+        <View style={styles.amountCard}>
+          <Text style={styles.amountLabel} numberOfLines={1}>{t('amountToPay')}</Text>
+          <Text
+            style={styles.amountValue}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+          >
+            ₹{amount}
+          </Text>
+          <Text style={styles.amountDesc} numberOfLines={2}>{description}</Text>
+          {paymentType === 'consolidated' && (
+            <View style={styles.groupBadge}>
+              <Text style={styles.groupBadgeText} numberOfLines={1}>{t('groupBill')}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Two real choices. The old screen listed ten payment buttons — Google
+            Pay, PhonePe, cards, wallets — that every one opened the same
+            Razorpay sheet, which then asked for the method again. Razorpay owns
+            method selection; this screen only asks pay-now or pay-on-delivery. */}
+        <Text style={styles.sectionLabel} numberOfLines={1}>{t('howToPay')}</Text>
+
+        <TouchableOpacity
+          style={[styles.option, method === 'online' && styles.optionActive]}
+          onPress={() => setMethod('online')}
+          activeOpacity={0.8}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: method === 'online' }}
+        >
+          <View style={[styles.optionIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#DBEAFE' }]}>
+            <Smartphone size={20} color={colors.primary} />
+          </View>
+          <View style={styles.optionText}>
+            <Text style={styles.optionTitle} numberOfLines={1}>{t('payOnline')}</Text>
+            <Text style={styles.optionDesc} numberOfLines={2}>{t('payOnlineDesc')}</Text>
+          </View>
+          <View style={[styles.radio, method === 'online' && styles.radioOn]}>
+            {method === 'online' && <View style={styles.radioDot} />}
+          </View>
         </TouchableOpacity>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.pageTitle}>Secure Checkout</Text>
-          <Text style={styles.pageSubtitle}>Choose your preferred payment method</Text>
-        </View>
-
-        {/* Merchant Card */}
-        <View style={styles.card}>
-          <View style={styles.merchantHeader}>
-            <View style={styles.merchantIcon}>
-              <Text style={styles.merchantIconText}>D</Text>
-            </View>
-            <Text style={styles.merchantName}>DOOODHWALA</Text>
+        <TouchableOpacity
+          style={[styles.option, method === 'cod' && styles.optionActive]}
+          onPress={() => setMethod('cod')}
+          activeOpacity={0.8}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: method === 'cod' }}
+        >
+          <View style={[styles.optionIcon, { backgroundColor: isDark ? 'rgba(22,163,74,0.2)' : '#DCFCE7' }]}>
+            <Banknote size={20} color="#16A34A" />
           </View>
-          <Text style={styles.merchantDesc}>{description}</Text>
-
-          <View style={styles.divider} />
-
-          <View style={styles.amountRow}>
-            <View>
-              <Text style={styles.amountLabel}>Total Amount:</Text>
-              {paymentType === 'consolidated' && (
-                <View style={styles.groupBadge}>
-                  <Text style={styles.groupBadgeText}>Group Bill</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.amountValue}>₹{amount}</Text>
+          <View style={styles.optionText}>
+            <Text style={styles.optionTitle} numberOfLines={1}>{t('cashOnDelivery')}</Text>
+            <Text style={styles.optionDesc} numberOfLines={2}>{t('codDesc')}</Text>
           </View>
-        </View>
-
-        {/* Payment Tabs Card */}
-        <View style={styles.card}>
-          <View style={styles.tabsContainer}>
-            <TouchableOpacity 
-              style={[styles.tab, tab === 'cod' && styles.activeTab]} 
-              onPress={() => setTab('cod')} activeOpacity={0.8}
-            >
-              <Banknote size={16} color={tab === 'cod' ? colors.foreground : colors.mutedForeground} />
-              <Text style={[styles.tabText, tab === 'cod' && styles.activeTabText]}>Cash on Delivery</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.tab, tab === 'razorpay' && styles.activeTab]} 
-              onPress={() => setTab('razorpay')} activeOpacity={0.8}
-            >
-              <CreditCard size={16} color={tab === 'razorpay' ? colors.foreground : colors.mutedForeground} />
-              <Text style={[styles.tabText, tab === 'razorpay' && styles.activeTabText]}>UPI & Cards</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.tab, tab === 'stripe' && styles.activeTab]} 
-              onPress={() => setTab('stripe')} activeOpacity={0.8}
-            >
-              <Wallet size={16} color={tab === 'stripe' ? colors.foreground : colors.mutedForeground} />
-              <Text style={[styles.tabText, tab === 'stripe' && styles.activeTabText]}>International</Text>
-            </TouchableOpacity>
+          <View style={[styles.radio, method === 'cod' && styles.radioOn]}>
+            {method === 'cod' && <View style={styles.radioDot} />}
           </View>
+        </TouchableOpacity>
 
-          {/* COD Tab Content */}
-          {tab === 'cod' && (
-            <View style={styles.tabContent}>
-              <View style={styles.codBanner}>
-                <View style={styles.codIconBg}>
-                  <Banknote size={24} color={colors.white} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.codTitle}>Cash on Delivery</Text>
-                  <Text style={styles.codDesc}>Pay with cash when your order is delivered. No online payment required.</Text>
-                  
-                  <View style={styles.codFeatureRow}>
-                    <Check size={14} color="#15803d" />
-                    <Text style={styles.codFeatureText}>No payment gateway charges</Text>
-                  </View>
-                  <View style={styles.codFeatureRow}>
-                    <Check size={14} color="#15803d" />
-                    <Text style={styles.codFeatureText}>Pay only when you receive your order</Text>
-                  </View>
-                  <View style={styles.codFeatureRow}>
-                    <Check size={14} color="#15803d" />
-                    <Text style={styles.codFeatureText}>Secure OTP verification for payment confirmation</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.codInstructions}>
-                <Text style={styles.codInsTitle}>Payment Instructions</Text>
-                <Text style={styles.codInsText}>1. Keep exact change ready: ₹{amount}</Text>
-                <Text style={styles.codInsText}>2. You'll receive an OTP via SMS</Text>
-                <Text style={styles.codInsText}>3. Share the OTP with your milkman when paying</Text>
-              </View>
-
-              <TouchableOpacity 
-                style={styles.payBtnGreen} 
-                onPress={handleCODOrder} 
-                disabled={isProcessing} 
-                activeOpacity={0.8}
-              >
-                {isProcessing ? (
-                   <ActivityIndicator color={colors.white} />
-                ) : (
-                  <Text style={styles.payBtnText}>Confirm Cash on Delivery - ₹{amount}</Text>
-                )}
-              </TouchableOpacity>
-              
-              <View style={styles.secureBottom}>
-                <Check size={16} color={colors.success} />
-                <Text style={styles.secureBottomText}>No payment required now - Pay on delivery</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Razorpay Tab Content */}
-          {tab === 'razorpay' && (
-            <View style={styles.tabContent}>
-              <View style={styles.rzpSection}>
-                <View style={styles.rzpHeader}>
-                  <Smartphone size={20} color={colors.primary} />
-                  <Text style={styles.rzpTitle}>UPI Payments</Text>
-                  <View style={styles.instantBadge}>
-                    <Text style={styles.instantBadgeText}>Instant</Text>
-                  </View>
-                </View>
-                <View style={styles.rzpGrid}>
-                  {['Google Pay', 'PhonePe', 'Paytm', 'BHIM'].map(app => (
-                    <TouchableOpacity key={app} style={styles.rzpGridItem} onPress={handleRazorpayPayment} disabled={isProcessing}>
-                      <Text style={styles.rzpGridItemText}>{app}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.rzpSection}>
-                <View style={styles.rzpHeader}>
-                  <CreditCard size={20} color={colors.success} />
-                  <Text style={styles.rzpTitle}>Cards & Banking</Text>
-                </View>
-                <View style={styles.rzpGrid3}>
-                  {['Credit Card', 'Debit Card', 'Net Banking'].map(method => (
-                    <TouchableOpacity key={method} style={styles.rzpGridItem} onPress={handleRazorpayPayment} disabled={isProcessing}>
-                      <Text style={styles.rzpGridItemText}>{method}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.rzpSection}>
-                <View style={styles.rzpHeader}>
-                  <Wallet size={20} color="#9333ea" />
-                  <Text style={styles.rzpTitle}>Wallets</Text>
-                </View>
-                <View style={styles.rzpGrid3}>
-                  {['Paytm Wallet', 'Amazon Pay', 'Mobikwik'].map(wallet => (
-                    <TouchableOpacity key={wallet} style={styles.rzpGridItem} onPress={handleRazorpayPayment} disabled={isProcessing}>
-                      <Text style={styles.rzpGridItemText}>{wallet}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <TouchableOpacity 
-                style={styles.payBtnBlue} 
-                onPress={handleRazorpayPayment} 
-                disabled={isProcessing} 
-                activeOpacity={0.8}
-              >
-                {isProcessing ? (
-                   <ActivityIndicator color={colors.white} />
-                ) : (
-                  <Text style={styles.payBtnText}>Pay ₹{amount} with Razorpay</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Stripe Tab Content */}
-          {tab === 'stripe' && (
-            <View style={styles.tabContent}>
-              <View style={styles.stripeEmpty}>
-                <Text style={styles.stripeEmptyTitle}>International payments currently unavailable</Text>
-                <Text style={styles.stripeEmptyDesc}>Please use Cash on Delivery or UPI payments</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.secureFooter}>
-          <ShieldCheck size={16} color={colors.gray500} />
-          <Text style={styles.secureFooterTitle}>Your payment information is encrypted and secure</Text>
-        </View>
-        <Text style={styles.secureFooterSub}>Powered by Razorpay & Stripe</Text>
-
-        <View style={{ height: 40 }} />
+        {/* Only what changes by choice — three lines, not a wall of features. */}
+        {method === 'cod' && (
+          <View style={styles.note}>
+            <Text style={styles.noteTitle} numberOfLines={1}>{t('atDelivery')}</Text>
+            <Text style={styles.noteLine}>1. {t('codStep1')} ₹{amount}</Text>
+            <Text style={styles.noteLine}>2. {t('codStep2')}</Text>
+            <Text style={styles.noteLine}>3. {t('codStep3')}</Text>
+          </View>
+        )}
       </ScrollView>
+
+      {/* The action stays pinned so it is reachable without scrolling back. */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.payBtn, method === 'cod' && styles.payBtnCod, isProcessing && styles.payBtnBusy]}
+          onPress={method === 'cod' ? handleCODOrder : handleRazorpayPayment}
+          disabled={isProcessing}
+          activeOpacity={0.85}
+        >
+          {isProcessing
+            ? <ActivityIndicator color="#FFFFFF" />
+            : (
+              <Text style={styles.payBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                {method === 'cod' ? `${t('confirmOrder')} · ₹${amount}` : `${t('pay')} ₹${amount}`}
+              </Text>
+            )}
+        </TouchableOpacity>
+
+        <View style={styles.secureRow}>
+          <ShieldCheck size={13} color={colors.mutedForeground} />
+          <Text style={styles.secureText} numberOfLines={2}>
+            {method === 'cod' ? t('nothingChargedNow') : t('securedByRazorpay')}
+          </Text>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#EFF6FF' },
-  container: { flex: 1, padding: spacing.xl },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EFF6FF' },
-  
-  backBtn: {
-    alignSelf: 'flex-start',
-    width: 40, height: 40,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: borderRadius.md,
-    borderWidth: 1, borderColor: colors.border,
+const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFamilyBold: string) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  container: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 24 },
+
+  navBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    gap: 12, paddingHorizontal: 16, paddingVertical: 12,
+  },
+  navTitle: { flex: 1, textAlign: 'center', fontSize: 17, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '700' },
+
+  // Amount — the fact being confirmed, so it leads.
+  amountCard: {
+    alignItems: 'center', backgroundColor: colors.card, borderRadius: 20,
+    borderWidth: 1, borderColor: colors.border, padding: 24, marginBottom: 24,
+  },
+  amountLabel: { fontSize: 13, color: colors.mutedForeground, fontFamily },
+  amountValue: {
+    fontSize: 44, color: colors.foreground, fontFamily: fontFamilyBold,
+    fontWeight: '800', marginTop: 2, marginBottom: 6,
+  },
+  amountDesc: { fontSize: 14, color: colors.mutedForeground, fontFamily, textAlign: 'center', lineHeight: 20 },
+  groupBadge: {
+    marginTop: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+    backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#DBEAFE',
+  },
+  groupBadgeText: { fontSize: 11, color: colors.primary, fontFamily: fontFamilyBold, fontWeight: '700' },
+
+  sectionLabel: {
+    fontSize: 13, color: colors.mutedForeground, fontFamily: fontFamilyBold,
+    fontWeight: '600', marginBottom: 8, marginLeft: 2,
+  },
+
+  // Options — text column flexes so a translated description cannot push the
+  // radio off the row.
+  option: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: colors.card, borderRadius: 16,
+    borderWidth: 1.5, borderColor: colors.border, padding: 16, marginBottom: 10,
+  },
+  optionActive: { borderColor: colors.primary },
+  optionIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  optionText: { flex: 1, minWidth: 0 },
+  optionTitle: { fontSize: 16, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '700' },
+  optionDesc: { fontSize: 13, color: colors.mutedForeground, fontFamily, marginTop: 2, lineHeight: 18 },
+  radio: {
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border,
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: spacing.lg,
   },
-  
-  header: { alignItems: 'center', marginBottom: spacing.xl },
-  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 4 },
-  pageSubtitle: { fontSize: fontSize.base, color: colors.gray600 },
+  radioOn: { borderColor: colors.primary },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
 
-  // Card Structure
-  card: {
-    backgroundColor: colors.white, borderRadius: borderRadius.lg,
-    padding: spacing.xl, marginBottom: spacing.lg,
-    borderWidth: 1, borderColor: colors.border, ...shadows.sm,
+  note: {
+    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F8FAFC',
+    borderRadius: 14, padding: 16, marginTop: 6, gap: 4,
   },
-  
-  // Merchant Info
-  merchantHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm },
-  merchantIcon: { width: 32, height: 32, backgroundColor: colors.primary, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  merchantIconText: { color: colors.white, fontSize: 14, fontWeight: 'bold' },
-  merchantName: { fontSize: fontSize.lg, fontWeight: '700', color: colors.foreground },
-  merchantDesc: { fontSize: fontSize.base, color: colors.gray600 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.lg },
-  amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  amountLabel: { fontSize: fontSize.lg, fontWeight: '600', color: colors.foreground },
-  amountValue: { fontSize: 22, fontWeight: '700', color: colors.primary },
-  groupBadge: { backgroundColor: '#DBEAFE', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
-  groupBadgeText: { fontSize: 10, fontWeight: '700', color: '#1E40AF', textTransform: 'uppercase' },
+  noteTitle: { fontSize: 13, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '700', marginBottom: 2 },
+  noteLine: { fontSize: 13, color: colors.mutedForeground, fontFamily, lineHeight: 20 },
 
-  // Tabs
-  tabsContainer: { flexDirection: 'row', backgroundColor: colors.gray100, borderRadius: borderRadius.md, padding: 4 },
-  tab: { 
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
-    gap: 6, paddingVertical: spacing.sm, borderRadius: borderRadius.sm 
+  footer: {
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16,
+    borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card, gap: 10,
   },
-  activeTab: { backgroundColor: colors.white, ...shadows.sm },
-  tabText: { fontSize: 12, fontWeight: '500', color: colors.mutedForeground },
-  activeTabText: { color: colors.foreground, fontWeight: '700' },
-  tabContent: { marginTop: spacing.xl },
-
-  // COD Section
-  codBanner: { backgroundColor: '#F0FDF4', padding: spacing.lg, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#BBF7D0', flexDirection: 'row', gap: spacing.md },
-  codIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#16A34A', justifyContent: 'center', alignItems: 'center' },
-  codTitle: { fontSize: fontSize.base, fontWeight: '700', color: '#14532D', marginBottom: 4 },
-  codDesc: { fontSize: 13, color: '#166534', marginBottom: spacing.md },
-  codFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 },
-  codFeatureText: { fontSize: 13, color: '#15803D' },
-  
-  codInstructions: { backgroundColor: '#FFF7ED', padding: spacing.md, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: '#FED7AA', marginTop: spacing.lg, marginBottom: spacing.xl },
-  codInsTitle: { fontSize: 14, fontWeight: '600', color: '#7C2D12', marginBottom: 4 },
-  codInsText: { fontSize: 13, color: '#9A3412', marginBottom: 2 },
-  
-  payBtnGreen: { backgroundColor: '#16A34A', height: 52, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
-  payBtnBlue: { backgroundColor: colors.primary, height: 52, borderRadius: borderRadius.md, justifyContent: 'center', alignItems: 'center' },
-  payBtnText: { color: colors.white, fontSize: fontSize.base, fontWeight: '600' },
-  
-  secureBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg },
-  secureBottomText: { fontSize: 13, color: colors.gray500 },
-
-  // RZP Section
-  rzpSection: { marginBottom: spacing.sm },
-  rzpHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  rzpTitle: { fontSize: fontSize.base, fontWeight: '600', color: colors.foreground },
-  instantBadge: { backgroundColor: colors.gray100, paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full },
-  instantBadgeText: { fontSize: 10, fontWeight: '600', color: colors.gray600 },
-  
-  rzpGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  rzpGrid3: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  rzpGridItem: { 
-    width: '48%', height: 44, borderWidth: 1, borderColor: colors.border, 
-    borderRadius: borderRadius.sm, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.white
+  payBtn: {
+    height: 54, borderRadius: 14, backgroundColor: colors.primary,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16,
   },
-  rzpGridItemText: { fontSize: 12, fontWeight: '500', color: colors.foreground },
-
-  // Stripe
-  stripeEmpty: { paddingVertical: spacing['3xl'], alignItems: 'center' },
-  stripeEmptyTitle: { fontSize: fontSize.base, color: colors.gray500, textAlign: 'center', marginBottom: 4 },
-  stripeEmptyDesc: { fontSize: 13, color: colors.gray400, textAlign: 'center' },
-
-  // Footer
-  secureFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing.xl },
-  secureFooterTitle: { fontSize: 12, color: colors.gray500 },
-  secureFooterSub: { fontSize: 12, color: colors.gray500, textAlign: 'center', marginTop: 2 },
+  payBtnCod: { backgroundColor: '#16A34A' },
+  payBtnBusy: { opacity: 0.7 },
+  payBtnText: { fontSize: 17, color: '#FFFFFF', fontFamily: fontFamilyBold, fontWeight: '700' },
+  secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  secureText: { fontSize: 12, color: colors.mutedForeground, fontFamily, textAlign: 'center' },
 });
