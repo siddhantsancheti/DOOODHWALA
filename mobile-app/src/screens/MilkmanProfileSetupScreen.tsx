@@ -9,6 +9,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { MapPin, Truck, Clock, CreditCard, Plus, X } from 'lucide-react-native';
 import { useTranslation } from '../contexts/LanguageContext';
+import SelectField from '../components/SelectField';
+import { INDIA_STATES } from '../lib/indiaStates';
 
 export default function MilkmanProfileSetupScreen({ navigation }: any) {
   const queryClient = useQueryClient();
@@ -25,11 +27,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
   const [formData, setFormData] = useState({
     contactName: '',
     businessName: '',
-    houseNumber: '',
-    buildingName: '',
-    streetName: '',
-    area: '',
-    landmark: '',
+    address: '',
     city: '',
     state: '',
     pincode: '',
@@ -107,18 +105,14 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
 
   const handleSubmit = async () => {
     setSubmitAttempted(true);
-    if (!formData.contactName || !formData.businessName || !formData.streetName || !formData.area || !formData.city || !formData.pincode) {
+    if (!formData.contactName || !formData.businessName || !formData.address || !formData.city) {
       Alert.alert(t('requiredFields'), t('fillRequired'));
       return;
     }
 
     // Concatenate address
     const addressParts = [
-      formData.houseNumber,
-      formData.buildingName,
-      formData.streetName,
-      formData.area,
-      formData.landmark,
+      formData.address,
       formData.city,
       formData.state,
       formData.pincode,
@@ -172,7 +166,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
   };
 
   const update = (key: string, val: string) => setFormData({ ...formData, [key]: val });
-  const isValid = formData.contactName && formData.businessName && formData.streetName && formData.area && formData.city && formData.pincode;
+  const isValid = formData.contactName && formData.businessName && formData.address && formData.city;
 
   const errorColor = '#DC2626';
   const errorBorder = '#EF4444';
@@ -284,80 +278,62 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
             
-            <View style={styles.gridRow}>
-              <View style={styles.gridCol}>
-                <Text style={styles.subLabel}>{t('houseNo')}</Text>
-                {renderInput('houseNumber', 'e.g. 123')}
+            {/* One address field instead of four — a milkman types their
+                address the way they'd say it, and the map pin above already
+                carries the precision that separate fields were trying to. */}
+            <View>
+              <Text style={[styles.label, { color: fieldError('address') ? colors.destructive : colors.foreground }]}>
+                {t('address')} <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={[
+                styles.textAreaRow,
+                focusedField === 'address' && styles.inputFocused,
+                fieldError('address') && { borderColor: colors.destructive, borderWidth: 2 },
+              ]}>
+                <TextInput
+                  style={styles.textArea}
+                  placeholder="Flat / building, street, area"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={formData.address}
+                  onChangeText={(val) => update('address', val)}
+                  onFocus={() => setFocusedField('address')}
+                  onBlur={() => setFocusedField('')}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
               </View>
-              <View style={[styles.gridCol, { marginLeft: 10 }]}>
-                <Text style={styles.subLabel}>{t('buildingSoc')}</Text>
-                {renderInput('buildingName', 'e.g. Society')}
-              </View>
-            </View>
-
-            <View style={styles.marginTop}>
-              <Text style={[styles.label, { color: fieldError('streetName') ? colors.destructive : colors.foreground }]}>{t('streetName')} <Text style={styles.required}>*</Text></Text>
-              <View style={[styles.inputRow, focusedField === 'streetName' && styles.inputFocused, fieldError('streetName') && { borderColor: colors.destructive, borderWidth: 2 }]}>
-                <TextInput style={styles.input} placeholder="e.g. MG Road" placeholderTextColor={colors.mutedForeground} value={formData.streetName} onChangeText={(val) => update('streetName', val)} onFocus={() => setFocusedField('streetName')} onBlur={() => setFocusedField('')} returnKeyType="next" />
-              </View>
-              {fieldError('streetName') && <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 2, fontFamily }}>{t('streetRequired')}</Text>}
-            </View>
-
-            <View style={styles.marginTop}>
-              <Text style={[styles.label, { color: fieldError('area') ? colors.destructive : colors.foreground }]}>{t('areaLoc')} <Text style={styles.required}>*</Text></Text>
-              <View style={[styles.inputRow, focusedField === 'area' && styles.inputFocused, fieldError('area') && { borderColor: colors.destructive, borderWidth: 2 }]}>
-                <TextInput style={styles.input} placeholder="e.g. Koregaon Park" placeholderTextColor={colors.mutedForeground} value={formData.area} onChangeText={(val) => update('area', val)} onFocus={() => setFocusedField('area')} onBlur={() => setFocusedField('')} returnKeyType="next" />
-              </View>
-              {fieldError('area') && <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 2, fontFamily }}>{t('areaRequired')}</Text>}
+              {fieldError('address') && <Text style={styles.fieldErrorText}>{t('addressRequired')}</Text>}
             </View>
 
             <View style={[styles.gridRow, styles.marginTop]}>
               <View style={styles.gridCol}>
-                <Text style={[styles.label, { color: fieldError('city') ? colors.destructive : colors.foreground }]}>{t('city')} <Text style={styles.required}>*</Text></Text>
+                <Text style={[styles.label, { color: fieldError('city') ? colors.destructive : colors.foreground }]} numberOfLines={1}>
+                  {t('city')} <Text style={styles.required}>*</Text>
+                </Text>
                 <View style={[styles.inputRow, focusedField === 'city' && styles.inputFocused, fieldError('city') && { borderColor: colors.destructive, borderWidth: 2 }]}>
-                  <TextInput style={styles.input} placeholder="e.g. Mumbai" placeholderTextColor={colors.mutedForeground} value={formData.city} onChangeText={(val) => update('city', val)} onFocus={() => setFocusedField('city')} onBlur={() => setFocusedField('')} returnKeyType="next" />
+                  <TextInput style={styles.input} placeholder="Mumbai" placeholderTextColor={colors.mutedForeground} value={formData.city} onChangeText={(val) => update('city', val)} onFocus={() => setFocusedField('city')} onBlur={() => setFocusedField('')} returnKeyType="next" />
                 </View>
-                {fieldError('city') && <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 2, fontFamily }}>{t('cityRequired')}</Text>}
+                {fieldError('city') && <Text style={styles.fieldErrorText}>{t('cityRequired')}</Text>}
               </View>
               <View style={[styles.gridCol, { marginLeft: 10 }]}>
-                <Text style={[styles.label, { color: fieldError('pincode') ? colors.destructive : colors.foreground }]}>{t('pincode')} <Text style={styles.required}>*</Text></Text>
-                <View style={[styles.inputRow, focusedField === 'pincode' && styles.inputFocused, fieldError('pincode') && { borderColor: colors.destructive, borderWidth: 2 }]}>
-                  <TextInput style={styles.input} placeholder="123456" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" value={formData.pincode} onChangeText={(val) => update('pincode', val)} onFocus={() => setFocusedField('pincode')} onBlur={() => setFocusedField('')} returnKeyType="next" />
+                <Text style={styles.label} numberOfLines={1}>{t('pincode')}</Text>
+                <View style={[styles.inputRow, focusedField === 'pincode' && styles.inputFocused]}>
+                  <TextInput style={styles.input} placeholder="411001" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" maxLength={6} value={formData.pincode} onChangeText={(val) => update('pincode', val.replace(/[^0-9]/g, ''))} onFocus={() => setFocusedField('pincode')} onBlur={() => setFocusedField('')} returnKeyType="next" />
                 </View>
-                {fieldError('pincode') && <Text style={{ color: colors.destructive, fontSize: 12, marginTop: 2, fontFamily }}>{t('pincodeRequired')}</Text>}
               </View>
             </View>
 
             <View style={styles.marginTop}>
               <Text style={styles.label}>{t('state')}</Text>
-              <View style={[styles.inputRow, focusedField === 'state' && styles.inputFocused]}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Maharashtra"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={formData.state}
-                  onChangeText={(val) => update('state', val)}
-                  onFocus={() => setFocusedField('state')}
-                  onBlur={() => setFocusedField('')}
-                  returnKeyType="next"
-                />
-              </View>
-            </View>
-
-            <View style={styles.marginTop}>
-              <Text style={styles.label}>{t('landmark')}</Text>
-              <View style={[styles.inputRow, focusedField === 'landmark' && styles.inputFocused]}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Near City Mall"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={formData.landmark}
-                  onChangeText={(val) => update('landmark', val)}
-                  onFocus={() => setFocusedField('landmark')}
-                  onBlur={() => setFocusedField('')}
-                  returnKeyType="done"
-                />
-              </View>
+              <SelectField
+                value={formData.state}
+                options={INDIA_STATES}
+                onChange={(val) => update('state', val)}
+                placeholder="Select state"
+                title="Select state"
+                searchable
+              />
             </View>
           </View>
 
@@ -620,6 +596,16 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     color: '#FFFFFF', fontSize: 18, fontWeight: '700',
     fontFamily: fontFamilyBold,
   },
+  textAreaRow: {
+    borderWidth: 1, borderColor: colors.border, borderRadius: 8,
+    backgroundColor: colors.surfaceSecondary || (isDark ? '#374151' : '#F9FAFB'),
+    paddingHorizontal: 16, paddingVertical: 12, minHeight: 88,
+  },
+  textArea: {
+    fontSize: 16, color: colors.foreground, fontFamily,
+    padding: 0, minHeight: 64, lineHeight: 22,
+  },
+  fieldErrorText: { color: colors.destructive, fontSize: 12, marginTop: 4, fontFamily },
   gridRow: { flexDirection: 'row' },
   gridCol: { flex: 1 },
   subLabel: { fontSize: 12, color: colors.mutedForeground, marginBottom: 4, fontFamily },

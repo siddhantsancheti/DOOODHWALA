@@ -16,9 +16,12 @@ EnvironmentFile=/home/dooodhwala/DOOODHWALA/.env
 ExecStart=/usr/bin/node dist/index.js
 Restart=always
 RestartSec=5
-# Bind to localhost; Caddy terminates TLS and proxies in.
+# Bind to loopback only; Caddy terminates TLS and proxies in. Without HOST the
+# app listens on every interface, so the plain-HTTP port would be reachable
+# directly if a cloud firewall rule ever opened it.
 Environment=NODE_ENV=production
 Environment=PORT=5001
+Environment=HOST=127.0.0.1
 
 [Install]
 WantedBy=multi-user.target

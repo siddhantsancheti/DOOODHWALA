@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import LoginScreen from '../screens/LoginScreen';
 import UserTypeSelectionScreen from '../screens/UserTypeSelectionScreen';
+import TermsScreen from '../screens/TermsScreen';
 import CustomerProfileSetupScreen from '../screens/CustomerProfileSetupScreen';
 import MilkmanProfileSetupScreen from '../screens/MilkmanProfileSetupScreen';
 
@@ -23,6 +24,10 @@ import ChatScreen from '../screens/ChatScreen';
 import CustomerCareScreen from '../screens/CustomerCareScreen';
 
 import MilkmanDashboardScreen from '../screens/milkman/MilkmanDashboardScreen';
+import DeliveryRunScreen from '../screens/milkman/DeliveryRunScreen';
+import MilkmanCustomersScreen from '../screens/milkman/MilkmanCustomersScreen';
+import HisaabScreen from '../screens/milkman/HisaabScreen';
+import OrdersSummaryScreen from '../screens/milkman/OrdersSummaryScreen';
 
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import GatewayScreen from '../screens/admin/GatewayScreen';
@@ -77,6 +82,7 @@ export default function AppNavigator() {
                 ) : (needsOnboarding || needsCustomerSetup || needsMilkmanSetup) ? (
                     <Stack.Group>
                         <Stack.Screen name="UserTypeSelection" component={UserTypeSelectionScreen} />
+                        <Stack.Screen name="Terms" component={TermsScreen} />
                         <Stack.Screen name="CustomerProfileSetup" component={CustomerProfileSetupScreen} />
                         <Stack.Screen name="MilkmanProfileSetup" component={MilkmanProfileSetupScreen} />
                     </Stack.Group>
@@ -100,6 +106,10 @@ export default function AppNavigator() {
                         {user!.userType === 'milkman' && (
                             <Stack.Group>
                                 <Stack.Screen name="MilkmanHome" component={MilkmanDashboardScreen} />
+                                <Stack.Screen name="DeliveryRun" component={DeliveryRunScreen} />
+                                <Stack.Screen name="MilkmanCustomers" component={MilkmanCustomersScreen} />
+                                <Stack.Screen name="Hisaab" component={HisaabScreen} />
+                                <Stack.Screen name="OrdersSummary" component={OrdersSummaryScreen} />
                                 <Stack.Screen name="Profile" component={ProfileScreen} />
                                 <Stack.Screen name="Chat" component={ChatScreen} />
                                 <Stack.Screen name="CustomerCare" component={CustomerCareScreen} />

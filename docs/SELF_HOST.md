@@ -12,16 +12,55 @@ Prereqs:
 
 ---
 
+## 0. Oracle Cloud: pick the right shape
+
+- **Ampere A1 (ARM), 4 OCPU / 24 GB** — take this one. The backend has no
+  native modules, so ARM needs no special handling.
+- **VM.Standard.E2.1.Micro (x86), 1 GB RAM** — `npm run build` runs Vite and
+  can be OOM-killed at 1 GB. Add swap first:
+  ```bash
+  sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+  sudo mkswap /swapfile && sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  ```
+
+> Always Free ARM instances can be reclaimed when idle. Upgrading the account
+> to Pay As You Go keeps the free resources free and stops reclamation.
+
 ## 1. Open the firewall (ports 80, 443)
-On the server:
+
+**Two firewalls must both allow traffic.** This is the single most common
+reason an Oracle VM looks dead on port 80 — the console rule is open but the
+VM still drops packets.
+
+**(a) In the Oracle console:** VCN → Security List (or NSG) → add ingress
+rules for TCP 80 and 443 from `0.0.0.0/0`.
+
+**(b) On the VM itself.** Oracle's Ubuntu images ship iptables rules that
+REJECT everything except SSH, and they persist across reboots. `ufw` sits in
+front of them and does *not* clear them, so opening ports in ufw alone is not
+enough:
+```bash
+# Check for the REJECT rule Oracle pre-installs
+sudo iptables -L INPUT -n --line-numbers
+
+# Allow 80/443 ahead of the reject, then persist
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT 7 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+sudo netfilter-persistent save
+```
+(Insert *above* the existing REJECT line — check the numbers from the first
+command; 6 and 7 are typical but not guaranteed.)
+
+Then the usual ufw rules:
 ```bash
 sudo ufw allow OpenSSH
 sudo ufw allow 80
 sudo ufw allow 443
 sudo ufw --force enable
 ```
-> On Oracle Cloud you ALSO must open 80/443 in the VCN **Security List / NSG**
-> in the web console, or traffic is blocked before it reaches the VM.
+Do **not** open 5001. The app binds loopback only (`HOST=127.0.0.1` in the
+systemd unit) and Caddy proxies to it.
 
 ## 2. Create a user + install Node 20 & Caddy
 ```bash
@@ -54,8 +93,26 @@ nano .env            # paste the REAL values (copy from your Render env)
 chmod 600 .env
 exit
 ```
-Required: `DATABASE_URL, JWT_SECRET, FIREBASE_SERVICE_ACCOUNT, FIREBASE_STORAGE_BUCKET,
+Required: `DATABASE_URL, JWT_SECRET, FIREBASE_STORAGE_BUCKET,
 RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET`.
+
+> **Do not put `FIREBASE_SERVICE_ACCOUNT` in `.env` here.** systemd's
+> `EnvironmentFile` is not a shell — it mangles the embedded quotes and `\n`
+> escapes in that JSON blob, and push notifications then fail silently with a
+> parse error buried in the logs. Copy the service-account JSON to a file
+> instead; the server already falls back to it and the systemd unit's
+> `WorkingDirectory` makes the path resolve:
+> ```bash
+> # from your machine
+> scp firebase-service-account.json dooodhwala@<server-ip>:/home/dooodhwala/DOOODHWALA/
+> # on the server
+> chmod 600 /home/dooodhwala/DOOODHWALA/firebase-service-account.json
+> ```
+> Confirm with `journalctl -u dooodhwala | grep FCM` — you want
+> "Firebase Admin initialized successfully", not "No Firebase credentials found".
+
+**`REVIEW_TEST_PHONE` and `REVIEW_TEST_OTP` must NOT be set.** They enable a
+fixed-OTP login that bypasses real SMS. They exist for app-store review only.
 
 ## 5. Run it as a service (auto-restart, starts on boot)
 ```bash
@@ -75,11 +132,38 @@ sudo systemctl reload caddy
 Caddy automatically fetches + renews a Let's Encrypt cert. Visit
 `https://api.dooodhwala.com/healthz` (or any route) to confirm it serves.
 
-## 7. Point the app + webhook at the new URL (NO app rebuild)
-- **Supabase → Table Editor → `app_config`** → row `key = api_url` → set `value`
-  to `https://api.dooodhwala.com`. Installed apps pick it up on next launch.
-- **Razorpay → Webhooks** → edit URL to
-  `https://api.dooodhwala.com/api/payments/razorpay/webhook` (keep the secret).
+## 7. Cut over (NO app rebuild needed)
+
+The app reads its API base URL at launch from the Supabase `app_config` table
+([queryClient.ts](../mobile-app/src/lib/queryClient.ts)), so moving hosts is a
+row edit, not a Play Store release. The WebSocket URL is derived from the same
+value, so chat and delivery ticks follow automatically.
+
+**Cut over in this order — leave Render running throughout.**
+
+1. **Smoke-test the new box first, before touching anything users depend on:**
+   ```bash
+   curl https://api.dooodhwala.com/healthz          # {"status":"ok"}
+   curl https://api.dooodhwala.com/api/legal/terms/customer | head -c 100
+   ```
+2. **Point the webhooks at the new URL** (both providers — Stripe is easy to
+   forget, and a missed payment webhook means a customer pays and the bill
+   stays unpaid):
+   - Razorpay → Webhooks → `https://api.dooodhwala.com/api/payments/razorpay/webhook`
+   - Stripe → Developers → Webhooks → `https://api.dooodhwala.com/api/payments/stripe/webhook`
+
+   Keep the existing signing secrets, and keep the old Render endpoints active
+   until cutover is confirmed — a payment in flight may still hit them.
+3. **Flip the app:** Supabase → Table Editor → `app_config` → row
+   `key = api_url` → set `value` to `https://api.dooodhwala.com`.
+4. **Verify on a real device:** force-quit the app, reopen it (the URL is read
+   once at launch), then log in, send a chat message, and confirm the ticks
+   move. Ticks moving proves both HTTP and WebSocket are going to the new box.
+5. **Watch both servers for a day** before shutting Render down. Render's logs
+   going quiet is your signal that every client has moved over.
+
+**Rollback** is the same row: set `value` back to the Render URL and force-quit
+the app. That is the whole reason to keep Render alive during cutover.
 
 ## 8. Deploying updates later
 ```bash

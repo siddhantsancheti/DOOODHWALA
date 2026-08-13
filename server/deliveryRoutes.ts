@@ -47,7 +47,11 @@ router.get("/queue", async (req: AuthRequest, res) => {
                 and(
                     eq(chatMessages.milkmanId, milkmanId),
                     eq(chatMessages.messageType, "order"),
-                    eq(chatMessages.isDeliveryConfirmed, true),
+                    // isDelivered is what the delivery run sets and what the
+                    // third tick renders from. isDeliveryConfirmed is written by
+                    // nothing, so reading it here kept every stop "ahead" of the
+                    // customer for the whole run.
+                    eq(chatMessages.isDelivered, true),
                     gte(chatMessages.createdAt, todayStart),
                 ),
             );

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { lightColors, darkColors } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { uploadChatMedia, pickFromCamera, pickFromGallery, pickDocument } from '../lib/chatMedia';
 import { toast } from './Toast';
 
@@ -100,6 +101,7 @@ const MessageRow = React.memo(function MessageRow({ msg, isNewDay, isMe, senderN
 });
 
 export default function ChatComponent({ customerId, milkmanId, embedded = false, navigation }: { customerId: any, milkmanId: any, embedded?: boolean, navigation?: any }) {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t, language, colors, isDark } = useTranslation();
 
@@ -107,9 +109,6 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   const [orderQuantity, setOrderQuantity] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showNumpad, setShowNumpad] = useState(true);
-  const [showSubscriptionPanel, setShowSubscriptionPanel] = useState(false);
-  const [subFrequency, setSubFrequency] = useState<string>("daily");
-  const [subDaysOfWeek, setSubDaysOfWeek] = useState<number[]>([]);
   const [subMonthDays, setSubMonthDays] = useState<number[]>([1]);
   const [subInstructions, setSubInstructions] = useState("");
   const [showActiveSubscriptions, setShowActiveSubscriptions] = useState(false);
@@ -202,21 +201,6 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
     onError: (error: any) => toast(error.message || "Failed to send message", 'error'),
   });
 
-  const createSubscriptionMutation = useMutation({
-    mutationFn: async (subData: any) => {
-      const response = await apiRequest({ url: "/api/subscriptions", method: "POST", body: subData });
-      return await response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subscriptions/customer"] });
-      setShowSubscriptionPanel(false);
-      setOrderQuantity("");
-      setSelectedProduct(null);
-      toast(t('subscriptionCreated') || "Subscription created", 'success');
-    },
-    onError: (error: any) => toast(error.message || "Failed to create subscription", 'error'),
-  });
-
   const toggleSubscriptionMutation = useMutation({
     mutationFn: async (subId: number) => {
       const response = await apiRequest({ url: `/api/subscriptions/${subId}/toggle`, method: "PATCH" });
@@ -293,6 +277,21 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       senderType: user?.userType,
     });
     
+    // The repeat toggle is a property of the order being sent: place it now,
+    // and keep placing it daily. Sending with the toggle off also clears an
+    // existing standing order, so the switch always reflects reality.
+    updatePresetOrderMutation.mutate({
+      autoSend: isAutoSend,
+      scheduleTime,
+      items: isAutoSend
+        ? [{
+            product: selectedProduct.name,
+            quantity: orderQuantity,
+            unit: selectedProduct.unit || "unit",
+          }]
+        : [],
+    });
+
     setOrderQuantity("");
     setSelectedProduct(null);
   };
@@ -314,19 +313,6 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
     });
   };
 
-  const handleSaveAsPreset = () => {
-    if (!orderQuantity || !selectedProduct) return;
-    updatePresetOrderMutation.mutate({
-      autoSend: isAutoSend,
-      scheduleTime: scheduleTime,
-      items: [{
-        product: selectedProduct.name,
-        quantity: orderQuantity,
-        unit: selectedProduct.unit || "unit"
-      }]
-    });
-  };
-
   const addToQuantity = (digit: string) => {
     if (digit === "." && orderQuantity.includes(".")) return;
     if (orderQuantity.length >= 8) return;
@@ -334,26 +320,6 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   };
 
   const deleteLastDigit = () => setOrderQuantity(prev => prev.slice(0, -1));
-
-  const toggleDay = (day: number) => {
-    setSubDaysOfWeek(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
-  };
-
-  const handleCreateSubscription = () => {
-    if (!orderQuantity || !selectedProduct) return;
-    
-    createSubscriptionMutation.mutate({
-      milkmanId,
-      productName: selectedProduct.name,
-      quantity: orderQuantity,
-      unit: selectedProduct.unit || "liter",
-      priceSnapshot: selectedProduct.price || null,
-      frequencyType: subFrequency,
-      daysOfWeek: subFrequency === "weekly" ? subDaysOfWeek : null,
-      startDate: new Date().toISOString(),
-      specialInstructions: subInstructions || null,
-    });
-  };
 
   const scrollToEnd = () => {
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
@@ -383,7 +349,11 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
 
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
+    >
       <FlatList
         ref={scrollViewRef}
         style={styles.messagesList}
@@ -516,17 +486,26 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
               ))}
             </View>
 
-            {/* Auto-send Switch */}
-            <View style={styles.autoSendRow}>
-              <TouchableOpacity 
-                style={styles.autoSendAction}
-                onPress={() => setIsAutoSend(!isAutoSend)}
-              >
-                <View style={[styles.miniSwitch, { backgroundColor: isAutoSend ? colors.primary : '#D1D5DB' }]}>
-                  <View style={[styles.miniSwitchThumb, isAutoSend && { transform: [{ translateX: 14 }] }]} />
-                </View>
-                <Text style={[styles.autoSendText, { color: textColor }]}>Auto-send daily?</Text>
-              </TouchableOpacity>
+            {/* One repeat control. This used to be three: an "Auto-send
+                daily?" toggle that did nothing on its own, a "Daily" button
+                that saved the preset, and a "Subscribe" button opening a
+                second frequency panel — all meaning "send this again". Now:
+                Send places the order, and the toggle decides whether it keeps
+                happening. */}
+            <TouchableOpacity
+              style={[styles.repeatRow, isAutoSend && { borderColor: colors.primary }]}
+              onPress={() => setIsAutoSend(!isAutoSend)}
+              activeOpacity={0.75}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isAutoSend }}
+            >
+              <View style={[styles.miniSwitch, { backgroundColor: isAutoSend ? colors.primary : '#D1D5DB' }]}>
+                <View style={[styles.miniSwitchThumb, isAutoSend && { transform: [{ translateX: 14 }] }]} />
+              </View>
+
+              <Text style={[styles.repeatText, { color: textColor }]} numberOfLines={2}>
+                {t('repeatDaily')}
+              </Text>
 
               {isAutoSend && (
                 <TouchableOpacity
@@ -537,75 +516,18 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
                   <Text style={[styles.timeText, { color: textColor }]}>{scheduleTime}</Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </TouchableOpacity>
 
-            {/* Action Buttons */}
-            <View style={styles.panelActions}>
-              <TouchableOpacity 
-                style={styles.panelSmallActionBtn}
-                onPress={handleSaveAsPreset}
-              >
-                <Calendar size={18} color={textMuted} />
-                <Text style={styles.panelSmallActionBtnText}>Daily</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.panelSendBtn, styles.panelSendBtnWide, { backgroundColor: colors.primary }]}
+              onPress={handleSendOrder}
+            >
+              <Send size={18} color="#FFF" />
+              <Text style={styles.panelSendBtnText} numberOfLines={1}>
+                {isAutoSend ? t('sendAndRepeat') : t('sendOrder')}
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.panelSubBtn, showSubscriptionPanel && { backgroundColor: isDark ? '#4C1D95' : '#F3E8FF' }]}
-                onPress={() => setShowSubscriptionPanel(!showSubscriptionPanel)}
-              >
-                <RefreshCw size={18} color="#9333EA" />
-                <Text style={styles.panelSubBtnText}>Subscribe</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.panelSendBtn, { backgroundColor: colors.primary }]}
-                onPress={handleSendOrder}
-              >
-                <Send size={18} color="#FFF" />
-                <Text style={styles.panelSendBtnText}>Send</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Subscription Detail Panel */}
-            {showSubscriptionPanel && (
-              <View style={[styles.subDetailPanel, { backgroundColor: isDark ? '#1E293B' : '#F5F3FF' }]}>
-                <View style={styles.subDetailHeader}>
-                  <Text style={styles.subDetailTitle}>Setup Subscription</Text>
-                  <View style={styles.freqTabs}>
-                    {["daily", "weekly", "monthly"].map(f => (
-                      <TouchableOpacity 
-                        key={f}
-                        style={[styles.freqTab, subFrequency === f && { backgroundColor: '#9333EA' }]}
-                        onPress={() => setSubFrequency(f)}
-                      >
-                        <Text style={[styles.freqTabText, subFrequency === f && { color: '#FFF' }]}>{f.charAt(0).toUpperCase() + f.slice(1, 3)}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                
-                {subFrequency === 'weekly' && (
-                  <View style={styles.dayPicker}>
-                    {DAY_LABELS.map((day, i) => (
-                      <TouchableOpacity 
-                        key={i} 
-                        style={[styles.dayCircle, subDaysOfWeek.includes(i) && { backgroundColor: colors.primary }]}
-                        onPress={() => toggleDay(i)}
-                      >
-                        <Text style={[styles.dayText, subDaysOfWeek.includes(i) && { color: '#FFF' }]}>{day.charAt(0)}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-                
-                <TouchableOpacity 
-                  style={[styles.subConfirmBtn, { backgroundColor: '#9333EA' }]}
-                  onPress={handleCreateSubscription}
-                >
-                  <Text style={styles.subConfirmBtnText}>Confirm {subFrequency} Subscription</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         ) : (
           <View style={styles.inputBar}>
@@ -673,7 +595,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -705,33 +627,26 @@ const styles = StyleSheet.create({
   numpad: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 16 },
   numpadBtn: { width: (width - 48) / 3, height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   numpadBtnText: { fontSize: 20, fontWeight: '600' },
-  panelActions: { flexDirection: 'row', gap: 8 },
-  panelSmallActionBtn: { paddingHorizontal: 10, height: 50, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
-  panelSmallActionBtnText: { fontSize: 10, fontWeight: '700', color: '#6B7280', marginTop: 2 },
-  panelSubBtn: { flex: 1, height: 50, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  panelSubBtnText: { fontSize: 12, fontWeight: '700', color: '#9333EA' },
   panelSendBtn: { flex: 1.5, height: 50, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   panelSendBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
   quickOrderBtn: { padding: 10, borderRadius: 10, marginBottom: 12, alignItems: 'center' },
   quickOrderBtnText: { fontSize: 13, fontWeight: '700' },
-  autoSendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  autoSendAction: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Repeat control: the label flexes so a wrapped Hindi/Marathi string cannot
+  // push the time chip out of the row.
+  repeatRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10,
+    borderRadius: 12, borderWidth: 1.5, borderColor: 'transparent',
+  },
+  repeatText: { flex: 1, minWidth: 0, fontSize: 14, fontWeight: '600' },
+  panelSendBtnWide: { flex: 0, width: '100%', height: 50 },
   miniSwitch: { width: 34, height: 20, borderRadius: 10, padding: 2 },
   miniSwitchThumb: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#FFF' },
-  autoSendText: { fontSize: 13, fontWeight: '500' },
   timeSelector: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   timeText: { fontSize: 13, fontWeight: '600' },
-  freqTabs: { flexDirection: 'row', gap: 4 },
-  freqTab: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: '#DDD' },
-  freqTabText: { fontSize: 11, fontWeight: '700', color: '#666' },
-  subDetailPanel: { marginTop: 12, padding: 16, borderRadius: 12 },
-  subDetailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  subDetailTitle: { fontSize: 15, fontWeight: '700' },
   dayPicker: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   dayCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#DDD', justifyContent: 'center', alignItems: 'center' },
   dayText: { fontSize: 12, fontWeight: '600' },
-  subConfirmBtn: { height: 44, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  subConfirmBtnText: { color: '#FFF', fontWeight: 'bold' },
   subBar: { padding: 12, borderTopWidth: 1 },
   subBarHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   subBarText: { flex: 1, fontSize: 13, fontWeight: '600' },

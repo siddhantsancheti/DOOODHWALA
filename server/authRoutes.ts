@@ -1,8 +1,9 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "./db";
-import { users, otpCodes } from "@shared/schema";
+import { users, otpCodes, termsAcceptances } from "@shared/schema";
 import { eq, and, gt } from "drizzle-orm";
+import { currentTermsVersion, isTermsRole } from "./legal";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
@@ -220,16 +221,43 @@ router.put("/user-type", async (req, res) => {
             return res.status(401).json({ message: "Invalid token" });
         }
 
-        const { userType } = req.body;
-        if (!userType || !['customer', 'milkman'].includes(userType)) {
+        const { userType, termsVersion } = req.body;
+        if (!isTermsRole(userType)) {
             return res.status(400).json({ message: "Invalid user type" });
         }
 
-        const [updatedUser] = await db
-            .update(users)
-            .set({ userType })
-            .where(eq(users.id, decoded.id))
-            .returning();
+        // The role is only committed together with acceptance of that role's
+        // terms — a user can never end up with a userType and no consent on
+        // record. Stale client? Tell it to re-fetch and show the new text.
+        const expectedVersion = currentTermsVersion(userType);
+        if (termsVersion !== expectedVersion) {
+            return res.status(409).json({
+                message: "Terms version out of date. Please review the latest terms.",
+                expectedVersion,
+            });
+        }
+
+        const updatedUser = await db.transaction(async (tx) => {
+            const [user] = await tx
+                .update(users)
+                .set({ userType, updatedAt: new Date() })
+                .where(eq(users.id, decoded.id))
+                .returning();
+
+            if (!user) return null;
+
+            await tx.insert(termsAcceptances).values({
+                userId: user.id,
+                role: userType,
+                version: expectedVersion,
+                ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim()
+                    || req.socket.remoteAddress
+                    || null,
+                userAgent: (req.headers["user-agent"] as string) || null,
+            });
+
+            return user;
+        });
 
         if (!updatedUser) {
             return res.status(404).json({ message: "User not found" });

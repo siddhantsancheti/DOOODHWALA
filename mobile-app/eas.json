@@ -37,8 +37,7 @@
       },
       "ios": {
         "buildConfiguration": "Release"
-      },
-      "autoIncrement": true
+      }
     }
   },
   "submit": {

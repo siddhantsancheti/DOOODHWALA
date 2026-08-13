@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Linking, Share, useColorScheme, Animated, Vibration,
+  ActivityIndicator, Alert, Linking, Share, useColorScheme, Vibration,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -15,24 +15,20 @@ import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, s
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useTranslation } from '../../contexts/LanguageContext';
 
-// ─── Mapbox native import (works on iOS & Android, not in web browser) ────────
-let MapboxGL: any = null;
+// ─── Mapbox Directions (headless) ─────────────────────────────────────────────
+// No map is rendered on this screen — the Directions API is used only to turn
+// the milkman's live position into an ETA.
 let directionsClient: any = null;
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
 
 try {
-  MapboxGL = require('@rnmapbox/maps').default;
-  if (MAPBOX_TOKEN) {
-    MapboxGL.setAccessToken(MAPBOX_TOKEN);
-  }
   const mbxDirections = require('@mapbox/mapbox-sdk/services/directions').default;
   directionsClient = mbxDirections({ accessToken: MAPBOX_TOKEN });
 } catch (_e) {
-  // Native module not available (web preview)
+  // SDK not available (web preview)
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
-const MAP_HEIGHT = 380;
 const ROUTE_REFRESH_DISTANCE = 30; // metres milkman must move before recalculating route
 const POLL_INTERVAL_MS = 8000;     // fallback polling when WS unavailable
 
@@ -98,28 +94,14 @@ export default function TrackingScreen({ navigation }: any) {
     refetchInterval: 15000,
   });
 
-  // ── Map State ────────────────────────────────────────────────────────────────
-  const cameraRef              = useRef<any>(null);
+  // ── Tracking state ───────────────────────────────────────────────────────────
   const lastRouteCalcCoord     = useRef<number[] | null>(null);
   const pollTimerRef           = useRef<NodeJS.Timeout | null>(null);
 
   const [milkmanCoord, setMilkmanCoord]   = useState<number[] | null>(null);
   const [customerCoord, setCustomerCoord] = useState<number[] | null>(null);
-  const [routeGeoJSON, setRouteGeoJSON]   = useState<any | null>(null);
-  const [breadcrumbs, setBreadcrumbs]     = useState<number[][]>([]);
   const [etaSeconds, setEtaSeconds]       = useState<number | null>(null);
   const [isGeocodingAddr, setIsGeocodingAddr] = useState(false);
-
-  // ── Animated pulse for milkman marker ────────────────────────────────────────
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.35, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1.0,  duration: 700, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
 
   // ── Derive active order ───────────────────────────────────────────────────────
   const activeOrder = Array.isArray(orders)
@@ -147,19 +129,6 @@ export default function TrackingScreen({ navigation }: any) {
     }
     if (!isArriving) arrivedBuzzed.current = false;
   }, [isArriving]);
-
-  // Re-frame the map to show both the milkman and home.
-  const recenter = () => {
-    if (cameraRef.current && milkmanCoord && customerCoord) {
-      const minLng = Math.min(milkmanCoord[0], customerCoord[0]);
-      const minLat = Math.min(milkmanCoord[1], customerCoord[1]);
-      const maxLng = Math.max(milkmanCoord[0], customerCoord[0]);
-      const maxLat = Math.max(milkmanCoord[1], customerCoord[1]);
-      cameraRef.current.fitBounds([minLng, minLat], [maxLng, maxLat], 60, 800);
-    } else if (cameraRef.current && (milkmanCoord || customerCoord)) {
-      cameraRef.current.setCamera({ centerCoordinate: (milkmanCoord || customerCoord)!, zoomLevel: 15, animationDuration: 600 });
-    }
-  };
 
   // ── Step 1: Geocode customer address ─────────────────────────────────────────
   useEffect(() => {
@@ -203,28 +172,7 @@ export default function TrackingScreen({ navigation }: any) {
       const route = res?.body?.routes?.[0];
       if (!route) return;
 
-      setRouteGeoJSON(route.geometry);
       setEtaSeconds(route.duration);
-
-      // Fit camera to show both endpoints
-      if (cameraRef.current) {
-        const minLng = Math.min(milkCoord[0], custCoord[0]);
-        const minLat = Math.min(milkCoord[1], custCoord[1]);
-        const maxLng = Math.max(milkCoord[0], custCoord[0]);
-        const maxLat = Math.max(milkCoord[1], custCoord[1]);
-        cameraRef.current.fitBounds([minLng, minLat], [maxLng, maxLat], 60, 800);
-      }
-    } catch (_) {}
-  }, []);
-
-  // ── Step 3: Fetch location history for breadcrumbs ───────────────────────────
-  const fetchBreadcrumbs = useCallback(async (orderId: number) => {
-    try {
-      const r = await apiRequest({ url: `/api/delivery/location/${orderId}/history`, method: 'GET' });
-      const data: any = await r.json();
-      if (data?.history?.length) {
-        setBreadcrumbs(data.history.map((p: any) => [p.longitude, p.latitude]));
-      }
     } catch (_) {}
   }, []);
 
@@ -232,15 +180,6 @@ export default function TrackingScreen({ navigation }: any) {
   const handleNewLocation = useCallback((lat: number, lng: number) => {
     const newCoord: number[] = [lng, lat];
     setMilkmanCoord(newCoord);
-
-    // Update breadcrumb trail
-    setBreadcrumbs(prev => {
-      const last = prev[prev.length - 1];
-      if (!last || haversineDistanceMetres(last, newCoord) > 5) {
-        return [...prev.slice(-49), newCoord]; // keep last 50 points
-      }
-      return prev;
-    });
 
     // Recalculate route only when milkman has moved enough
     if (!customerCoord) return;
@@ -250,16 +189,6 @@ export default function TrackingScreen({ navigation }: any) {
     if (shouldRecalc) {
       lastRouteCalcCoord.current = newCoord;
       fetchRoute(newCoord, customerCoord);
-    }
-
-    // Animate camera to follow milkman (gentle follow)
-    if (cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: newCoord,
-        zoomLevel: 15,
-        animationDuration: 1500,
-        animationMode: 'flyTo',
-      });
     }
   }, [customerCoord, fetchRoute]);
 
@@ -283,9 +212,6 @@ export default function TrackingScreen({ navigation }: any) {
   useEffect(() => {
     if (!activeOrder) return;
 
-    // Load initial location + breadcrumbs
-    fetchBreadcrumbs(activeOrder.id);
-
     const poll = async () => {
       try {
         const r = await apiRequest({ url: `/api/delivery/location/${activeOrder.id}`, method: 'GET' });
@@ -305,7 +231,7 @@ export default function TrackingScreen({ navigation }: any) {
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [activeOrder, isConnected, fetchBreadcrumbs, handleNewLocation]);
+  }, [activeOrder, isConnected, handleNewLocation]);
 
   // Stop polling once WS connects
   useEffect(() => {
@@ -364,11 +290,6 @@ export default function TrackingScreen({ navigation }: any) {
     delivered:        { label: 'Delivered! 🎉',      color: '#16A34A', bg: '#F0FDF4', icon: CheckCircle },
   };
   const sc = statusConfig[deliveryStatus];
-
-  const breadcrumbGeoJSON = breadcrumbs.length > 1 ? {
-    type: 'LineString' as const,
-    coordinates: breadcrumbs,
-  } : null;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
@@ -431,175 +352,67 @@ export default function TrackingScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* ── MAP ──────────────────────────────────────────────────────────── */}
-        <View style={[styles.mapCard, { backgroundColor: surfaceColor, borderColor }]}>
-          <View style={styles.mapCardHeader}>
-            <Route size={18} color={textColor} />
-            <Text style={[styles.mapCardTitle, { color: textColor }]}>Live Route</Text>
-            {!milkmanCoord && (
-              <View style={styles.awaitingChip}>
-                <ActivityIndicator size="small" color="#2563EB" style={{ marginRight: 4 }} />
-                <Text style={styles.awaitingText}>Awaiting milkman location…</Text>
-              </View>
+        {/* ── ARRIVAL ──────────────────────────────────────────────────────────
+            Two facts, large enough to read at a glance from a doorway: when the
+            milk arrives, and how many stops are still ahead. No map — the
+            numbers are what the customer actually acts on. */}
+        <View style={[styles.arrivalCard, { backgroundColor: surfaceColor, borderColor }]}>
+          <View style={styles.arrivalCol}>
+            <View style={styles.arrivalLabelRow}>
+              <Clock size={13} color={textMuted} />
+              <Text style={[styles.arrivalLabel, { color: textMuted }]} numberOfLines={1}>
+                Arriving in
+              </Text>
+            </View>
+            <Text
+              style={[styles.arrivalValue, { color: textColor }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {deliveryStatus === 'delivered'
+                ? 'Delivered'
+                : etaSeconds !== null
+                  ? formatETA(etaSeconds)
+                  : '—'}
+            </Text>
+            {deliveryStatus !== 'delivered' && etaSeconds === null && (
+              <Text style={[styles.arrivalHint, { color: textMuted }]} numberOfLines={2}>
+                {isOutForDelivery ? 'Waiting for location…' : 'Starts when your milkman sets off'}
+              </Text>
             )}
           </View>
 
-          <View style={styles.mapWrap}>
-            {!isOutForDelivery ? (
-              <View style={[styles.mapUnavailable, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
-                <Clock size={40} color="#D97706" />
-                <Text style={[styles.mapUnavailableTitle, { color: textColor }]}>Tracking starts soon</Text>
-                <Text style={{ color: textMuted, fontSize: 12, textAlign: 'center', marginTop: 4, paddingHorizontal: 24 }}>
-                  Live route appears once your milkman begins today's deliveries.
-                </Text>
-              </View>
-            ) : MapboxGL ? (
-              <MapboxGL.MapView
-                style={{ flex: 1 }}
-                styleURL={isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12'}
-                logoEnabled={false}
-                attributionEnabled={false}
-                compassEnabled
-                rotateEnabled={false}
-              >
-                <MapboxGL.Camera
-                  ref={cameraRef}
-                  zoomLevel={14}
-                  centerCoordinate={
-                    milkmanCoord || customerCoord || [78.9629, 20.5937] // India center fallback
-                  }
-                  animationMode="flyTo"
-                  animationDuration={1000}
-                />
+          <View style={[styles.arrivalDivider, { backgroundColor: borderColor }]} />
 
-                {/* ── Customer destination pin ───────────────────────────── */}
-                {customerCoord && (
-                  <MapboxGL.PointAnnotation id="customer-pin" coordinate={customerCoord}>
-                    <View style={styles.customerPin}>
-                      <MapPin size={14} color="#fff" />
-                    </View>
-                  </MapboxGL.PointAnnotation>
-                )}
-
-                {/* ── Milkman truck marker with pulse ring ──────────────── */}
-                {milkmanCoord && (
-                  <MapboxGL.PointAnnotation id="milkman-pin" coordinate={milkmanCoord}>
-                    <View style={styles.milkmanPinContainer}>
-                      {/* Pulse ring — approximated with a larger transparent circle */}
-                      <Animated.View style={[styles.milkmanPulse, { transform: [{ scale: pulseAnim }] }]} />
-                      <View style={styles.milkmanPin}>
-                        <Truck size={16} color="#fff" />
-                      </View>
-                    </View>
-                  </MapboxGL.PointAnnotation>
-                )}
-
-                {/* ── Blue driving-route polyline ────────────────────────── */}
-                {routeGeoJSON && (
-                  <MapboxGL.ShapeSource id="route-source" shape={routeGeoJSON}>
-                    {/* Shadow / halo */}
-                    <MapboxGL.LineLayer
-                      id="route-shadow"
-                      style={{ lineColor: '#93C5FD', lineWidth: 9, lineOpacity: 0.4, lineCap: 'round', lineJoin: 'round' }}
-                    />
-                    {/* Landmarks / POI Layer — making them visible as requested */}
-                <MapboxGL.SymbolLayer
-                  id="poi-labels"
-                  sourceLayerID="poi_label"
-                  style={{
-                    textField: '{name}',
-                    textSize: 11,
-                    textOffset: [0, 1.2],
-                    textAnchor: 'top',
-                    textColor: isDark ? '#93C5FD' : '#2563EB',
-                    textHaloColor: isDark ? '#111827' : '#FFFFFF',
-                    textHaloWidth: 1.5,
-                    iconImage: ['match',
-                      ['get', 'category'],
-                      'hospital', 'hospital-15',
-                      'school', 'school-15',
-                      'pharmacy', 'pharmacy-15',
-                      'restaurant', 'restaurant-15',
-                      'cafe', 'cafe-15',
-                      'bakery', 'bakery-15',
-                      'fast_food', 'fast-food-15',
-                      'grocery', 'grocery-15',
-                      'marker-15'
-                    ],
-                    iconSize: 1.1,
-                    iconOpacity: 0.85,
-                  }}
-                  filter={['any',
-                    ['==', ['get', 'category'], 'hospital'],
-                    ['==', ['get', 'category'], 'school'],
-                    ['==', ['get', 'category'], 'pharmacy'],
-                    ['==', ['get', 'category'], 'restaurant'],
-                    ['==', ['get', 'category'], 'cafe'],
-                    ['==', ['get', 'category'], 'grocery'],
-                  ]}
-                />
-
-                {/* Road route line */}
-                    {/* Main route line */}
-                    <MapboxGL.LineLayer
-                      id="route-line"
-                      style={{ lineColor: '#2563EB', lineWidth: 5, lineOpacity: 1, lineCap: 'round', lineJoin: 'round' }}
-                    />
-                    {/* Dashed "ahead" overlay */}
-                    <MapboxGL.LineLayer
-                      id="route-dash"
-                      style={{ lineColor: '#FFFFFF', lineWidth: 2, lineDasharray: [2, 3], lineCap: 'round' }}
-                    />
-                  </MapboxGL.ShapeSource>
-                )}
-
-                {/* ── Grey breadcrumb trail (path already traveled) ─────── */}
-                {breadcrumbGeoJSON && breadcrumbs.length > 1 && (
-                  <MapboxGL.ShapeSource id="breadcrumb-source" shape={breadcrumbGeoJSON}>
-                    <MapboxGL.LineLayer
-                      id="breadcrumb-line"
-                      style={{ lineColor: '#6B7280', lineWidth: 3, lineOpacity: 0.6, lineCap: 'round', lineDasharray: [1, 2] }}
-                    />
-                  </MapboxGL.ShapeSource>
-                )}
-              </MapboxGL.MapView>
-            ) : (
-              /* Fallback for when native module isn't loaded */
-              <View style={[styles.mapUnavailable, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
-                <Navigation size={40} color="#2563EB" />
-                <Text style={[styles.mapUnavailableTitle, { color: textColor }]}>Map Loading…</Text>
-                <Text style={{ color: textMuted, fontSize: 12, textAlign: 'center', marginTop: 4 }}>
-                  Ensure you are running on a real device or emulator
-                </Text>
-              </View>
-            )}
-
-            {/* Recenter / fit-route button */}
-            {isOutForDelivery && MapboxGL && (milkmanCoord || customerCoord) && (
-              <TouchableOpacity style={styles.recenterBtn} onPress={recenter} activeOpacity={0.85}>
-                <Navigation size={20} color="#2563EB" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* ── Map legend ─────────────────────────────────────────────────── */}
-          <View style={[styles.mapLegend, { borderTopColor: borderColor }]}>
-            <View style={styles.legendItem}>
-              <View style={styles.legendDotGreen} />
-              <Text style={[styles.legendText, { color: textMuted }]}>Your Milkman</Text>
+          <View style={styles.arrivalCol}>
+            <View style={styles.arrivalLabelRow}>
+              <Route size={13} color={textMuted} />
+              <Text style={[styles.arrivalLabel, { color: textMuted }]} numberOfLines={1}>
+                Before you
+              </Text>
             </View>
-            <View style={styles.legendItem}>
-              <View style={styles.legendDotBlue} />
-              <Text style={[styles.legendText, { color: textMuted }]}>Your Home</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={styles.legendLineBlue} />
-              <Text style={[styles.legendText, { color: textMuted }]}>Route</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={styles.legendLineGrey} />
-              <Text style={[styles.legendText, { color: textMuted }]}>Path taken</Text>
-            </View>
+            <Text
+              style={[styles.arrivalValue, { color: textColor }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {deliveryStatus === 'delivered'
+                ? '0'
+                : typeof queue?.stopsAhead === 'number'
+                  ? queue.stopsAhead
+                  : '—'}
+            </Text>
+            <Text style={[styles.arrivalHint, { color: textMuted }]} numberOfLines={2}>
+              {deliveryStatus === 'delivered'
+                ? 'Order complete'
+                : queue?.stopsAhead === 0
+                  ? "You're next"
+                  : typeof queue?.stopsAhead === 'number'
+                    ? `${queue.stopsAhead === 1 ? 'delivery' : 'deliveries'} to go`
+                    : ''}
+            </Text>
           </View>
         </View>
 
@@ -770,6 +583,16 @@ const styles = StyleSheet.create({
   arrivingText:    { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   // Stops-away card
+  // Arrival panel — two facts side by side. Each column flexes with
+  // minWidth:0 and the numbers shrink to fit, so a long ETA string cannot
+  // push the divider or the other column out of the card.
+  arrivalCard:     { flexDirection: 'row', alignItems: 'stretch', borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16, ...shadows.md },
+  arrivalCol:      { flex: 1, minWidth: 0 },
+  arrivalDivider:  { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginHorizontal: 16 },
+  arrivalLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  arrivalLabel:    { fontSize: 12, fontWeight: '600' },
+  arrivalValue:    { fontSize: 30, fontWeight: '800' },
+  arrivalHint:     { fontSize: 11, marginTop: 2, lineHeight: 15 },
   stopsCard:       { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
   stopsText:       { fontSize: 13, flex: 1 },
 
@@ -783,13 +606,6 @@ const styles = StyleSheet.create({
   etaChipText:     { fontSize: 12, fontWeight: '700' },
 
   // Map
-  mapCard:       { borderRadius: 16, borderWidth: 1, marginBottom: 16, overflow: 'hidden', ...shadows.md },
-  mapCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, paddingBottom: 12 },
-  mapCardTitle:  { fontSize: 16, fontWeight: '700', flex: 1 },
-  awaitingChip:  { flexDirection: 'row', alignItems: 'center' },
-  awaitingText:  { fontSize: 11, color: '#6B7280' },
-  mapWrap:       { height: MAP_HEIGHT },
-  mapUnavailable:{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
   mapUnavailableTitle: { fontSize: 15, fontWeight: '600', marginTop: 8 },
 
   // Markers
@@ -813,9 +629,6 @@ const styles = StyleSheet.create({
   },
 
   // Map legend
-  mapLegend:    { flexDirection: 'row', padding: 12, gap: 14, flexWrap: 'wrap', borderTopWidth: StyleSheet.hairlineWidth },
-  legendItem:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendText:   { fontSize: 11 },
   legendDotGreen:  { width: 10, height: 10, borderRadius: 5, backgroundColor: '#16A34A' },
   legendDotBlue:   { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
   legendLineBlue:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#2563EB' },

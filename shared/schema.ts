@@ -48,6 +48,20 @@ export const users = pgTable("users", {
   lastActiveAt: timestamp("last_active_at"),
 });
 
+// Terms & Conditions acceptance — append-only consent log.
+// Legal proof of consent (IT Act s.10A / DPDP Act 2023), so rows are never
+// updated or deleted: a new version means a new row, and the old acceptance
+// stays provable.
+export const termsAcceptances = pgTable("terms_acceptances", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  role: varchar("role").notNull(),          // "customer" | "milkman"
+  version: varchar("version").notNull(),    // e.g. "customer-2026-08-07"
+  acceptedAt: timestamp("accepted_at").defaultNow().notNull(),
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+});
+
 // OTP verification table
 export const otpCodes = pgTable("otp_codes", {
   id: serial("id").primaryKey(),
@@ -223,14 +237,17 @@ export const customerPricings = pgTable("customer_pricings", {
   id: serial("id").primaryKey(),
   milkmanId: integer("milkman_id").notNull().references(() => milkmen.id),
   customerId: integer("customer_id").notNull().references(() => customers.id),
+  // Which product this price applies to. NULL means the customer's blanket
+  // per-litre rate, which is what every pre-existing row is.
+  productName: varchar("product_name"),
   pricePerLiter: decimal("price_per_liter", { precision: 10, scale: 2 }).notNull(),
   isActive: boolean("is_active").default(true),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  // Ensure one pricing rule per milkman-customer pair
-  index("idx_milkman_customer_pricing").on(table.milkmanId, table.customerId),
+  // One pricing rule per milkman-customer-product
+  index("idx_milkman_customer_pricing").on(table.milkmanId, table.customerId, table.productName),
 ]);
 
 // Chat messages for family chats and individual conversations

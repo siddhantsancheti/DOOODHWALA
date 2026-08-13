@@ -15,7 +15,7 @@ import {
   MoreVertical, Phone, ShoppingCart, Users,
   IndianRupee, Receipt, Share, Camera, File, MapPin, BarChart3, Settings, CheckCheck, Mic, FileText,
   Image as ImageIcon, Download
-} from 'lucide-react-native';
+, Edit3 as Edit} from 'lucide-react-native';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Language } from '../lib/translations';
@@ -50,6 +50,43 @@ export default function ChatScreen({ route, navigation }: any) {
 
   // Modals
   const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [editingService, setEditingService] = useState<string | null>(null);
+  const [priceDraft, setPriceDraft] = useState('');
+  const isMilkman = user?.userType === 'milkman';
+
+  // Services this customer orders, with the price that applies to them. Only
+  // loaded for the milkman — the endpoint is scoped to their own customers.
+  const { data: services, isLoading: servicesLoading } = useQuery<any>({
+    queryKey: [`/api/customer-pricings/customer/${customerId}`],
+    enabled: showGroupInfo && isMilkman && !!customerId,
+  });
+
+  const savePriceMutation = useMutation({
+    mutationFn: async ({ product, price }: { product: string; price: string }) => {
+      const res = await apiRequest({
+        url: '/api/customer-pricings',
+        method: 'POST',
+        body: { customerId: Number(customerId), productName: product, pricePerLiter: price },
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/customer-pricings/customer/${customerId}`] });
+      // The server posts the price-change notice into the chat, so refresh it.
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/messages', customerId, milkmanId] });
+      setEditingService(null);
+    },
+    onError: (e: any) => Alert.alert(t('error'), e?.message || 'Could not update the price'),
+  });
+
+  const savePrice = (product: string) => {
+    const price = parseFloat(priceDraft);
+    if (!(price > 0)) {
+      Alert.alert(t('error'), t('enterValidPrice'));
+      return;
+    }
+    savePriceMutation.mutate({ product, price: priceDraft });
+  };
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showMonthlyOrders, setShowMonthlyOrders] = useState(false);
   const [showBillSummary, setShowBillSummary] = useState(false);
@@ -658,6 +695,83 @@ export default function ChatScreen({ route, navigation }: any) {
                    </View>
                  ))}
                </View>
+
+               {/* Services opted — what this customer actually orders, with the
+                   price that applies to them. The milkman can change a price
+                   here; the customer sees the same list read-only. */}
+               <Text style={[styles.sectionTitleModal, { color: textColor, marginTop: 20 }]}>
+                 {t('servicesOpted')}
+               </Text>
+               {servicesLoading ? (
+                 <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
+               ) : (services?.services?.length ?? 0) === 0 ? (
+                 <Text style={{ color: textMuted, marginTop: 8 }}>{t('noServicesYet')}</Text>
+               ) : (
+                 <View style={{ marginTop: 8 }}>
+                   {services.services.map((svc: any) => {
+                     const editing = editingService === svc.product;
+                     return (
+                       <View key={svc.product} style={styles.svcRow}>
+                         <View style={styles.svcText}>
+                           <Text style={[styles.svcName, { color: textColor }]} numberOfLines={1}>
+                             {svc.product}
+                           </Text>
+                           <Text style={{ fontSize: 12, color: textMuted }} numberOfLines={1}>
+                             {svc.opted ? t('ordering') : t('notOrdering')}
+                             {svc.isCustom ? ` · ${t('customPrice')}` : ''}
+                           </Text>
+                         </View>
+
+                         {editing ? (
+                           <View style={styles.svcEditRow}>
+                             <TextInput
+                               style={[styles.svcInput, { color: textColor, borderColor }]}
+                               value={priceDraft}
+                               onChangeText={(v) => setPriceDraft(v.replace(/[^0-9.]/g, ''))}
+                               keyboardType="decimal-pad"
+                               autoFocus
+                               placeholder={String(svc.listPrice)}
+                               placeholderTextColor={textMuted}
+                             />
+                             <TouchableOpacity
+                               style={[styles.svcSaveBtn, { backgroundColor: colors.primary }]}
+                               onPress={() => savePrice(svc.product)}
+                               disabled={savePriceMutation.isPending}
+                             >
+                               {savePriceMutation.isPending
+                                 ? <ActivityIndicator size="small" color="#FFF" />
+                                 : <Check size={16} color="#FFF" />}
+                             </TouchableOpacity>
+                             <TouchableOpacity onPress={() => setEditingService(null)} hitSlop={8}>
+                               <X size={18} color={textMuted} />
+                             </TouchableOpacity>
+                           </View>
+                         ) : (
+                           <View style={styles.svcEditRow}>
+                             <Text
+                               style={[styles.svcPrice, { color: svc.isCustom ? colors.primary : textColor }]}
+                               numberOfLines={1}
+                             >
+                               ₹{svc.effectivePrice}/{svc.unit}
+                             </Text>
+                             {isMilkman && (
+                               <TouchableOpacity
+                                 onPress={() => {
+                                   setEditingService(svc.product);
+                                   setPriceDraft(String(svc.effectivePrice));
+                                 }}
+                                 hitSlop={8}
+                               >
+                                 <Edit size={16} color={colors.primary} />
+                               </TouchableOpacity>
+                             )}
+                           </View>
+                         )}
+                       </View>
+                     );
+                   })}
+                 </View>
+               )}
             </ScrollView>
           </View>
         </View>
@@ -822,6 +936,21 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   groupAvatarHero: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(22,163,74,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
   groupNameHero: { fontSize: 24, fontWeight: 'bold', marginBottom: 4, fontFamily: fontFamilyBold },
   sectionTitleModal: { fontSize: 16, fontWeight: 'bold', marginTop: 8, fontFamily: fontFamilyBold },
+  // Service rows: name column flexes so a long product name shortens itself
+  // rather than pushing the price and edit control off the row.
+  svcRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB',
+  },
+  svcText: { flex: 1, minWidth: 0 },
+  svcName: { fontSize: 15, fontWeight: '600' },
+  svcEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  svcPrice: { fontSize: 15, fontWeight: '700' },
+  svcInput: {
+    width: 74, height: 36, borderWidth: 1, borderRadius: 8,
+    paddingHorizontal: 8, fontSize: 15, textAlign: 'right',
+  },
+  svcSaveBtn: { width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   modalMemberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
   modalMemberAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(59,130,246,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   

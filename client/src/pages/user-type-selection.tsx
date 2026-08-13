@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Navbar } from "@/components/navbar";
+import { TermsDialog, type TermsRole } from "@/components/terms-dialog";
 // Note: Using direct text as getTranslatedText may not be available
 // import { getTranslatedText } from "@/lib/language";
 
@@ -19,30 +20,35 @@ export default function UserTypeSelection() {
   const [isSelecting, setIsSelecting] = useState(false);
   const language = 'en'; // Default language
 
-  const handleCustomerSetup = async () => {
-    if (isSelecting) return;
+  // Role is chosen here but only committed once the matching terms are
+  // accepted, so an account can never carry a role with no consent on record.
+  const [pendingRole, setPendingRole] = useState<TermsRole | null>(null);
+
+  const handleAcceptTerms = async (termsVersion: string) => {
+    if (!pendingRole || isSelecting) return;
     setIsSelecting(true);
 
     try {
-      console.log('Updating user type to: customer');
-
-      const res = await apiRequest('/api/auth/user-type', 'PUT', { userType: 'customer' });
+      const res = await apiRequest('/api/auth/user-type', 'PUT', {
+        userType: pendingRole,
+        termsVersion,
+      });
       const response = await res.json();
 
-      if (response.success) {
-        // Invalidate auth user query to refresh state immediately
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-
-        toast({
-          title: "User type updated!",
-          description: "You've selected customer. Let's complete your profile."
-        });
-
-        // Navigate to customer profile setup
-        setLocation('/profile-setup?type=customer');
-      } else {
+      if (!response.success) {
         throw new Error(response.message || 'Failed to update user type');
       }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+
+      toast({
+        title: "Welcome aboard!",
+        description: `You've selected ${pendingRole}. Let's complete your profile.`,
+      });
+
+      const role = pendingRole;
+      setPendingRole(null);
+      setLocation(role === 'customer' ? '/profile-setup?type=customer' : '/milkman-profile-setup');
     } catch (error) {
       console.error('User type selection error:', error);
       toast({
@@ -55,41 +61,8 @@ export default function UserTypeSelection() {
     }
   };
 
-  const handleMilkmanSetup = async () => {
-    if (isSelecting) return;
-    setIsSelecting(true);
-
-    try {
-      console.log('Updating user type to: milkman');
-
-      const res = await apiRequest('/api/auth/user-type', 'PUT', { userType: 'milkman' });
-      const response = await res.json();
-
-      if (response.success) {
-        // Invalidate auth user query to refresh state immediately
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-
-        toast({
-          title: "User type updated!",
-          description: "You've selected milkman. Let's complete your profile."
-        });
-
-        // Navigate to milkman dashboard for complete profile setup
-        setLocation('/milkman-profile-setup');
-      } else {
-        throw new Error(response.message || 'Failed to update user type');
-      }
-    } catch (error) {
-      console.error('User type selection error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update user type. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSelecting(false);
-    }
-  };
+  const handleCustomerSetup = () => setPendingRole('customer');
+  const handleMilkmanSetup = () => setPendingRole('milkman');
 
   return (
     <div className="min-h-screen bg-background">
@@ -187,6 +160,13 @@ export default function UserTypeSelection() {
           </Card>
         </div>
       </div>
+
+      <TermsDialog
+        role={pendingRole}
+        submitting={isSelecting}
+        onCancel={() => setPendingRole(null)}
+        onAccept={handleAcceptTerms}
+      />
     </div>
   );
 }

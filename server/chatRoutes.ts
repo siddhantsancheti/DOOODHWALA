@@ -3,7 +3,7 @@ import multer from "multer";
 import { getStorage } from "firebase-admin/storage";
 import { db } from "./db";
 import { chatMessages, users, orders, milkmen, products, notifications, customers } from "@shared/schema";
-import { eq, or, and, asc, desc, gt } from "drizzle-orm";
+import { eq, or, and, asc, desc, gt, isNotNull } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
 import "./services/fcmService"; // ensure firebase-admin is initialized for Storage
@@ -85,6 +85,65 @@ router.get("/messages", async (req, res) => {
         res.json(messages);
     } catch (error) {
         console.error("Get messages error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// GET /api/chat/orders — today's order messages for the signed-in milkman,
+// across every customer, for the delivery-run screen.
+//
+// The milkman is derived from the token rather than taken from a query param,
+// so one milkman can never read another's order book.
+router.get("/orders", async (req: AuthRequest, res) => {
+    try {
+        const [milkman] = await db
+            .select({ id: milkmen.id })
+            .from(milkmen)
+            .where(eq(milkmen.userId, req.user!.id))
+            .limit(1);
+
+        if (!milkman) {
+            return res.status(404).json({ message: "Milkman profile not found" });
+        }
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const rows = await db
+            .select({
+                id: chatMessages.id,
+                customerId: chatMessages.customerId,
+                customerName: customers.name,
+                customerAddress: customers.address,
+                customerPhone: customers.phone,
+                message: chatMessages.message,
+                orderQuantity: chatMessages.orderQuantity,
+                orderProduct: chatMessages.orderProduct,
+                orderTotal: chatMessages.orderTotal,
+                orderItems: chatMessages.orderItems,
+                isAccepted: chatMessages.isAccepted,
+                isDelivered: chatMessages.isDelivered,
+                createdAt: chatMessages.createdAt,
+            })
+            .from(chatMessages)
+            .leftJoin(customers, eq(chatMessages.customerId, customers.id))
+            .where(
+                and(
+                    eq(chatMessages.milkmanId, milkman.id),
+                    gt(chatMessages.createdAt, startOfDay),
+                    // ChatScreen writes orderQuantity, ChatComponent writes
+                    // orderItems — either marks the message as an order.
+                    or(
+                        eq(chatMessages.messageType, "order"),
+                        isNotNull(chatMessages.orderQuantity),
+                    ),
+                )
+            )
+            .orderBy(asc(chatMessages.createdAt));
+
+        res.json(rows);
+    } catch (error) {
+        console.error("Get milkman order messages error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
@@ -418,6 +477,10 @@ router.post("/messages/:id/delivered", async (req, res) => {
             return res.status(400).json({ message: "Invalid message ID" });
         }
 
+        // Only an undelivered order can be delivered. Once it is done it is
+        // frozen: a double tap, a retry or a replay must not run the
+        // order-status sync below a second time, because that would consume
+        // another still-pending order and mark it delivered by mistake.
         const [updatedMessage] = await db
             .update(chatMessages)
             .set({
@@ -425,11 +488,25 @@ router.post("/messages/:id/delivered", async (req, res) => {
                 deliveredAt: new Date(),
                 isEditable: false,
             })
-            .where(eq(chatMessages.id, messageId))
+            .where(and(
+                eq(chatMessages.id, messageId),
+                eq(chatMessages.isDelivered, false),
+            ))
             .returning();
 
         if (!updatedMessage) {
-            return res.status(404).json({ message: "Message not found" });
+            // Either no such message, or it was already delivered — return the
+            // current state so the client still settles on the third tick.
+            const [existing] = await db
+                .select()
+                .from(chatMessages)
+                .where(eq(chatMessages.id, messageId))
+                .limit(1);
+
+            if (!existing) {
+                return res.status(404).json({ message: "Message not found" });
+            }
+            return res.json(existing);
         }
 
         res.json(updatedMessage);
@@ -456,21 +533,32 @@ router.post("/messages/:id/delivered", async (req, res) => {
         const isOrderMessage = !!updatedMessage.orderQuantity || deliveredItems.length > 0;
 
         if (isOrderMessage && updatedMessage.customerId !== null) {
-            // Mark the most recent still-pending order for this customer+milkman
-            // delivered (the orders table has no chat-message link, so match the
-            // latest pending one rather than a fragile quantity comparison).
-            const [pendingOrder] = await db
+            // Orders placed from chat are tagged specialInstructions =
+            // "chatMsg:<id>" when they are created, so deliver exactly the order
+            // this message produced. Falling back to "latest pending order for
+            // this customer" would mark the wrong one whenever a customer has
+            // two orders open at once.
+            let [pendingOrder] = await db
                 .select()
                 .from(orders)
-                .where(
-                    and(
-                        eq(orders.milkmanId, updatedMessage.milkmanId),
-                        eq(orders.customerId, updatedMessage.customerId),
-                        eq(orders.status, "pending")
-                    )
-                )
-                .orderBy(desc(orders.createdAt))
+                .where(eq(orders.specialInstructions, `chatMsg:${updatedMessage.id}`))
                 .limit(1);
+
+            if (!pendingOrder) {
+                // Legacy orders created before the tag existed.
+                [pendingOrder] = await db
+                    .select()
+                    .from(orders)
+                    .where(
+                        and(
+                            eq(orders.milkmanId, updatedMessage.milkmanId),
+                            eq(orders.customerId, updatedMessage.customerId),
+                            eq(orders.status, "pending")
+                        )
+                    )
+                    .orderBy(desc(orders.createdAt))
+                    .limit(1);
+            }
 
             if (pendingOrder) {
                 await db

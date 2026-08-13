@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { TERMS, isTermsRole } from "./legal";
 
 const router = Router();
 
@@ -152,6 +153,76 @@ router.get("/terms", (_req, res) => {
     <h2>9. Contact</h2>
     <p>DOOODHWALA — <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></p>
     `));
+});
+
+// ─── Role-specific Terms (customer / milkman) ──────────────────────────────
+// Source of truth lives in server/legal/*. Served two ways: JSON for the
+// in-app acceptance screen, HTML for public/store-listing links.
+
+function escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ponytail: just enough Markdown for these documents (h1/h2, bullets, bold).
+// Swap for a real parser only if the terms ever need tables or links.
+function markdownToHtml(md: string): string {
+    const out: string[] = [];
+    let inList = false;
+
+    const closeList = () => {
+        if (inList) { out.push("</ul>"); inList = false; }
+    };
+    const inline = (s: string) =>
+        escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+    for (const rawLine of md.split("\n")) {
+        const line = rawLine.trim();
+        if (!line) { closeList(); continue; }
+
+        if (line.startsWith("## ")) {
+            closeList();
+            out.push(`<h2>${inline(line.slice(3))}</h2>`);
+        } else if (line.startsWith("# ")) {
+            closeList();
+            out.push(`<h1>${inline(line.slice(2))}</h1>`);
+        } else if (line.startsWith("- ")) {
+            if (!inList) { out.push("<ul>"); inList = true; }
+            out.push(`<li>${inline(line.slice(2))}</li>`);
+        } else {
+            closeList();
+            out.push(`<p>${inline(line)}</p>`);
+        }
+    }
+    closeList();
+    return out.join("\n");
+}
+
+// GET /api/legal/terms/:role — JSON for the mobile/web acceptance screen.
+router.get("/api/legal/terms/:role", (req, res) => {
+    const { role } = req.params;
+    if (!isTermsRole(role)) {
+        return res.status(404).json({ message: "Unknown terms role" });
+    }
+    const doc = TERMS[role];
+    res.json({
+        role: doc.role,
+        version: doc.version,
+        lastUpdated: doc.lastUpdated,
+        title: doc.title,
+        markdown: doc.markdown,
+    });
+});
+
+// GET /terms/:role — public HTML, for store listings and outbound links.
+router.get("/terms/:role", (req, res) => {
+    const { role } = req.params;
+    if (!isTermsRole(role)) {
+        return res.status(404).type("html").send(page("Not found", "<p>Unknown terms page.</p>"));
+    }
+    const doc = TERMS[role];
+    // The document carries its own <h1>; strip the wrapper's duplicate title.
+    const body = markdownToHtml(doc.markdown).replace(/^<h1>.*?<\/h1>\n?/, "");
+    res.type("html").send(page(doc.title, body));
 });
 
 export default router;

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "./db";
-import { milkmen, users, products, customers } from "@shared/schema";
+import { milkmen, users, products, customers, orders, bills, chatMessages } from "@shared/schema";
 import { eq, asc, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { type AuthRequest } from "./middleware/auth";
@@ -79,6 +79,143 @@ router.get("/profile", async (req: AuthRequest, res) => {
         res.json(milkman);
     } catch (error) {
         console.error("Get milkman profile error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+/** The signed-in user's milkman row, or null. */
+async function currentMilkman(req: AuthRequest) {
+    const [milkman] = await db
+        .select()
+        .from(milkmen)
+        .where(eq(milkmen.userId, req.user!.id))
+        .limit(1);
+    return milkman ?? null;
+}
+
+// GET /api/milkmen/hisaab — the milkman's account: what was earned, what the
+// platform takes, what is left, and who still owes money.
+router.get("/hisaab", async (req: AuthRequest, res) => {
+    try {
+        const milkman = await currentMilkman(req);
+        if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
+
+        // Commission is set per milkman by an admin. Until one is set we show
+        // 0% rather than guessing a rate and misstating someone's income.
+        const commissionPercent = parseFloat(milkman.commissionPercentage || "0") || 0;
+
+        const deliveredOrders = await db
+            .select({ totalAmount: orders.totalAmount })
+            .from(orders)
+            .where(and(eq(orders.milkmanId, milkman.id), eq(orders.status, "delivered")));
+
+        const grossRevenue = deliveredOrders.reduce(
+            (sum, o) => sum + (parseFloat(o.totalAmount || "0") || 0), 0,
+        );
+        const commissionAmount = (grossRevenue * commissionPercent) / 100;
+
+        // Outstanding bills per customer.
+        const billRows = await db
+            .select({
+                customerId: bills.customerId,
+                customerName: customers.name,
+                totalAmount: bills.totalAmount,
+                status: bills.status,
+            })
+            .from(bills)
+            .leftJoin(customers, eq(bills.customerId, customers.id))
+            .where(eq(bills.milkmanId, milkman.id));
+
+        const byCustomer = new Map<number, { customerId: number; customerName: string; pending: number; paid: number }>();
+        for (const row of billRows) {
+            if (row.customerId == null) continue;
+            const entry = byCustomer.get(row.customerId)
+                ?? { customerId: row.customerId, customerName: row.customerName || "Customer", pending: 0, paid: 0 };
+            const amount = parseFloat(row.totalAmount || "0") || 0;
+            if (row.status === "paid") entry.paid += amount;
+            else entry.pending += amount;
+            byCustomer.set(row.customerId, entry);
+        }
+
+        const customerBills = [...byCustomer.values()].sort((a, b) => b.pending - a.pending);
+
+        res.json({
+            grossRevenue,
+            commissionPercent,
+            commissionAmount,
+            netRevenue: grossRevenue - commissionAmount,
+            commissionSet: milkman.commissionPercentage != null,
+            totalPending: customerBills.reduce((s, c) => s + c.pending, 0),
+            customerBills,
+        });
+    } catch (error) {
+        console.error("Get hisaab error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// GET /api/milkmen/delivered-summary — how much of each product has actually
+// been delivered, and what it came to.
+router.get("/delivered-summary", async (req: AuthRequest, res) => {
+    try {
+        const milkman = await currentMilkman(req);
+        if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
+
+        // The orders table only stores a total — the per-product breakdown
+        // lives on the chat message the customer ordered with, which is also
+        // what the delivery run marks delivered. Same source, so the two
+        // screens can never disagree.
+        const deliveredOrders = await db
+            .select({
+                quantity: chatMessages.orderQuantity,
+                totalAmount: chatMessages.orderTotal,
+                items: chatMessages.orderItems,
+                productName: chatMessages.orderProduct,
+            })
+            .from(chatMessages)
+            .where(and(
+                eq(chatMessages.milkmanId, milkman.id),
+                eq(chatMessages.isDelivered, true),
+            ));
+
+        // A message carries either a multi-product items array or a single
+        // quantity/product pair — fold both into one per-product tally.
+        const tally = new Map<string, { product: string; quantity: number; amount: number; orders: number }>();
+        const add = (product: string, quantity: number, amount: number) => {
+            const key = product || "Milk";
+            const entry = tally.get(key) ?? { product: key, quantity: 0, amount: 0, orders: 0 };
+            entry.quantity += quantity;
+            entry.amount += amount;
+            entry.orders += 1;
+            tally.set(key, entry);
+        };
+
+        for (const order of deliveredOrders) {
+            const items = Array.isArray(order.items) ? (order.items as any[]) : [];
+            if (items.length) {
+                for (const item of items) {
+                    const qty = parseFloat(item.quantity ?? "0") || 0;
+                    const price = parseFloat(item.price ?? item.pricePerLiter ?? "0") || 0;
+                    add(item.name || item.productName || "Milk", qty, qty * price);
+                }
+            } else {
+                add(
+                    order.productName || "Milk",
+                    parseFloat(order.quantity || "0") || 0,
+                    parseFloat(order.totalAmount || "0") || 0,
+                );
+            }
+        }
+
+        const productTotals = [...tally.values()].sort((a, b) => b.amount - a.amount);
+
+        res.json({
+            products: productTotals,
+            totalOrders: deliveredOrders.length,
+            totalAmount: productTotals.reduce((sum, p) => sum + p.amount, 0),
+        });
+    } catch (error) {
+        console.error("Get delivered summary error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });

@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Image, useColorScheme, Platform, Dimensions,
+  Image, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { apiRequest } from '../lib/queryClient';
-import { useQueryClient } from '@tanstack/react-query';
 import { Users, Truck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing } from '../theme';
@@ -15,38 +13,15 @@ const logo = require('../../assets/logo.png');
 const { width } = Dimensions.get('window');
 
 export default function UserTypeSelectionScreen({ navigation }: any) {
-  const queryClient = useQueryClient();
-  const [isSelecting, setIsSelecting] = useState(false);
   const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
-  const handleSelect = async (type: 'customer' | 'milkman') => {
-    if (isSelecting) return;
-    setIsSelecting(true);
-    try {
-      const res = await apiRequest({
-        url: '/api/auth/user-type',
-        method: 'PUT',
-        body: { userType: type },
-      });
-      const response = await res.json();
-      if (response.success) {
-        await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
-        // The web app navigates to different setup screens
-        if (type === 'customer') {
-          navigation.replace('CustomerProfileSetup');
-        } else {
-          navigation.replace('MilkmanProfileSetup');
-        }
-      } else {
-        Alert.alert(t('error'), response.message || t('failedUserType'));
-      }
-    } catch (e: any) {
-      Alert.alert(t('error'), e.message || t('failedUserType'));
-    } finally {
-      setIsSelecting(false);
-    }
+  // The role is not committed here — it is saved together with acceptance of
+  // that role's terms on the next screen, so a user can never end up with a
+  // role on their account and no consent on record.
+  const handleSelect = (type: 'customer' | 'milkman') => {
+    navigation.navigate('Terms', { role: type });
   };
 
   const customerFeatures = [
@@ -104,7 +79,6 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
                   { backgroundColor: colors.card, borderColor: colors.border }
                 ]}
                 onPress={() => handleSelect('customer')}
-                disabled={isSelecting}
                 activeOpacity={0.9}
               >
                 <View style={styles.cardHeader}>
@@ -136,14 +110,9 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
                   <TouchableOpacity
                     style={[styles.button, { backgroundColor: colors.foreground }]}
                     onPress={() => handleSelect('customer')}
-                    disabled={isSelecting}
                     activeOpacity={0.8}
                   >
-                    {isSelecting ? (
-                      <ActivityIndicator color={colors.background} />
-                    ) : (
-                      <Text style={[styles.buttonText, { color: colors.background }]}>{t('continueCustomer')}</Text>
-                    )}
+                    <Text style={[styles.buttonText, { color: colors.background }]}>{t('continueCustomer')}</Text>
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -155,7 +124,6 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
                   { backgroundColor: colors.card, borderColor: colors.border }
                 ]}
                 onPress={() => handleSelect('milkman')}
-                disabled={isSelecting}
                 activeOpacity={0.9}
               >
                 <View style={styles.cardHeader}>
@@ -187,14 +155,9 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
                   <TouchableOpacity
                     style={[styles.button, { backgroundColor: colors.foreground }]}
                     onPress={() => handleSelect('milkman')}
-                    disabled={isSelecting}
                     activeOpacity={0.8}
                   >
-                    {isSelecting ? (
-                      <ActivityIndicator color={colors.background} />
-                    ) : (
-                      <Text style={[styles.buttonText, { color: colors.background }]}>{t('continueMilkman')}</Text>
-                    )}
+                    <Text style={[styles.buttonText, { color: colors.background }]}>{t('continueMilkman')}</Text>
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
