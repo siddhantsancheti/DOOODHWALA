@@ -41,6 +41,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
+# generated native folders (any stale rename too)
 /ios
 /android
+/android.stale-*
+/ios.stale-*
