@@ -4,6 +4,7 @@ import { customers, users, bills } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import { BillingService } from "./services/billingService";
+import { ensureHouseholdChat } from "./services/households";
 
 const router = Router();
 
@@ -250,6 +251,9 @@ const assignYdHandler = async (req: AuthRequest, res: any) => {
             })
             .where(eq(customers.id, customer.id))
             .returning();
+
+        // Every customer is a household of one until family joins them.
+        await ensureHouseholdChat(customer.id, milkmanId);
 
         res.json(updatedCustomer);
     } catch (error) {

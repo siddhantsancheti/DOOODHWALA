@@ -6,6 +6,7 @@ import { type AuthRequest } from "./middleware/auth";
 import { broadcast } from "./websocket";
 import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
+import { ensureHouseholdChat } from "./services/households";
 
 const router = Router();
 
@@ -288,6 +289,8 @@ router.post("/:id/approve", async (req, res) => {
             })
             .where(eq(customers.id, request.customerId));
 
+        await ensureHouseholdChat(request.customerId, request.milkmanId);
+
         res.json(updatedRequest);
 
         broadcastServiceRequest("accepted", updatedRequest);
@@ -384,6 +387,8 @@ router.patch("/:id/status", async (req, res) => {
                 .update(customers)
                 .set({ assignedMilkmanId: updatedRequest.milkmanId, updatedAt: new Date() })
                 .where(eq(customers.id, updatedRequest.customerId));
+
+            await ensureHouseholdChat(updatedRequest.customerId, updatedRequest.milkmanId);
         }
 
         res.json(updatedRequest);
