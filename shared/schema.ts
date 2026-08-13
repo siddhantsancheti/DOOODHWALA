@@ -237,14 +237,17 @@ export const customerPricings = pgTable("customer_pricings", {
   id: serial("id").primaryKey(),
   milkmanId: integer("milkman_id").notNull().references(() => milkmen.id),
   customerId: integer("customer_id").notNull().references(() => customers.id),
+  // Which product this price applies to. NULL means the customer's blanket
+  // per-litre rate, which is what every pre-existing row is.
+  productName: varchar("product_name"),
   pricePerLiter: decimal("price_per_liter", { precision: 10, scale: 2 }).notNull(),
   isActive: boolean("is_active").default(true),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  // Ensure one pricing rule per milkman-customer pair
-  index("idx_milkman_customer_pricing").on(table.milkmanId, table.customerId),
+  // One pricing rule per milkman-customer-product
+  index("idx_milkman_customer_pricing").on(table.milkmanId, table.customerId, table.productName),
 ]);
 
 // Chat messages for family chats and individual conversations

@@ -370,6 +370,66 @@ app.use((req, res, next) => {
         }
     });
 
+    // Schedule Subscription Settlement (Midnight IST = 18:30 UTC)
+    //
+    // A subscription's bill goes out at the first midnight after its last
+    // order, not on the calendar 1st. For a monthly subscription ending on the
+    // 31st that is midnight on the 1st — the same moment the monthly cron
+    // fires — but a subscription ending mid-month is now settled the same
+    // night instead of the customer waiting weeks for a bill.
+    cron.schedule("30 18 * * *", async () => {
+        console.log("Running Subscription Settlement...");
+        try {
+            const { subscriptions, customers } = await import("../shared/schema");
+            const { db } = await import("./db");
+            const { eq, and, lte, isNotNull } = await import("drizzle-orm");
+
+            // IST midnight: anything whose end date has now passed.
+            const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+            const todayStart = new Date(istNow);
+            todayStart.setHours(0, 0, 0, 0);
+
+            const ended = await db
+                .select()
+                .from(subscriptions)
+                .where(and(
+                    eq(subscriptions.isActive, true),
+                    isNotNull(subscriptions.endDate),
+                    lte(subscriptions.endDate, todayStart),
+                ));
+
+            if (ended.length === 0) {
+                console.log("No subscriptions ended today.");
+                return;
+            }
+
+            // Close them first, so a retry cannot bill the same subscription
+            // twice even if the billing step below fails partway.
+            for (const sub of ended) {
+                await db
+                    .update(subscriptions)
+                    .set({ isActive: false, updatedAt: new Date() })
+                    .where(eq(subscriptions.id, sub.id));
+            }
+
+            // One bill per milkman covers every customer of theirs with
+            // unbilled orders, so bill each affected milkman once.
+            const milkmanIds = [...new Set(ended.map((s) => s.milkmanId))];
+            for (const milkmanId of milkmanIds) {
+                try {
+                    await BillingService.generateMonthlyBill(milkmanId);
+                } catch (err) {
+                    console.error(`Settlement billing failed for milkman ${milkmanId}:`, err);
+                }
+            }
+
+            console.log(`Settled ${ended.length} subscription(s) across ${milkmanIds.length} milkman(s).`);
+        } catch (error) {
+            console.error("Error in Subscription Settlement:", error);
+        }
+    });
+
+
     const PORT = process.env.PORT || 5001;
     // Behind a reverse proxy (Caddy on the self-hosted box) set HOST=127.0.0.1
     // so the app port is not reachable from the internet even if a firewall

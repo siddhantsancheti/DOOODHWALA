@@ -15,6 +15,13 @@
       "when": 1786051455584,
       "tag": "0001_steady_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786646828399,
+      "tag": "0002_dear_alice",
+      "breakpoints": true
     }
   ]
 }
