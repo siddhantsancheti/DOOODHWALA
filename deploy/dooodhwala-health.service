@@ -1,0 +1,8 @@
+[Unit]
+Description=DOOODHWALA health check and self-heal
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/home/dooodhwala/DOOODHWALA/deploy/healthcheck.sh

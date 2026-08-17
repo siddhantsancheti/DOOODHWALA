@@ -1,0 +1,15 @@
+# Runs the backup every day at 02:30 local time.
+#
+# Persistent=true means a backup missed because the VM was off or rebooting
+# runs at the next boot instead of being skipped — which is exactly the day
+# you would want it.
+[Unit]
+Description=Daily DOOODHWALA database backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

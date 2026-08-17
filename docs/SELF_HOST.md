@@ -187,3 +187,104 @@ sudo systemctl restart dooodhwala
 - ✅ Free forever (Oracle), full control, no cold starts.
 - ⚠️ You own uptime, OS patching, and TLS renewal (Caddy automates TLS).
 - For a payment app, monitor it — a down server = failed orders.
+
+---
+
+# Automated setup (recommended)
+
+Everything below the manual walkthrough is automated. On a fresh Oracle Ubuntu
+VM:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/siddhantsancheti/DOOODHWALA/main/deploy/setup.sh | sudo bash
+```
+
+Idempotent — re-run it any time. It sets the timezone to IST, opens both
+firewall layers, installs Node/Caddy/postgresql-client, creates the app user,
+clones the repo, adds swap on small shapes, installs every systemd unit, caps
+journal size, and turns on unattended security updates.
+
+It cannot do the three things only you hold: the secrets, the DNS record, and
+the Oracle console Security List.
+
+## What runs without you
+
+| Unit | Cadence | Does |
+|---|---|---|
+| `dooodhwala.service` | always | The app. Restarts on crash and on reboot. |
+| `dooodhwala-backup.timer` | daily 02:30 IST | `pg_dump`, gzip, verify, rotate at 14 days. |
+| `dooodhwala-health.timer` | every 5 min | Hits `/healthz`; restarts once and alerts if wedged. |
+| `unattended-upgrades` | daily | Security patches. |
+
+`Restart=always` handles a crash. The health timer handles the case systemd
+cannot see: the process alive but not answering — a hung loop, an exhausted
+connection pool. That looks healthy to systemd and dead to your customers.
+
+## Alerts
+
+Put a webhook in `.env` and the health check will tell you when something
+breaks and when it recovers:
+
+```
+ALERT_WEBHOOK=https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>&text=
+```
+
+A Telegram bot takes two minutes via @BotFather and is free. Discord and Slack
+channel webhooks also work.
+
+**A box cannot tell you it is dead.** If the VM is off, or the network is gone,
+nothing on it can alert. Add one external check — UptimeRobot's free tier
+pings `https://your-domain/healthz` every 5 minutes and emails you. That is
+the one piece that must live somewhere else.
+
+## Backups: what is actually protected
+
+The backup verifies itself — non-empty, valid gzip, contains `CREATE TABLE` —
+and exits non-zero otherwise, so a silently empty dump cannot accumulate for
+months.
+
+**A backup on the same VM as the database is not a backup.** It dies with the
+box. Two things fix that:
+
+1. If your database is managed (Supabase, Neon), the provider already keeps
+   its own backups. Confirm the retention on your plan — that is your real
+   safety net, and these dumps are a second, independent copy.
+2. For an off-box copy, install `rclone`, configure a remote (Google Drive's
+   free tier is enough for SQL dumps), and set in `.env`:
+   ```
+   BACKUP_REMOTE=gdrive:dooodhwala-backups
+   ```
+
+### Restore
+
+```bash
+gunzip -c /home/dooodhwala/backups/dooodhwala_YYYYMMDD_HHMMSS.sql.gz \
+  | psql "$DATABASE_URL"
+```
+
+**Restore one backup into a scratch database before you need to.** An untested
+backup is a guess. Do it once now, while nothing is on fire.
+
+## Deploying an update
+
+```bash
+sudo -iu dooodhwala /home/dooodhwala/DOOODHWALA/deploy/update.sh
+sudo systemctl restart dooodhwala
+```
+
+Backs up first, then pulls, installs, builds and migrates. It builds **before**
+you restart, so a broken build leaves the running server untouched instead of
+taking the app down while you debug.
+
+## Checking on it
+
+```bash
+systemctl status dooodhwala              # running?
+systemctl list-timers | grep dooodhwala  # when did the timers last fire?
+journalctl -u dooodhwala -n 100          # app logs
+journalctl -u dooodhwala-backup -n 20    # did last night's backup work?
+ls -lh /home/dooodhwala/backups/         # are the files actually there
+```
+
+If you look at one thing weekly, make it that last line. Backups that stopped
+running are the failure nobody notices until it matters.

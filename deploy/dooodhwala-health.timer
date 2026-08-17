@@ -1,0 +1,11 @@
+# Every 5 minutes. Frequent enough that a wedged server is caught within one
+# delivery stop, not one delivery round.
+[Unit]
+Description=DOOODHWALA health check every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+# Daily database backup. Triggered by dooodhwala-backup.timer.
+[Unit]
+Description=DOOODHWALA database backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dooodhwala
+WorkingDirectory=/home/dooodhwala/DOOODHWALA
+ExecStart=/home/dooodhwala/DOOODHWALA/deploy/backup.sh
+# Keep 14 days locally; set BACKUP_REMOTE for an off-box copy.
+Environment=RETENTION_DAYS=14
