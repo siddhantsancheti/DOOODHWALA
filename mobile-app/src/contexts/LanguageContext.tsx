@@ -67,17 +67,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (language === 'Hindi') {
       return { 
         ...baseColors, 
-        primary: '#F97316', // Saffron
+        primary: '#E08A2E', // Saffron
         primaryDark: '#EA580C',
-        brandPrimary: '#F97316'
+        brandPrimary: '#E08A2E'
       };
     }
     if (language === 'Marathi') {
       return { 
         ...baseColors, 
-        primary: '#16A34A', // Green
-        primaryDark: '#15803D',
-        brandPrimary: '#16A34A'
+        primary: '#2F7D5B', // Green
+        primaryDark: '#265F46',
+        brandPrimary: '#2F7D5B'
       };
     }
     return baseColors;

@@ -72,7 +72,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
           contact: user?.phone || '',
           name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Customer',
         },
-        theme: { color: '#2563EB' },
+        theme: { color: '#22406E' },
       };
 
       const paymentData = await RazorpayCheckout.open(options);
@@ -216,7 +216,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
           accessibilityRole="radio"
           accessibilityState={{ selected: method === 'online' }}
         >
-          <View style={[styles.optionIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#DBEAFE' }]}>
+          <View style={[styles.optionIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#E4EAF3' }]}>
             <Smartphone size={20} color={colors.primary} />
           </View>
           <View style={styles.optionText}>
@@ -235,8 +235,8 @@ export default function CheckoutScreen({ route, navigation }: any) {
           accessibilityRole="radio"
           accessibilityState={{ selected: method === 'cod' }}
         >
-          <View style={[styles.optionIcon, { backgroundColor: isDark ? 'rgba(22,163,74,0.2)' : '#DCFCE7' }]}>
-            <Banknote size={20} color="#16A34A" />
+          <View style={[styles.optionIcon, { backgroundColor: isDark ? 'rgba(22,163,74,0.2)' : '#DFF0E6' }]}>
+            <Banknote size={20} color="#2F7D5B" />
           </View>
           <View style={styles.optionText}>
             <Text style={styles.optionTitle} numberOfLines={1}>{t('cashOnDelivery')}</Text>
@@ -311,7 +311,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   amountDesc: { fontSize: 14, color: colors.mutedForeground, fontFamily, textAlign: 'center', lineHeight: 20 },
   groupBadge: {
     marginTop: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
-    backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#DBEAFE',
+    backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#E4EAF3',
   },
   groupBadgeText: { fontSize: 11, color: colors.primary, fontFamily: fontFamilyBold, fontWeight: '700' },
 
@@ -354,7 +354,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     height: 54, borderRadius: 14, backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16,
   },
-  payBtnCod: { backgroundColor: '#16A34A' },
+  payBtnCod: { backgroundColor: '#2F7D5B' },
   payBtnBusy: { opacity: 0.7 },
   payBtnText: { fontSize: 17, color: '#FFFFFF', fontFamily: fontFamilyBold, fontWeight: '700' },
   secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },

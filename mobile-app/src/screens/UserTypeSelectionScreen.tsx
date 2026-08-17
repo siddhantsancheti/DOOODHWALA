@@ -83,7 +83,7 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
               >
                 <View style={styles.cardHeader}>
                   <LinearGradient
-                    colors={['#3B82F6', '#A855F7', '#EC4899']}
+                    colors={['#22406E', '#3D6098']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.iconBox}
@@ -101,7 +101,7 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
                   <View style={styles.featuresList}>
                     {customerFeatures.map((feature, i) => (
                       <View key={i} style={styles.featureRow}>
-                        <View style={[styles.featureDot, { backgroundColor: '#3B82F6' }]} />
+                        <View style={[styles.featureDot, { backgroundColor: '#7FA5DA' }]} />
                         <Text style={[styles.featureText, { color: colors.mutedForeground }]}>{feature}</Text>
                       </View>
                     ))}
@@ -128,7 +128,7 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
               >
                 <View style={styles.cardHeader}>
                   <LinearGradient
-                    colors={['#F97316', '#EF4444', '#EAB308']}
+                    colors={['#E08A2E', '#C07A1E']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.iconBox}
@@ -146,7 +146,7 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
                   <View style={styles.featuresList}>
                     {milkmanFeatures.map((feature, i) => (
                       <View key={i} style={styles.featureRow}>
-                        <View style={[styles.featureDot, { backgroundColor: '#16A34A' }]} />
+                        <View style={[styles.featureDot, { backgroundColor: '#2F7D5B' }]} />
                         <Text style={[styles.featureText, { color: colors.mutedForeground }]}>{feature}</Text>
                       </View>
                     ))}

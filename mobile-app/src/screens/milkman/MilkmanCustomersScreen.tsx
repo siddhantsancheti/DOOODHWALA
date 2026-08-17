@@ -151,7 +151,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     searchRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, height: 42,
-      borderRadius: 10, backgroundColor: colors.surfaceSecondary || (isDark ? '#374151' : '#F3F4F6'),
+      borderRadius: 10, backgroundColor: colors.surfaceSecondary || (isDark ? '#332C25' : '#F0E9DE'),
     },
     searchInput: { flex: 1, fontSize: 15, color: colors.foreground, fontFamily, padding: 0 },
 
@@ -162,7 +162,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     },
     avatar: {
       width: 46, height: 46, borderRadius: 23,
-      backgroundColor: isDark ? 'rgba(37,99,235,0.25)' : '#DBEAFE',
+      backgroundColor: isDark ? 'rgba(37,99,235,0.25)' : '#E4EAF3',
       justifyContent: 'center', alignItems: 'center',
     },
     avatarText: { fontSize: 18, color: colors.primary, fontFamily: fontFamilyBold, fontWeight: '700' },

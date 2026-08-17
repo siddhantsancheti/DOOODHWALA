@@ -41,10 +41,10 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
     );
   }
 
-  const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#F9FAFB' : '#111827';
-  const textMuted = isDark ? '#9CA3AF' : '#6B7280';
-  const borderColor = isDark ? '#374151' : '#F3F4F6';
+  const surfaceColor = isDark ? '#1F1B17' : '#FFFFFF';
+  const textColor = isDark ? '#F5EFE5' : '#1A1714';
+  const textMuted = isDark ? '#A99B89' : '#7A6E60';
+  const borderColor = isDark ? '#332C25' : '#F0E9DE';
 
   const handleNewOrderClick = () => {
     // Redirect order flow to chat based on assigned YD
@@ -108,7 +108,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
       <View style={[styles.topNav, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
         <View style={styles.navLeft}>
           <View style={styles.avatarBox}>
-            <User size={24} color="#2563EB" />
+            <User size={24} color="#22406E" />
           </View>
           <View>
             <Text style={[styles.navWelcome, { color: textMuted, fontFamily }]}>{t('welcomeBack')}</Text>
@@ -119,13 +119,13 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
         </View>
         <View style={styles.navRight}>
           <TouchableOpacity 
-            style={[styles.langBtn, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]} 
+            style={[styles.langBtn, { backgroundColor: isDark ? '#332C25' : '#F0E9DE' }]} 
             onPress={() => {
               const newLang = language === 'English' ? 'Hindi' : language === 'Hindi' ? 'Marathi' : 'English';
               setLanguage(newLang);
             }}
           >
-            <Text style={{ color: '#2563EB', fontWeight: '700', fontSize: 12, fontFamily: fontFamilyBold }}>
+            <Text style={{ color: '#22406E', fontWeight: '700', fontSize: 12, fontFamily: fontFamilyBold }}>
               {language === 'English' ? 'EN' : language === 'Hindi' ? 'HI' : 'MR'}
             </Text>
           </TouchableOpacity>
@@ -235,8 +235,8 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
                   style={styles.dropdownItem}
                   onPress={handleLogout}
                 >
-                  <LogOut size={18} color="#EF4444" style={styles.dropdownIcon} />
-                  <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('logout')}</Text>
+                  <LogOut size={18} color="#C0453B" style={styles.dropdownIcon} />
+                  <Text style={[styles.dropdownItemText, { color: "#C0453B", fontFamily }]}>{t('logout')}</Text>
                 </TouchableOpacity>
 
                 {/* Delete Account — permanent, last item */}
@@ -244,8 +244,8 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
                   style={styles.dropdownItem}
                   onPress={handleDeleteAccount}
                 >
-                  <Trash2 size={18} color="#EF4444" style={styles.dropdownIcon} />
-                  <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('deleteAccount') || 'Delete Account'}</Text>
+                  <Trash2 size={18} color="#C0453B" style={styles.dropdownIcon} />
+                  <Text style={[styles.dropdownItemText, { color: "#C0453B", fontFamily }]}>{t('deleteAccount') || 'Delete Account'}</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -287,7 +287,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
         
         {/* Quick Actions / New Order */}
         <LinearGradient
-          colors={['#2563EB', '#1E40AF']}
+          colors={['#22406E', '#22304A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
@@ -299,7 +299,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
             activeOpacity={0.9}
             onPress={handleNewOrderClick}
           >
-            <Plus size={20} color="#2563EB" />
+            <Plus size={20} color="#22406E" />
             <Text style={[styles.heroButtonText, { fontFamily: fontFamilyBold }]}>{t('newOrder')}</Text>
           </TouchableOpacity>
         </LinearGradient>
@@ -330,8 +330,8 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Tracking')}
           >
-            <View style={[styles.gridIconBox, { backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#DCFCE7' }]}>
-              <MapPin size={24} color="#16A34A" />
+            <View style={[styles.gridIconBox, { backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#DFF0E6' }]}>
+              <MapPin size={24} color="#2F7D5B" />
             </View>
             <View style={styles.gridTextContent}>
               <Text style={[styles.gridTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('trackDelivery')}</Text>
@@ -347,8 +347,8 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
             activeOpacity={0.8}
             onPress={() => navigation.navigate('ViewOrders')}
           >
-            <View style={[styles.gridIconBox, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE' }]}>
-              <ShoppingCart size={24} color="#2563EB" />
+            <View style={[styles.gridIconBox, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#E4EAF3' }]}>
+              <ShoppingCart size={24} color="#22406E" />
             </View>
             <View style={styles.gridTextContent}>
               <Text style={[styles.gridTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('orderHistory')}</Text>
@@ -362,8 +362,8 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Bills')}
           >
-            <View style={[styles.gridIconBox, { backgroundColor: isDark ? 'rgba(234, 179, 8, 0.2)' : '#FEF9C3' }]}>
-              <Receipt size={24} color="#CA8A04" />
+            <View style={[styles.gridIconBox, { backgroundColor: isDark ? 'rgba(234, 179, 8, 0.2)' : '#FBEFD5' }]}>
+              <Receipt size={24} color="#A8730F" />
             </View>
             <View style={styles.gridTextContent}>
               <Text style={[styles.gridTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('monthlyBills')}</Text>
@@ -372,7 +372,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
           </TouchableOpacity>
 
           {/* Ad Banner Placeholder */}
-          <View style={[styles.adContainer, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor }]}>
+          <View style={[styles.adContainer, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor }]}>
              <Text style={{ color: textMuted, fontSize: 12, fontWeight: '600', fontFamily: fontFamilyBold }}>{t('sponsoredAd')}</Text>
              <Text style={{ color: textColor, fontSize: 14, marginTop: 4, fontFamily }}>{t('organicGheeOffer')}</Text>
           </View>
@@ -384,8 +384,8 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
       {/* Bottom Nav Placeholder aligned to standard */}
       <View style={[styles.bottomNav, { backgroundColor: surfaceColor, borderTopColor: borderColor }]}>
         <TouchableOpacity style={styles.bottomNavItem}>
-          <HomeIcon size={24} color="#2563EB" />
-          <Text style={[styles.bottomNavText, { color: "#2563EB", fontFamily: fontFamilyBold }]}>{t('home')}</Text>
+          <HomeIcon size={24} color="#22406E" />
+          <Text style={[styles.bottomNavText, { color: "#22406E", fontFamily: fontFamilyBold }]}>{t('home')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.bottomNavItem} onPress={() => navigation.navigate('ViewOrders')}>
           <ShoppingCart size={24} color={textMuted} />
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   avatarBox: {
     height: 40,
     width: 40,
-    backgroundColor: '#DBEAFE', // bg-blue-100
+    backgroundColor: '#E4EAF3', // bg-blue-100
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   heroButtonText: {
-    color: '#2563EB',
+    color: '#22406E',
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#22406E',
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.lg,
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#2563EB',
+    borderColor: '#22406E',
   },
 
   // Ad Container
@@ -702,8 +702,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   optionChipActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: '#22406E',
+    borderColor: '#22406E',
   },
   optionText: {
     fontSize: 14,

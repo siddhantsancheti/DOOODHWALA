@@ -165,13 +165,13 @@ export default function ViewOrdersScreen({ navigation }: any) {
           </View>
           
           <View style={styles.summaryGrid}>
-            <View style={[styles.summaryItem, { backgroundColor: '#EFF6FF' }]}> {/* Blue 50 */}
+            <View style={[styles.summaryItem, { backgroundColor: '#F2F5FA' }]}> {/* Blue 50 */}
               <Text style={styles.summaryLabel}>Total Orders</Text>
-              <Text style={[styles.summaryNumber, { color: '#2563EB' }]}>{orderList.length}</Text>
+              <Text style={[styles.summaryNumber, { color: '#22406E' }]}>{orderList.length}</Text>
             </View>
-            <View style={[styles.summaryItem, { backgroundColor: '#F0FDF4' }]}> {/* Green 50 */}
+            <View style={[styles.summaryItem, { backgroundColor: '#F1F8F3' }]}> {/* Green 50 */}
               <Text style={styles.summaryLabel}>Completed</Text>
-              <Text style={[styles.summaryNumber, { color: '#16A34A' }]}>{historyOrders.length}</Text>
+              <Text style={[styles.summaryNumber, { color: '#2F7D5B' }]}>{historyOrders.length}</Text>
             </View>
             <View style={[styles.summaryItem, { backgroundColor: '#FFF7ED' }]}> {/* Orange 50 */}
               <Text style={styles.summaryLabel}>Active Orders</Text>

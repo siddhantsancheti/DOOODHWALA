@@ -325,20 +325,20 @@ export default function YDPageScreen({ navigation }: any) {
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
       {/* Pending Request Alert matching web app */}
       {pendingRequest && (
-        <View style={[styles.pendingCard, { backgroundColor: isDark ? '#422006' : '#FEFCE8', borderColor: isDark ? '#713F12' : '#FEF08A' }]}>
+        <View style={[styles.pendingCard, { backgroundColor: isDark ? '#422006' : '#FEFCE8', borderColor: isDark ? '#713F12' : '#F6E3B4' }]}>
           <View style={styles.pendingHeader}>
-            <View style={[styles.pendingIconBg, { backgroundColor: isDark ? '#713F12' : '#FEF9C3' }]}>
-              <Clock size={20} color="#CA8A04" />
+            <View style={[styles.pendingIconBg, { backgroundColor: isDark ? '#713F12' : '#FBEFD5' }]}>
+              <Clock size={20} color="#A8730F" />
             </View>
             <View style={styles.pendingTextGroup}>
-              <Text style={[styles.pendingTitle, { color: isDark ? '#FEF08A' : '#713F12' }]}>Request Pending</Text>
-              <Text style={[styles.pendingSubtitle, { color: isDark ? '#FDE047' : '#854D0E' }]}>Waiting for acceptance from dairyman.</Text>
+              <Text style={[styles.pendingTitle, { color: isDark ? '#F6E3B4' : '#713F12' }]}>Request Pending</Text>
+              <Text style={[styles.pendingSubtitle, { color: isDark ? '#F0C860' : '#854D0E' }]}>Waiting for acceptance from dairyman.</Text>
             </View>
             <TouchableOpacity 
-              style={[styles.pendingActionBtn, { backgroundColor: isDark ? '#713F12' : '#FEF9C3' }]}
+              style={[styles.pendingActionBtn, { backgroundColor: isDark ? '#713F12' : '#FBEFD5' }]}
               onPress={() => Alert.alert("Pending Request", `Services: ${pendingRequest.services?.map((s: any) => s.name).join(', ')}`)}
             >
-              <Text style={[styles.pendingActionText, { color: isDark ? '#FEF08A' : '#713F12' }]}>View</Text>
+              <Text style={[styles.pendingActionText, { color: isDark ? '#F6E3B4' : '#713F12' }]}>View</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -353,16 +353,16 @@ export default function YDPageScreen({ navigation }: any) {
             onPress={() => setShowChat(true)}
           >
             <View style={styles.cardHeader}>
-              <View style={[styles.avatarContainer, { backgroundColor: isDark ? '#1E40AF40' : '#DBEAFE' }]}>
+              <View style={[styles.avatarContainer, { backgroundColor: isDark ? '#22304A40' : '#E4EAF3' }]}>
                 <Text style={[styles.avatarText, { color: colors.primary }]}>
                   {yourDairyman.contactName.charAt(0).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.headerInfo}>
-                <Text style={[styles.dairymanName, { color: isDark ? '#F9FAFB' : '#1E3A8A' }]}>
+                <Text style={[styles.dairymanName, { color: isDark ? '#F5EFE5' : '#1E3A8A' }]}>
                   {yourDairyman.contactName}
                 </Text>
-                <Text style={[styles.businessName, { color: isDark ? '#93C5FD' : '#1D4ED8' }]}>
+                <Text style={[styles.businessName, { color: isDark ? '#A6C2E8' : '#162C4D' }]}>
                   {yourDairyman.businessName}
                 </Text>
                 <Text style={styles.tapToChatHint}>
@@ -395,7 +395,7 @@ export default function YDPageScreen({ navigation }: any) {
           {myGroup?.id ? (
             <View style={[styles.groupBanner, { backgroundColor: isDark ? '#064E3B30' : '#ECFDF5', borderColor: isDark ? '#065F46' : '#A7F3D0' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Users size={18} color="#10B981" />
+                <Users size={18} color="#2F7D5B" />
                 <Text style={[styles.groupBannerTitle, { color: textColor }]}>{myGroup.chatName}</Text>
                 <View style={[styles.groupCountPill, { backgroundColor: isDark ? '#065F46' : '#D1FAE5' }]}>
                   <Text style={styles.groupCountText}>{myGroup.memberCount || myGroup.members?.length || 1} members</Text>
@@ -461,13 +461,13 @@ export default function YDPageScreen({ navigation }: any) {
               {filteredMilkmen.map((m: any) => (
                 <View key={m.id} style={[styles.milkmanCard, { backgroundColor: surfaceColor, borderColor }]}>
                   <View style={styles.milkmanTop}>
-                    <View style={[styles.milkmanAvatarSmall, { backgroundColor: isDark ? '#4B5563' : '#F3E8FF' }]}>
+                    <View style={[styles.milkmanAvatarSmall, { backgroundColor: isDark ? '#5C5248' : '#F3E8FF' }]}>
                       <Truck size={18} color="#9333EA" />
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={[styles.milkmanTitle, { color: textColor }]}>{m.businessName}</Text>
                       <Text style={{ color: textMuted, fontSize: 13 }}>
-                        <Star size={12} color="#EAB308" fill="#EAB308" /> {m.rating || "4.5"}
+                        <Star size={12} color="#C98A16" fill="#C98A16" /> {m.rating || "4.5"}
                       </Text>
                     </View>
                     <TouchableOpacity
@@ -496,7 +496,7 @@ export default function YDPageScreen({ navigation }: any) {
       {!showChat && (
         <View style={[styles.topNav, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
           <View style={styles.navLeft}>
-            <Heart size={20} color="#DC2626" />
+            <Heart size={20} color="#A8382F" />
             <Text style={[styles.navTitle, { color: textColor }]}>{t('yourDoodhwala')}</Text>
           </View>
           <TouchableOpacity style={styles.dashboardBtn} onPress={() => navigation.navigate('CustomerHome')}>
@@ -515,7 +515,7 @@ export default function YDPageScreen({ navigation }: any) {
               </TouchableOpacity>
               {/* Tap the header (WhatsApp-style) to open group info + share code */}
               <TouchableOpacity style={styles.chatHeaderCenter} onPress={() => setShowChatInfo(true)} activeOpacity={0.7}>
-                <View style={[styles.chatHeaderAvatar, { backgroundColor: isDark ? '#1E40AF40' : '#DBEAFE' }]}>
+                <View style={[styles.chatHeaderAvatar, { backgroundColor: isDark ? '#22304A40' : '#E4EAF3' }]}>
                   <Text style={{ color: colors.primary, fontWeight: '700', fontFamily: fontFamilyBold }}>
                     {(yourDairyman.businessName || 'D').charAt(0).toUpperCase()}
                   </Text>
@@ -551,7 +551,7 @@ export default function YDPageScreen({ navigation }: any) {
 
             {/* Dairyman header */}
             <View style={{ alignItems: 'center', marginBottom: 16 }}>
-              <View style={[styles.chatHeaderAvatar, { backgroundColor: isDark ? '#1E40AF40' : '#DBEAFE', width: 64, height: 64, borderRadius: 32 }]}>
+              <View style={[styles.chatHeaderAvatar, { backgroundColor: isDark ? '#22304A40' : '#E4EAF3', width: 64, height: 64, borderRadius: 32 }]}>
                 <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 24, fontFamily: fontFamilyBold }}>
                   {(yourDairyman?.businessName || 'D').charAt(0).toUpperCase()}
                 </Text>
@@ -685,7 +685,7 @@ export default function YDPageScreen({ navigation }: any) {
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: textColor }]}>Group Name</Text>
                 <TextInput
-                  style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily }]}
+                  style={[styles.modalInput, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, fontFamily }]}
                   placeholder="e.g. Sharma Family" placeholderTextColor={textMuted}
                   value={groupName} onChangeText={setGroupName}
                 />
@@ -700,7 +700,7 @@ export default function YDPageScreen({ navigation }: any) {
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: textColor }]}>Group Code</Text>
                 <TextInput
-                  style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily }]}
+                  style={[styles.modalInput, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, fontFamily }]}
                   placeholder="e.g. GRP7QX" placeholderTextColor={textMuted}
                   value={groupCode} onChangeText={setGroupCode} autoCapitalize="characters"
                 />
@@ -742,9 +742,9 @@ export default function YDPageScreen({ navigation }: any) {
               onPress={confirmDiscontinue}
               disabled={discontinuing}
             >
-              {discontinuing ? <ActivityIndicator color="#EF4444" /> : (
+              {discontinuing ? <ActivityIndicator color="#C0453B" /> : (
                 <>
-                  <LogOut size={18} color="#EF4444" />
+                  <LogOut size={18} color="#C0453B" />
                   <Text style={styles.discontinueText}>{myGroup?.id ? 'Discontinue Group' : 'Unassign Dairyman'}</Text>
                 </>
               )}
@@ -836,7 +836,7 @@ export default function YDPageScreen({ navigation }: any) {
 
               <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>Notes (optional)</Text>
               <TextInput
-                style={[styles.modalInput, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, fontFamily, height: 70, textAlignVertical: 'top', paddingTop: 10 }]}
+                style={[styles.modalInput, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, fontFamily, height: 70, textAlignVertical: 'top', paddingTop: 10 }]}
                 placeholder="Any special instructions"
                 placeholderTextColor={textMuted}
                 value={requestNotes}
@@ -867,19 +867,19 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   topNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   navTitle: { fontSize: 18, fontWeight: '700', fontFamily: fontFamilyBold },
-  dashboardBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 6, borderColor: '#E5E7EB' },
+  dashboardBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 6, borderColor: '#E6DCCD' },
   dashboardBtnText: { fontSize: 13, fontWeight: '600', fontFamily },
   
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent', gap: 4 },
-  activeTabItem: { borderBottomColor: '#2563EB' },
+  activeTabItem: { borderBottomColor: '#22406E' },
   tabItemText: { fontSize: 13, fontWeight: '600', fontFamily: fontFamilyBold },
 
   tabContent: { flex: 1, padding: 16 },
   mainContainer: { flex: 1 },
   premiumCard: {
-    backgroundColor: isDark ? '#1E3A8A20' : '#EFF6FF',
-    borderColor: isDark ? '#1E40AF' : '#BFDBFE',
+    backgroundColor: isDark ? '#1E3A8A20' : '#F2F5FA',
+    borderColor: isDark ? '#22304A' : '#BFDBFE',
     borderWidth: 2,
     borderRadius: 16,
     padding: 20,
@@ -922,7 +922,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   },
   tapToChatHint: {
     fontSize: 12,
-    color: isDark ? '#93C5FD' : '#2563EB',
+    color: isDark ? '#A6C2E8' : '#22406E',
     marginTop: 4,
     fontFamily,
   },
@@ -934,7 +934,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   headerIconBtn: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: isDark ? '#1F2937' : '#FFFFFF50',
+    backgroundColor: isDark ? '#1F1B17' : '#FFFFFF50',
   },
   sectionContainer: {
     width: '100%',
@@ -952,7 +952,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     alignItems: 'center',
     paddingHorizontal: 20,
     gap: 12,
-    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+    backgroundColor: isDark ? '#1F1B17' : '#FFFFFF',
   },
   bigActionText: {
     fontSize: 16,
@@ -985,8 +985,8 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   modalInput: { width: '100%', height: 48, borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, fontSize: 16 },
   modalSubmitBtn: { width: '100%', height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
   modalSubmitBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', fontFamily: fontFamilyBold },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#EEE' },
-  infoLabel: { fontSize: 14, color: isDark ? '#9CA3AF' : '#666', fontFamily },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#332C25' : '#EEE' },
+  infoLabel: { fontSize: 14, color: isDark ? '#A99B89' : '#666', fontFamily },
   infoValue: { fontSize: 14, fontWeight: '600', fontFamily: fontFamilyBold },
   pendingCard: { padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 16 },
   pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -1049,5 +1049,5 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
 
   // Discontinue
   discontinueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: 'transparent', marginTop: 16 },
-  discontinueText: { color: '#EF4444', fontSize: 15, fontWeight: '700', fontFamily: fontFamilyBold },
+  discontinueText: { color: '#C0453B', fontSize: 15, fontWeight: '700', fontFamily: fontFamilyBold },
 });

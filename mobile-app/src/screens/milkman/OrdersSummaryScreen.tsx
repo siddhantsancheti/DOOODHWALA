@@ -144,7 +144,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     },
     iconWrap: {
       width: 38, height: 38, borderRadius: 10,
-      backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#DBEAFE',
+      backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#E4EAF3',
       justifyContent: 'center', alignItems: 'center',
     },
     rowText: { flex: 1, minWidth: 0 },

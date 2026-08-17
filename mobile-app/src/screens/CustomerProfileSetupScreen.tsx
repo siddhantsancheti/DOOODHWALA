@@ -222,7 +222,7 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
         >
           {/* Profile Photo Area */}
           <View style={styles.photoContainer}>
-            <View style={[styles.photoCircle, { backgroundColor: isDark ? '#1F2937' : '#EEF2FF', borderRadius: 80 }]}>
+            <View style={[styles.photoCircle, { backgroundColor: isDark ? '#1F1B17' : '#EEF2FF', borderRadius: 80 }]}>
               <User size={72} color={colors.primary} />
             </View>
             <TouchableOpacity style={styles.cameraBtn} activeOpacity={0.8} onPress={() => Alert.alert('Coming Soon', 'Profile picture upload is currently under development.')}>
@@ -248,7 +248,7 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
             {/* Profile Type Icon inside Card */}
             <View style={styles.cardIconContainer}>
               <LinearGradient
-                colors={['#3B82F6', '#A855F7', '#9333EA']}
+                colors={['#7FA5DA', '#22406E', '#9333EA']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.cardIconGradient}
@@ -424,7 +424,7 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
                 style={[
                   styles.locationBtn,
                   {
-                    borderColor: formData.latitude ? '#22C55E' : colors.border,
+                    borderColor: formData.latitude ? '#3E9B72' : colors.border,
                     backgroundColor: formData.latitude ? 'rgba(34,197,94,0.06)' : 'transparent',
                   }
                 ]}
@@ -437,13 +437,13 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
                 ) : (
                   <MapPin
                     size={20}
-                    color={formData.latitude ? '#22C55E' : colors.mutedForeground}
+                    color={formData.latitude ? '#3E9B72' : colors.mutedForeground}
                     style={{ marginRight: 8 }}
                   />
                 )}
                 <Text style={[
                   styles.locationBtnText,
-                  { color: formData.latitude ? '#22C55E' : colors.mutedForeground }
+                  { color: formData.latitude ? '#3E9B72' : colors.mutedForeground }
                 ]}>
                   {locationAutoCapture === 'capturing'
                     ? 'Detecting location…'
@@ -486,7 +486,7 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
               style={{ marginTop: 24, opacity: isSubmitting ? 0.7 : 1 }}
             >
               <LinearGradient
-                colors={['#2563EB', '#9333EA']}
+                colors={['#22406E', '#9333EA']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.submitBtn}
@@ -540,7 +540,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     alignSelf: 'center',
     right: 20,
     transform: [{ translateY: 10 }],
-    backgroundColor: '#2563EB', // bg-primary
+    backgroundColor: '#22406E', // bg-primary
     padding: 12, // p-3
     borderRadius: 24,
     shadowColor: '#000',

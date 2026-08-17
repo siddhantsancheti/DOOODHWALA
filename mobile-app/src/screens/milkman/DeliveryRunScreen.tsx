@@ -225,9 +225,9 @@ export default function DeliveryRunScreen({ navigation, route }: any) {
               <Text style={styles.orderLineText} numberOfLines={1}>{summarise(order)}</Text>
               {order.isDelivered ? (
                 <View style={styles.ticks}>
-                  <Check size={11} color="#16A34A" />
-                  <Check size={11} color="#16A34A" style={{ marginLeft: -5 }} />
-                  <Check size={11} color="#16A34A" style={{ marginLeft: -5 }} />
+                  <Check size={11} color="#2F7D5B" />
+                  <Check size={11} color="#2F7D5B" style={{ marginLeft: -5 }} />
+                  <Check size={11} color="#2F7D5B" style={{ marginLeft: -5 }} />
                 </View>
               ) : order.isAccepted ? (
                 <CheckCheck size={13} color={colors.primary} />
@@ -306,7 +306,7 @@ export default function DeliveryRunScreen({ navigation, route }: any) {
             </TouchableOpacity>
 
             <LinearGradient
-              colors={isBroadcasting ? ['#16A34A', '#15803D'] : ['#2563EB', '#1D4ED8']}
+              colors={isBroadcasting ? ['#2F7D5B', '#265F46'] : ['#22406E', '#162C4D']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.hero}
@@ -405,7 +405,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
       height: 44, borderRadius: 10, backgroundColor: colors.primary,
       justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8,
     },
-    deliverBtnDone: { backgroundColor: '#16A34A' },
+    deliverBtnDone: { backgroundColor: '#2F7D5B' },
     deliverText: { fontSize: 13, color: '#FFFFFF', fontFamily: fontFamilyBold, fontWeight: '700' },
 
     empty: { alignItems: 'center', paddingTop: 56, paddingHorizontal: 32, gap: 8 },

@@ -66,11 +66,11 @@ export default function CustomerCareScreen() {
 
         <View style={styles.optionsContainer}>
           <TouchableOpacity 
-            style={[styles.optionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: colors.border }]}
+            style={[styles.optionCard, { backgroundColor: isDark ? '#1F1B17' : '#FFFFFF', borderColor: colors.border }]}
             onPress={handleCall}
           >
             <View style={[styles.iconBox, { backgroundColor: 'rgba(37, 99, 235, 0.1)' }]}>
-              <Phone size={24} color="#2563EB" />
+              <Phone size={24} color="#22406E" />
             </View>
             <View style={styles.optionInfo}>
               <Text style={[styles.optionTitle, { color: colors.foreground, fontFamily: fontFamilyBold }]}>{t('callSupport')}</Text>
@@ -79,11 +79,11 @@ export default function CustomerCareScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.optionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: colors.border }]}
+            style={[styles.optionCard, { backgroundColor: isDark ? '#1F1B17' : '#FFFFFF', borderColor: colors.border }]}
             onPress={handleEmail}
           >
             <View style={[styles.iconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-              <Mail size={24} color="#EF4444" />
+              <Mail size={24} color="#C0453B" />
             </View>
             <View style={styles.optionInfo}>
               <Text style={[styles.optionTitle, { color: colors.foreground, fontFamily: fontFamilyBold }]}>{t('emailUs')}</Text>
@@ -92,11 +92,11 @@ export default function CustomerCareScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.optionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: colors.border }]}
+            style={[styles.optionCard, { backgroundColor: isDark ? '#1F1B17' : '#FFFFFF', borderColor: colors.border }]}
             onPress={handleWhatsApp}
           >
             <View style={[styles.iconBox, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-              <MessageCircle size={24} color="#16A34A" />
+              <MessageCircle size={24} color="#2F7D5B" />
             </View>
             <View style={styles.optionInfo}>
               <Text style={[styles.optionTitle, { color: colors.foreground, fontFamily: fontFamilyBold }]}>{t('whatsappChat')}</Text>
@@ -105,7 +105,7 @@ export default function CustomerCareScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.infoBox, { backgroundColor: isDark ? '#111827' : '#F9FAFB' }]}>
+        <View style={[styles.infoBox, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5' }]}>
           <Text style={[styles.infoTitle, { color: colors.foreground, fontFamily: fontFamilyBold }]}>{t('faqTitle')}</Text>
           
           <View style={styles.faqItem}>

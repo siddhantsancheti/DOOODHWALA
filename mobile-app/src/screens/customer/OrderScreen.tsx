@@ -162,7 +162,7 @@ export default function OrderScreen({ route, navigation }: any) {
               
               {milkman.verified !== false && (
                 <View style={styles.badgeSuccess}>
-                  <CheckCircle size={14} color="#16A34A" />
+                  <CheckCircle size={14} color="#2F7D5B" />
                   <Text style={styles.badgeSuccessText}>Verified</Text>
                 </View>
               )}
@@ -323,15 +323,15 @@ export default function OrderScreen({ route, navigation }: any) {
 const createOrderMutationPending = false;
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#EFF6FF' }, // Match the gradient-like background roughly
+  safeArea: { flex: 1, backgroundColor: '#F2F5FA' }, // Match the gradient-like background roughly
   container: { flex: 1, padding: spacing.xl },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EFF6FF' },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2F5FA' },
   
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: spacing.md, alignSelf: 'flex-start' },
   backBtnText: { fontSize: fontSize.sm, fontWeight: '500', color: colors.foreground },
   
   header: { marginBottom: spacing.xl },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: '#1A1714', marginBottom: 4 },
   pageDesc: { fontSize: fontSize.base, color: colors.gray600 },
 
   // Cards
@@ -358,11 +358,11 @@ const styles = StyleSheet.create({
   infoTextBold: { fontSize: fontSize.sm, fontWeight: '600', color: colors.foreground },
   infoTextLight: { fontSize: fontSize.sm, color: colors.gray500 },
   badgeSuccess: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DCFCE7',
+    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DFF0E6',
     paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.full, alignSelf: 'flex-start',
     marginTop: spacing.sm,
   },
-  badgeSuccessText: { color: '#16A34A', fontSize: 12, fontWeight: '600' },
+  badgeSuccessText: { color: '#2F7D5B', fontSize: 12, fontWeight: '600' },
 
   // Products
   productRow: {

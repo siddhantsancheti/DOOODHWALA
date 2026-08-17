@@ -24,8 +24,8 @@ interface TermsDoc {
 // Role identity — customer reads cool/blue, milkman reads warm/amber, matching
 // the choice cards on the previous screen so the transition feels continuous.
 const ROLE_GRADIENT: Record<Role, [string, string]> = {
-  customer: ['#3B82F6', '#6366F1'],
-  milkman: ['#F97316', '#EAB308'],
+  customer: ['#22406E', '#3D6098'],
+  milkman: ['#E08A2E', '#C07A1E'],
 };
 
 export default function TermsScreen({ route, navigation }: any) {

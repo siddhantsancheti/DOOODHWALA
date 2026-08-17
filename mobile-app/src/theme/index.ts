@@ -5,72 +5,84 @@
  */
 
 // ─── Colors ────────────────────────────────────────────────────
+/**
+ * DOOODHWALA palette.
+ *
+ * Deliberately not the framework defaults. The ground is a warm cream rather
+ * than white, the brand is a deep indigo rather than stock blue, and marigold
+ * carries the calls to action — a combination that reads warm and Indian for a
+ * daily household habit, and reads as chosen rather than left at defaults.
+ *
+ * Green is semantic only. It means delivered, paid, fresh — never decoration.
+ * That is what makes the third tick land.
+ */
 export const lightColors = {
-  // Core
-  background: '#FAFAFA',       // hsl(0, 0%, 98%)
-  foreground: '#1E2330',       // hsl(222, 16%, 13%)
+  // Core — warm cream, so nothing sits on pure white
+  background: '#FAF6EF',
+  foreground: '#1A1714',       // warm near-black, not blue-black
 
   // Card
   card: '#FFFFFF',
-  cardForeground: '#1E2330',
+  cardForeground: '#1A1714',
 
   // Muted
-  muted: '#F0F1F3',           // hsl(220, 13%, 95%)
-  mutedForeground: '#6B7280', // hsl(220, 9%, 46%)
+  muted: '#F0E9DE',
+  mutedForeground: '#7A6E60',  // warm grey, tuned to the cream ground
 
-  // Primary (Blue)
-  primary: '#2563EB',          // hsl(221, 83%, 53%)
+  // Primary — deep indigo
+  primary: '#22406E',
   primaryForeground: '#FFFFFF',
-  primaryLight: '#DBEAFE',     // lighter shade for backgrounds
-  primaryDark: '#1D4ED8',      // darker shade for pressed states
+  primaryLight: '#E4EAF3',
+  primaryDark: '#162C4D',
 
   // Secondary
-  secondary: '#F3F4F6',        // hsl(220, 14%, 96%)
-  secondaryForeground: '#6B7280',
+  secondary: '#F0E9DE',
+  secondaryForeground: '#7A6E60',
 
-  // Accent (same as primary)
-  accent: '#2563EB',
-  accentForeground: '#FFFFFF',
+  // Accent — marigold. Warm, festive, the thing the eye goes to.
+  accent: '#E08A2E',
+  accentForeground: '#1A1714',
+  accentLight: '#FBEBD4',
 
   // Destructive
-  destructive: '#EF4444',      // hsl(0, 84%, 60%)
+  destructive: '#C0453B',
   destructiveForeground: '#FFFFFF',
 
   // Brand
-  brandPrimary: '#2563EB',     // hsl(221, 83%, 53%)
-  brandSecondary: '#16A34A',   // hsl(142, 76%, 36%)
-  brandAccent: '#F97316',      // hsl(25, 95%, 53%)
+  brandPrimary: '#22406E',
+  brandSecondary: '#2F7D5B',
+  brandAccent: '#E08A2E',
 
   // Semantic
-  success: '#16A34A',          // hsl(142, 76%, 36%)
-  successLight: '#DCFCE7',
-  warning: '#EAB308',          // hsl(38, 92%, 50%)
-  warningLight: '#FEF9C3',
-  error: '#EF4444',            // hsl(0, 84%, 60%)
-  errorLight: '#FEE2E2',
-  info: '#0EA5E9',             // hsl(199, 89%, 48%)
-  infoLight: '#E0F2FE',
+  success: '#2F7D5B',          // deeper, calmer than a default green
+  successLight: '#DFF0E6',
+  warning: '#C98A16',
+  warningLight: '#FBEFD5',
+  error: '#C0453B',
+  errorLight: '#F8E4E1',
+  info: '#22406E',
+  infoLight: '#E4EAF3',
 
   // Surface
   surface: '#FFFFFF',
-  surfaceSecondary: '#F8F9FA', // hsl(220, 13%, 98%)
+  surfaceSecondary: '#F5EFE5',
 
   // Border / Input
-  border: '#E5E7EB',           // hsl(220, 13%, 91%)
-  input: '#E5E7EB',
-  ring: '#2563EB',
+  border: '#E6DCCD',
+  input: '#E6DCCD',
+  ring: '#22406E',
 
-  // Grays (utility)
-  gray50: '#F9FAFB',
-  gray100: '#F3F4F6',
-  gray200: '#E5E7EB',
-  gray300: '#D1D5DB',
-  gray400: '#9CA3AF',
-  gray500: '#6B7280',
-  gray600: '#4B5563',
-  gray700: '#374151',
-  gray800: '#1F2937',
-  gray900: '#111827',
+  // Grays (utility) — warmed so they sit on cream rather than fight it
+  gray50: '#FAF6EF',
+  gray100: '#F2ECE2',
+  gray200: '#E6DCCD',
+  gray300: '#D5C8B5',
+  gray400: '#A99B89',
+  gray500: '#7A6E60',
+  gray600: '#5C5248',
+  gray700: '#443C34',
+  gray800: '#2C2621',
+  gray900: '#1A1714',
 
   // Transparent
   transparent: 'transparent',
@@ -79,51 +91,62 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  ...lightColors, // fallback for brand colors and utilities
-  
-  // Core
-  background: '#020817',       // hsl(222, 84%, 4.9%)
-  foreground: '#FFFFFF',       // hsl(0, 0%, 100%)
+  ...lightColors, // fallback for utilities
+
+  // Core — warm charcoal, never blue-black
+  background: '#14110E',
+  foreground: '#F7F1E8',
 
   // Card
-  card: '#020817',             // hsl(222, 84%, 4.9%)
-  cardForeground: '#FFFFFF',   // hsl(0, 0%, 100%)
+  card: '#1F1B17',
+  cardForeground: '#F7F1E8',
 
   // Muted
-  muted: '#1E293B',           // hsl(217, 32%, 17.5%)
-  mutedForeground: '#94A3B8', // hsl(215, 20%, 75%)
+  muted: '#2A251F',
+  mutedForeground: '#A39685',
 
-  // Primary (Blue)
-  primary: '#3B82F6',          // hsl(217, 91%, 60%)
-  primaryForeground: '#020817',// hsl(222, 84%, 4.9%)
-  primaryLight: '#1E3A8A',     
-  primaryDark: '#60A5FA',      
+  // Primary — lifted so it holds up on a dark ground
+  primary: '#7FA5DA',
+  primaryForeground: '#14110E',
+  primaryLight: '#22304A',
+  primaryDark: '#A6C2E8',
 
   // Secondary
-  secondary: '#1E293B',        // hsl(217, 32%, 17.5%)
-  secondaryForeground: '#D1D5DB', // hsl(215, 20%, 85%)
+  secondary: '#2A251F',
+  secondaryForeground: '#D8CCBC',
 
   // Accent
-  accent: '#3B82F6',           // hsl(217, 91%, 60%)
-  accentForeground: '#020817', // hsl(222, 84%, 4.9%)
+  accent: '#F0A44A',
+  accentForeground: '#14110E',
+  accentLight: '#3A2A16',
 
   // Destructive
-  destructive: '#7F1D1D',      // hsl(0, 62%, 30%)
-  destructiveForeground: '#FFFFFF',
+  destructive: '#E0685C',
+  destructiveForeground: '#14110E',
 
-  // Brand 
-  brandPrimary: '#60A5FA',     // hsl(217, 91%, 65%)
-  brandSecondary: '#16A34A',   // hsl(142, 76%, 45%)
-  brandAccent: '#F97316',      // hsl(25, 95%, 58%)
+  // Brand
+  brandPrimary: '#7FA5DA',
+  brandSecondary: '#5FBF92',
+  brandAccent: '#F0A44A',
+
+  // Semantic
+  success: '#5FBF92',
+  successLight: '#17301F',
+  warning: '#E8B54A',
+  warningLight: '#2E2411',
+  error: '#E0685C',
+  errorLight: '#331B18',
+  info: '#7FA5DA',
+  infoLight: '#1B2839',
 
   // Surface
-  surface: '#0B1120',
-  surfaceSecondary: '#1E293B',
+  surface: '#1F1B17',
+  surfaceSecondary: '#2A251F',
 
   // Border / Input
-  border: '#1E293B',           // hsl(217, 32%, 17.5%)
-  input: '#1E293B',            // hsl(217, 32%, 17.5%)
-  ring: '#3B82F6',             // hsl(217, 91%, 60%)
+  border: '#332C25',
+  input: '#332C25',
+  ring: '#7FA5DA',
 };
 
 // Default export for backward compatibility

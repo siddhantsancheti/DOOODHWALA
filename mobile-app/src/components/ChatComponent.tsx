@@ -82,12 +82,12 @@ const MessageRow = React.memo(function MessageRow({ msg, isNewDay, isMe, senderN
               <View style={{ flexDirection: 'row', marginLeft: 4, alignItems: 'center' }}>
                 {msg.isDelivered ? (
                   <View style={{ flexDirection: 'row' }}>
-                    <Check size={10} color="#93C5FD" />
-                    <Check size={10} color="#93C5FD" style={{ marginLeft: -6 }} />
-                    <Check size={10} color="#93C5FD" style={{ marginLeft: -6 }} />
+                    <Check size={10} color="#A6C2E8" />
+                    <Check size={10} color="#A6C2E8" style={{ marginLeft: -6 }} />
+                    <Check size={10} color="#A6C2E8" style={{ marginLeft: -6 }} />
                   </View>
                 ) : msg.isAccepted ? (
-                  <CheckCheck size={12} color="#60A5FA" />
+                  <CheckCheck size={12} color="#7FA5DA" />
                 ) : (
                   <Check size={12} color="rgba(255,255,255,0.7)" />
                 )}
@@ -339,10 +339,10 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
     }
   }, [navigation]);
 
-  const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#F9FAFB' : '#111827';
-  const textMuted = isDark ? '#9CA3AF' : '#6B7280';
-  const borderColor = isDark ? '#374151' : '#E5E7EB';
+  const surfaceColor = isDark ? '#1F1B17' : '#FFFFFF';
+  const textColor = isDark ? '#F5EFE5' : '#1A1714';
+  const textMuted = isDark ? '#A99B89' : '#7A6E60';
+  const borderColor = isDark ? '#332C25' : '#E6DCCD';
 
   const availableProducts = milkman?.dairyItems?.filter((item: any) => item.isAvailable !== false) || [];
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -412,10 +412,10 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
                   </View>
                   <View style={styles.subActions}>
                     <TouchableOpacity onPress={() => toggleSubscriptionMutation.mutate(sub.id)}>
-                      {sub.isActive ? <Pause size={16} color="#EAB308" /> : <Play size={16} color="#16A34A" />}
+                      {sub.isActive ? <Pause size={16} color="#C98A16" /> : <Play size={16} color="#2F7D5B" />}
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => deleteSubscriptionMutation.mutate(sub.id)} style={{ marginLeft: 12 }}>
-                      <Trash2 size={16} color="#EF4444" />
+                      <Trash2 size={16} color="#C0453B" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -447,7 +447,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
                   key={idx} 
                   style={[
                     styles.productChip, 
-                    { backgroundColor: isDark ? '#374151' : '#F3F4F6', borderColor },
+                    { backgroundColor: isDark ? '#332C25' : '#F0E9DE', borderColor },
                     selectedProduct?.name === item.name && { backgroundColor: colors.primary, borderColor: colors.primary }
                   ]} 
                   onPress={() => setSelectedProduct(item)}
@@ -461,12 +461,12 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
 
             {/* Input Display */}
             <View style={styles.qtyDisplayRow}>
-               <View style={[styles.qtyInputContainer, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+               <View style={[styles.qtyInputContainer, { backgroundColor: isDark ? '#332C25' : '#F0E9DE' }]}>
                  <Text style={[styles.qtyInputText, { color: textColor }]}>{orderQuantity || "0"}</Text>
                  <Text style={[styles.qtyUnitText, { color: textMuted }]}>{selectedProduct?.unit || 'unit'}</Text>
                </View>
                <TouchableOpacity 
-                style={[styles.modeToggle, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                style={[styles.modeToggle, { backgroundColor: isDark ? '#332C25' : '#F0E9DE' }]}
                 onPress={() => setShowNumpad(false)}
                >
                  <MessageSquare size={20} color={colors.primary} />
@@ -478,7 +478,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
               {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((btn) => (
                 <TouchableOpacity 
                   key={btn} 
-                  style={[styles.numpadBtn, { backgroundColor: isDark ? '#374151' : '#F9FAFB' }]}
+                  style={[styles.numpadBtn, { backgroundColor: isDark ? '#332C25' : '#F5EFE5' }]}
                   onPress={() => btn === "⌫" ? deleteLastDigit() : addToQuantity(btn)}
                 >
                   <Text style={[styles.numpadBtnText, { color: textColor }]}>{btn}</Text>
@@ -499,7 +499,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
               accessibilityRole="switch"
               accessibilityState={{ checked: isAutoSend }}
             >
-              <View style={[styles.miniSwitch, { backgroundColor: isAutoSend ? colors.primary : '#D1D5DB' }]}>
+              <View style={[styles.miniSwitch, { backgroundColor: isAutoSend ? colors.primary : '#D5C8B5' }]}>
                 <View style={[styles.miniSwitchThumb, isAutoSend && { transform: [{ translateX: 14 }] }]} />
               </View>
 
@@ -509,7 +509,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
 
               {isAutoSend && (
                 <TouchableOpacity
-                  style={[styles.timeSelector, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}
+                  style={[styles.timeSelector, { backgroundColor: isDark ? '#332C25' : '#F0E9DE' }]}
                   onPress={() => setShowTimePicker(true)}
                 >
                   <Clock size={14} color={colors.primary} />
@@ -538,7 +538,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
               {uploadingMedia ? <ActivityIndicator size="small" color={textMuted} /> : <Plus size={22} color={textMuted} />}
             </TouchableOpacity>
             <TextInput
-              style={[styles.textInput, { backgroundColor: isDark ? '#374151' : '#F3F4F6', color: textColor }]} 
+              style={[styles.textInput, { backgroundColor: isDark ? '#332C25' : '#F0E9DE', color: textColor }]} 
               placeholder="Type a message..." 
               placeholderTextColor={textMuted} 
               value={message} 
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   myMsgWrapper: { alignSelf: 'flex-end' },
   theirMsgWrapper: { alignSelf: 'flex-start' },
   bubble: { padding: 10, paddingHorizontal: 14, borderRadius: 16, minWidth: 80 },
-  myBubble: { backgroundColor: '#16A34A', borderTopRightRadius: 4 },
+  myBubble: { backgroundColor: '#2F7D5B', borderTopRightRadius: 4 },
   theirBubble: { borderTopLeftRadius: 4 },
   senderName: { fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
   requestBanner: { flexDirection: 'row', alignItems: 'center', padding: 6, borderRadius: 6, marginBottom: 8, gap: 6 },
@@ -658,13 +658,13 @@ const styles = StyleSheet.create({
   modeReturnBtn: { padding: 8, marginRight: 4 },
   tabs: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 12, gap: 8 },
-  activeTab: { borderBottomWidth: 2, borderBottomColor: '#16A34A' },
+  activeTab: { borderBottomWidth: 2, borderBottomColor: '#2F7D5B' },
   tabText: { fontSize: 14, fontWeight: '600' },
   orderPanel: { padding: 16 },
   productStrip: { marginBottom: 16 },
   productChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginRight: 8 },
   productChipText: { fontSize: 14 },
-  placeOrderBtn: { backgroundColor: '#16A34A', height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  placeOrderBtn: { backgroundColor: '#2F7D5B', height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
   inputBar: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 },
   textInput: { flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 22, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 16 },
   sendBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
