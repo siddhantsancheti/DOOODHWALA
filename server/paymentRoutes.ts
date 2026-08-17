@@ -116,7 +116,7 @@ router.post("/generate", async (req, res) => {
         if (!milkmanId || !customerId) return res.status(400).json({ message: "Milkman ID and Customer ID required" });
 
         // We'll reuse the consolidate logic but scoped or simply trigger billing service
-        await BillingService.generateMonthlyBill(milkmanId);
+        await BillingService.generateBillsForMilkman(milkmanId);
         
         res.json({ success: true, message: "Bills generated successfully" });
     } catch (error) {
@@ -292,7 +292,7 @@ router.post("/consolidated/:milkmanId/generate", async (req: AuthRequest, res) =
             return res.status(403).json({ message: "Not authorized." });
         }
 
-        await BillingService.generateMonthlyBill(milkmanId);
+        await BillingService.generateBillsForMilkman(milkmanId);
 
         res.redirect(307, `/api/bills/consolidated/${milkmanId}`);
 

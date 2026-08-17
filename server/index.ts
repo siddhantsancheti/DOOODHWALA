@@ -421,7 +421,7 @@ app.use((req, res, next) => {
             const milkmanIds = [...new Set(ended.map((s) => s.milkmanId))];
             for (const milkmanId of milkmanIds) {
                 try {
-                    await BillingService.generateMonthlyBill(milkmanId);
+                    await BillingService.generateBillsForMilkman(milkmanId);
                 } catch (err) {
                     console.error(`Settlement billing failed for milkman ${milkmanId}:`, err);
                 }
