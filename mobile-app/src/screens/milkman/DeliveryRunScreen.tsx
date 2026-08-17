@@ -18,6 +18,8 @@ import { spacing, borderRadius } from '../../theme';
 interface OrderMessage {
   id: number;
   customerId: number | null;
+  familyChatId: number | null;
+  householdName: string | null;
   customerName: string | null;
   customerAddress: string | null;
   message: string;
@@ -36,6 +38,14 @@ interface OrderMessage {
  * chat screen uses, so the customer sees their ticks advance in the
  * conversation where they placed the order — one source of truth, not two.
  */
+interface Household {
+  key: string;
+  name: string;
+  address: string | null;
+  customerId: number | null;
+  orders: OrderMessage[];
+}
+
 export default function DeliveryRunScreen({ navigation, route }: any) {
   const milkmanId = route?.params?.milkmanId;
   const queryClient = useQueryClient();
@@ -152,82 +162,106 @@ export default function DeliveryRunScreen({ navigation, route }: any) {
     return m.message;
   };
 
-  const pending = orderMessages.filter((m) => !m.isDelivered).length;
+  // One card per door. A family orders as several messages but the milkman
+  // makes one visit, so the household is the unit here — and the buttons act
+  // on everything that door ordered, not one line at a time.
+  const households = useMemo(() => {
+    const byChat = new Map<string, Household>();
+    for (const m of orderMessages) {
+      // Messages predating household tagging fall back to their customer, so
+      // nothing silently disappears from the run.
+      const key = m.familyChatId != null ? `c${m.familyChatId}` : `u${m.customerId ?? 'unknown'}`;
+      const existing = byChat.get(key);
+      if (existing) {
+        existing.orders.push(m);
+      } else {
+        byChat.set(key, {
+          key,
+          name: m.householdName || m.customerName || t('customer'),
+          address: m.customerAddress,
+          customerId: m.customerId,
+          orders: [m],
+        });
+      }
+    }
+    return [...byChat.values()];
+  }, [orderMessages, t]);
 
-  const renderOrder = ({ item }: { item: OrderMessage }) => {
-    const delivered = !!item.isDelivered;
-    const accepted = !!item.isAccepted;
-    const busy = mark.isPending && mark.variables?.id === item.id;
+  const pending = households.filter((h) => h.orders.some((o) => !o.isDelivered)).length;
+
+  const renderHousehold = ({ item }: { item: Household }) => {
+    const undelivered = item.orders.filter((o) => !o.isDelivered);
+    const unaccepted = item.orders.filter((o) => !o.isAccepted && !o.isDelivered);
+    const allDelivered = undelivered.length === 0;
+    const busy = mark.isPending && item.orders.some((o) => o.id === mark.variables?.id);
 
     return (
-      <View style={[styles.card, delivered && styles.cardDone]}>
+      <View style={[styles.card, allDelivered && styles.cardDone]}>
         <TouchableOpacity
-          style={styles.cardMain}
+          style={styles.householdHeader}
           onPress={() => item.customerId && navigation.navigate('Chat', {
             customerId: item.customerId,
             milkmanId,
           })}
           activeOpacity={0.7}
         >
-          <View style={styles.orderNoRow}>
-            <Text style={styles.orderNo} numberOfLines={1}>#{item.id}</Text>
-            {delivered ? (
-              <View style={styles.ticks}>
-                <Check size={11} color="#16A34A" />
-                <Check size={11} color="#16A34A" style={{ marginLeft: -5 }} />
-                <Check size={11} color="#16A34A" style={{ marginLeft: -5 }} />
+          <View style={styles.cardMain}>
+            <Text style={styles.customerName} numberOfLines={1}>{item.name}</Text>
+            {!!item.address && (
+              <View style={styles.addressRow}>
+                <MapPin size={11} color={colors.mutedForeground} />
+                <Text style={styles.address} numberOfLines={1}>{item.address}</Text>
               </View>
-            ) : accepted ? (
-              <CheckCheck size={13} color={colors.primary} />
-            ) : null}
+            )}
           </View>
-
-          <Text style={styles.customerName} numberOfLines={1}>
-            {item.customerName || t('customer')}
-          </Text>
-          <Text style={styles.orderSummary} numberOfLines={1}>{summarise(item)}</Text>
-
-          {!!item.customerAddress && (
-            <View style={styles.addressRow}>
-              <MapPin size={11} color={colors.mutedForeground} />
-              <Text style={styles.address} numberOfLines={1}>{item.customerAddress}</Text>
-            </View>
-          )}
-
-          <View style={styles.chatHint}>
-            <MessageSquare size={11} color={colors.primary} />
-            <Text style={styles.chatHintText} numberOfLines={1}>{t('openChat')}</Text>
-          </View>
+          <MessageSquare size={16} color={colors.primary} />
         </TouchableOpacity>
 
-        <View style={styles.actions}>
+        {/* Every order at this door, each showing its own tick state — a
+            family needs to see whose order was delivered. */}
+        <View style={styles.orderLines}>
+          {item.orders.map((order) => (
+            <View key={order.id} style={styles.orderLine}>
+              <Text style={styles.orderLineText} numberOfLines={1}>{summarise(order)}</Text>
+              {order.isDelivered ? (
+                <View style={styles.ticks}>
+                  <Check size={11} color="#16A34A" />
+                  <Check size={11} color="#16A34A" style={{ marginLeft: -5 }} />
+                  <Check size={11} color="#16A34A" style={{ marginLeft: -5 }} />
+                </View>
+              ) : order.isAccepted ? (
+                <CheckCheck size={13} color={colors.primary} />
+              ) : (
+                <Check size={12} color={colors.mutedForeground} />
+              )}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.householdActions}>
           <TouchableOpacity
-            style={[styles.acceptBtn, (accepted || delivered) && styles.btnDone]}
-            onPress={() => mark.mutate({ id: item.id, action: 'accepted' })}
-            disabled={accepted || delivered || busy}
+            style={[styles.acceptBtn, styles.householdBtn, unaccepted.length === 0 && styles.btnDone]}
+            onPress={() => unaccepted.forEach((o) => mark.mutate({ id: o.id, action: 'accepted' }))}
+            disabled={unaccepted.length === 0 || busy}
             activeOpacity={0.85}
           >
-            {busy && !accepted ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text
-                style={[styles.acceptText, (accepted || delivered) && styles.btnDoneText]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                {accepted || delivered ? t('accepted') : t('accept')}
-              </Text>
-            )}
+            <Text
+              style={[styles.acceptText, unaccepted.length === 0 && styles.btnDoneText]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {unaccepted.length === 0 ? t('accepted') : t('accept')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.deliverBtn, delivered && styles.deliverBtnDone]}
-            onPress={() => mark.mutate({ id: item.id, action: 'delivered' })}
-            disabled={delivered || busy}
+            style={[styles.deliverBtn, styles.householdBtn, allDelivered && styles.deliverBtnDone]}
+            onPress={() => undelivered.forEach((o) => mark.mutate({ id: o.id, action: 'delivered' }))}
+            disabled={allDelivered || busy}
             activeOpacity={0.85}
           >
-            {busy && accepted ? (
+            {busy ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text
@@ -236,7 +270,11 @@ export default function DeliveryRunScreen({ navigation, route }: any) {
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
               >
-                {delivered ? t('deliveredLabel') : t('markDelivered')}
+                {allDelivered
+                  ? t('deliveredLabel')
+                  : undelivered.length > 1
+                    ? `${t('markDelivered')} (${undelivered.length})`
+                    : t('markDelivered')}
               </Text>
             )}
           </TouchableOpacity>
@@ -248,9 +286,9 @@ export default function DeliveryRunScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={orderMessages}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderOrder}
+        data={households}
+        keyExtractor={(item) => item.key}
+        renderItem={renderHousehold}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
@@ -328,12 +366,23 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     // Card: text column flexes, buttons keep a fixed width, so a long customer
     // name shortens itself instead of squeezing the actions off the row.
     card: {
-      flexDirection: 'row', alignItems: 'stretch', gap: 10,
+      flexDirection: 'column',
       backgroundColor: colors.card, borderRadius: 16, borderWidth: 1,
       borderColor: colors.border, padding: 12, marginBottom: 10,
     },
     cardDone: { opacity: 0.65 },
     cardMain: { flex: 1, minWidth: 0, justifyContent: 'center' },
+
+    // Household card: header, the door's orders, then actions for the whole door.
+    householdHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    orderLines: {
+      marginTop: 10, paddingTop: 8,
+      borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, gap: 6,
+    },
+    orderLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    orderLineText: { flex: 1, minWidth: 0, fontSize: 13, color: colors.mutedForeground, fontFamily },
+    householdActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    householdBtn: { flex: 1, height: 44 },
 
     orderNoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
     orderNo: { fontSize: 12, color: colors.mutedForeground, fontFamily: fontFamilyBold, fontWeight: '700' },
@@ -345,7 +394,6 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     chatHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
     chatHintText: { fontSize: 11, color: colors.primary, fontFamily: fontFamilyBold, fontWeight: '600' },
 
-    actions: { justifyContent: 'center', gap: 8, width: 104 },
     acceptBtn: {
       height: 38, borderRadius: 10, borderWidth: 1.5, borderColor: colors.primary,
       justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8,

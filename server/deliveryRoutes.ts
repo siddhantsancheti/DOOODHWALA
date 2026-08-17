@@ -1,7 +1,7 @@
 
 import { Router } from "express";
 import { db } from "./db";
-import { customers, orders, users, milkmen, locations, chatMessages } from "@shared/schema";
+import { customers, orders, users, milkmen, locations, chatMessages, familyChats, familyChatMembers } from "@shared/schema";
 import { eq, and, asc, gt, gte, desc, sql } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import jwt from "jsonwebtoken";
@@ -33,8 +33,39 @@ router.get("/queue", async (req: AuthRequest, res) => {
             .where(eq(customers.assignedMilkmanId, milkmanId))
             .orderBy(asc(customers.routeOrder));
 
-        const totalStops = route.length;
-        const myIndex = route.findIndex((c) => c.id === customer.id);
+        // Stops are doors, not people: a family of four is one stop. Collapse
+        // the route to one entry per household before counting, or a customer
+        // behind one family is told there are four deliveries ahead of them.
+        const memberships = await db
+            .select({ chatId: familyChatMembers.chatId, userId: familyChatMembers.userId })
+            .from(familyChatMembers)
+            .innerJoin(familyChats, eq(familyChatMembers.chatId, familyChats.id))
+            .where(and(eq(familyChats.milkmanId, milkmanId), eq(familyChats.isActive, true)));
+
+        const chatByUser = new Map(memberships.map((m) => [m.userId, m.chatId]));
+        // A customer with no household stands alone, keyed so it cannot collide
+        // with a chat id.
+        const doorOf = (c: typeof route[number]) =>
+            (c.userId && chatByUser.get(c.userId) != null)
+                ? `c${chatByUser.get(c.userId)}`
+                : `u${c.id}`;
+
+        const doors: { door: string; routeOrder: number; customerIds: number[] }[] = [];
+        for (const c of route) {
+            const door = doorOf(c);
+            const existing = doors.find((d) => d.door === door);
+            if (existing) {
+                existing.customerIds.push(c.id);
+                existing.routeOrder = Math.min(existing.routeOrder, c.routeOrder ?? 0);
+            } else {
+                doors.push({ door, routeOrder: c.routeOrder ?? 0, customerIds: [c.id] });
+            }
+        }
+        doors.sort((a, b) => a.routeOrder - b.routeOrder);
+
+        const myDoor = doorOf(customer);
+        const totalStops = doors.length;
+        const myIndex = doors.findIndex((d) => d.door === myDoor);
         const yourStop = myIndex >= 0 ? myIndex + 1 : null;
 
         // Customers already delivered today (so we don't count them as "ahead").
@@ -57,9 +88,9 @@ router.get("/queue", async (req: AuthRequest, res) => {
             );
         const deliveredSet = new Set(deliveredRows.map((d) => d.customerId));
 
-        const myOrder = customer.routeOrder ?? 0;
-        const stopsAhead = route.filter(
-            (c) => (c.routeOrder ?? 0) < myOrder && !deliveredSet.has(c.id),
+        // A door is done once every customer at it has been delivered.
+        const stopsAhead = doors.filter((d, i) =>
+            i < myIndex && !d.customerIds.every((id) => deliveredSet.has(id)),
         ).length;
 
         res.json({ yourStop, totalStops, stopsAhead });

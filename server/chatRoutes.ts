@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { getStorage } from "firebase-admin/storage";
 import { db } from "./db";
-import { chatMessages, users, orders, milkmen, products, notifications, customers } from "@shared/schema";
+import { chatMessages, users, orders, milkmen, products, notifications, customers, familyChats } from "@shared/schema";
 import { eq, or, and, asc, desc, gt, isNotNull } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
@@ -115,6 +115,7 @@ router.get("/orders", async (req: AuthRequest, res) => {
                 id: chatMessages.id,
                 customerId: chatMessages.customerId,
                 familyChatId: chatMessages.familyChatId,
+                householdName: familyChats.chatName,
                 customerName: customers.name,
                 customerAddress: customers.address,
                 customerPhone: customers.phone,
@@ -129,6 +130,7 @@ router.get("/orders", async (req: AuthRequest, res) => {
             })
             .from(chatMessages)
             .leftJoin(customers, eq(chatMessages.customerId, customers.id))
+            .leftJoin(familyChats, eq(chatMessages.familyChatId, familyChats.id))
             .where(
                 and(
                     eq(chatMessages.milkmanId, milkman.id),

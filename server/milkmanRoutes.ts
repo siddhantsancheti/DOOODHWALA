@@ -152,6 +152,62 @@ router.get("/households", async (req: AuthRequest, res) => {
     }
 });
 
+// PATCH /api/milkmen/households/:chatId — correct a household's delivery
+// address or its position on the route.
+//
+// A household has one door. The address lives on the primary customer's row,
+// which is what /households reads and what the route is built from, so writing
+// it there keeps one address per household rather than one per person.
+router.patch("/households/:chatId", async (req: AuthRequest, res) => {
+    try {
+        const milkman = await currentMilkman(req);
+        if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
+
+        const chatId = parseInt(req.params.chatId);
+        if (isNaN(chatId)) return res.status(400).json({ message: "Invalid household id" });
+
+        const [chat] = await db
+            .select()
+            .from(familyChats)
+            .where(eq(familyChats.id, chatId))
+            .limit(1);
+
+        if (!chat || chat.milkmanId !== milkman.id) {
+            return res.status(403).json({ message: "Not your household" });
+        }
+
+        const { address, routeOrder } = req.body;
+        if (address === undefined && routeOrder === undefined) {
+            return res.status(400).json({ message: "Nothing to update" });
+        }
+
+        const [primary] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.userId, chat.createdBy))
+            .limit(1);
+
+        if (!primary) {
+            return res.status(404).json({ message: "Household has no primary customer" });
+        }
+
+        const update: Record<string, any> = { updatedAt: new Date() };
+        if (address !== undefined) update.address = String(address).trim();
+        if (routeOrder !== undefined) update.routeOrder = Number(routeOrder);
+
+        const [updated] = await db
+            .update(customers)
+            .set(update)
+            .where(eq(customers.id, primary.id))
+            .returning();
+
+        res.json({ chatId, address: updated.address, routeOrder: updated.routeOrder });
+    } catch (error) {
+        console.error("Update household error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // GET /api/milkmen/hisaab — the milkman's account: what was earned, what the
 // platform takes, what is left, and who still owes money.
 router.get("/hisaab", async (req: AuthRequest, res) => {
