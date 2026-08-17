@@ -867,12 +867,12 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   topNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   navTitle: { fontSize: 18, fontWeight: '700', fontFamily: fontFamilyBold },
-  dashboardBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 6, borderColor: '#E6DCCD' },
+  dashboardBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 6, borderColor: colors.border },
   dashboardBtnText: { fontSize: 13, fontWeight: '600', fontFamily },
   
   tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent', gap: 4 },
-  activeTabItem: { borderBottomColor: '#22406E' },
+  activeTabItem: { borderBottomColor: colors.primary },
   tabItemText: { fontSize: 13, fontWeight: '600', fontFamily: fontFamilyBold },
 
   tabContent: { flex: 1, padding: 16 },
@@ -1049,5 +1049,5 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
 
   // Discontinue
   discontinueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 50, borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: 'transparent', marginTop: 16 },
-  discontinueText: { color: '#C0453B', fontSize: 15, fontWeight: '700', fontFamily: fontFamilyBold },
+  discontinueText: { color: colors.destructive, fontSize: 15, fontWeight: '700', fontFamily: fontFamilyBold },
 });

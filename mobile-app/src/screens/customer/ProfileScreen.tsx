@@ -346,7 +346,7 @@ const createInfoStyles = (colors: any, isDark: boolean, fontFamily: string, font
     marginLeft: spacing.sm, backgroundColor: isDark ? 'rgba(22,163,74,0.2)' : '#DFF0E6',
     paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full,
   },
-  verifiedText: { color: '#2F7D5B', fontSize: fontSize.xs, fontWeight: '600', fontFamily: fontFamilyBold },
+  verifiedText: { color: colors.success, fontSize: fontSize.xs, fontWeight: '600', fontFamily: fontFamilyBold },
 });
 
 const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFamilyBold: string) => StyleSheet.create({

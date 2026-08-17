@@ -491,7 +491,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   header: { alignItems: 'center', marginBottom: 24 },
   headerIcon: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#22406E',
+    backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 16,
   },
@@ -544,9 +544,9 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   addRowBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 10, marginTop: 10, borderRadius: 8,
-    borderWidth: 1, borderStyle: 'dashed', borderColor: '#22406E',
+    borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary,
   },
-  addRowText: { color: '#22406E', fontWeight: '700', fontSize: 14, fontFamily: fontFamilyBold },
+  addRowText: { color: colors.primary, fontWeight: '700', fontSize: 14, fontFamily: fontFamilyBold },
   slotRowEdit: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#332C25' : '#F0E9DE' },
   slotNameInput: {
     fontSize: 15, fontWeight: '600', color: colors.foreground, fontFamily: fontFamilyBold,
@@ -562,7 +562,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     backgroundColor: colors.surfaceSecondary || (isDark ? '#332C25' : '#F5EFE5'), height: 48,
     paddingHorizontal: 16, justifyContent: 'center',
   },
-  inputFocused: { borderColor: '#22406E', borderWidth: 2 },
+  inputFocused: { borderColor: colors.primary, borderWidth: 2 },
   input: {
     fontSize: 16, color: colors.foreground, height: '100%',
     fontFamily,
@@ -571,18 +571,18 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   // Location
   locationBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#22406E', borderStyle: 'dashed',
+    borderWidth: 1, borderColor: colors.primary, borderStyle: 'dashed',
     borderRadius: 8, paddingVertical: 14,
     backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#F2F5FA', marginBottom: 16,
   },
   locationBtnText: {
-    color: '#22406E', fontSize: 16, fontWeight: '500',
+    color: colors.primary, fontSize: 16, fontWeight: '500',
     fontFamily,
   },
 
   // Submit
   submitBtn: {
-    backgroundColor: '#22406E', height: 52, borderRadius: 12,
+    backgroundColor: colors.primary, height: 52, borderRadius: 12,
     justifyContent: 'center', alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -591,7 +591,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     elevation: 5,
     marginTop: 24,
   },
-  submitBtnDisabled: { backgroundColor: '#A99B89' },
+  submitBtnDisabled: { backgroundColor: colors.mutedForeground },
   submitBtnText: {
     color: '#FFFFFF', fontSize: 18, fontWeight: '700',
     fontFamily: fontFamilyBold,
@@ -631,7 +631,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
     backgroundColor: isDark ? '#5C5248' : '#F0E9DE',
   },
-  toggleBtnActive: { backgroundColor: '#22406E' },
+  toggleBtnActive: { backgroundColor: colors.primary },
   toggleBtnText: { fontSize: 12, color: isDark ? '#D5C8B5' : '#5C5248', fontWeight: '600', fontFamily },
   toggleBtnTextActive: { color: '#FFFFFF' },
 });

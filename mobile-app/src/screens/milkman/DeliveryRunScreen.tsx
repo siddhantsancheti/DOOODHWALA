@@ -405,7 +405,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
       height: 44, borderRadius: 10, backgroundColor: colors.primary,
       justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8,
     },
-    deliverBtnDone: { backgroundColor: '#2F7D5B' },
+    deliverBtnDone: { backgroundColor: colors.success },
     deliverText: { fontSize: 13, color: '#FFFFFF', fontFamily: fontFamilyBold, fontWeight: '700' },
 
     empty: { alignItems: 'center', paddingTop: 56, paddingHorizontal: 32, gap: 8 },

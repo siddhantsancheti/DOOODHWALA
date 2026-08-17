@@ -285,9 +285,9 @@ export default function TrackingScreen({ navigation }: any) {
     : (activeOrder?.status === 'out_for_delivery' ? 'out_for_delivery' : 'confirmed');
 
   const statusConfig = {
-    confirmed:        { label: 'Order Confirmed',    color: '#22406E', bg: '#F2F5FA', icon: CheckCircle },
+    confirmed:        { label: 'Order Confirmed',    color: colors.primary, bg: '#F2F5FA', icon: CheckCircle },
     out_for_delivery: { label: 'Out for Delivery',   color: '#D97706', bg: '#FFFBEB', icon: Truck },
-    delivered:        { label: 'Delivered! 🎉',      color: '#2F7D5B', bg: '#F1F8F3', icon: CheckCircle },
+    delivered:        { label: 'Delivered! 🎉',      color: colors.success, bg: '#F1F8F3', icon: CheckCircle },
   };
   const sc = statusConfig[deliveryStatus];
 
@@ -438,14 +438,14 @@ export default function TrackingScreen({ navigation }: any) {
           </View>
           <View style={styles.milkmanActions}>
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: '#DFF0E6' }]}
+              style={[styles.iconBtn, { backgroundColor: colors.successLight }]}
               onPress={() => milkman.phone && Linking.openURL(`tel:${milkman.phone}`)}
               activeOpacity={0.8}
             >
               <Phone size={18} color="#2F7D5B" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: '#F2F5FA' }]}
+              style={[styles.iconBtn, { backgroundColor: colors.primaryLight }]}
               onPress={() => navigation.navigate('YDPage')}
               activeOpacity={0.8}
             >
@@ -461,7 +461,7 @@ export default function TrackingScreen({ navigation }: any) {
           <View style={styles.timeline}>
             {/* Step 1 */}
             <View style={styles.timelineRow}>
-              <View style={[styles.tlDot, { backgroundColor: '#2F7D5B' }]}>
+              <View style={[styles.tlDot, { backgroundColor: colors.success }]}>
                 <CheckCircle size={12} color="#fff" />
               </View>
               <View style={styles.tlLine} />
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
   legendDotGreen:  { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2F7D5B' },
   legendDotBlue:   { width: 10, height: 10, borderRadius: 5, backgroundColor: '#22406E' },
   legendLineBlue:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#22406E' },
-  legendLineGrey:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#A99B89' },
+  legendLineGrey:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#7A6E60' },
 
   // Milkman card
   milkmanCard: {
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
     padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 16, ...shadows.sm,
   },
   milkmanAvatar: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#F2F5FA',
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#E4EAF3',
     justifyContent: 'center', alignItems: 'center',
   },
   milkmanName:    { fontSize: 16, fontWeight: '700' },

@@ -37,10 +37,10 @@ export default function BillsScreen({ navigation }: any) {
 
   const getStatusStyle = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'paid': return { bg: '#DFF0E6', color: '#2F7D5B', icon: CheckCircle };
+      case 'paid': return { bg: '#DFF0E6', color: colors.success, icon: CheckCircle };
       case 'pending': return { bg: '#FBEFD5', color: '#A8730F', icon: Clock };
-      case 'overdue': return { bg: '#F8E4E1', color: '#A8382F', icon: Calculator };
-      default: return { bg: '#F0E9DE', color: '#7A6E60', icon: Receipt };
+      case 'overdue': return { bg: '#F8E4E1', color: colors.destructive, icon: Calculator };
+      default: return { bg: '#F0E9DE', color: colors.mutedForeground, icon: Receipt };
     }
   };
 
@@ -81,7 +81,7 @@ export default function BillsScreen({ navigation }: any) {
                   </View>
                   <View style={styles.billRow}>
                     <Text style={[styles.billLabel, { color: textMuted }]}>Total Amount</Text>
-                    <Text style={[styles.billAmount, { color: '#22406E' }]}>₹{bill.totalAmount}</Text>
+                    <Text style={[styles.billAmount, { color: colors.primary }]}>₹{bill.totalAmount}</Text>
                   </View>
                   <View style={styles.billRow}>
                     <Text style={[styles.billLabel, { color: textMuted }]}>Due Date</Text>
@@ -92,7 +92,7 @@ export default function BillsScreen({ navigation }: any) {
                 <View style={styles.billActions}>
                     {(bill.status === 'pending' || bill.status === 'overdue') && (
                     <TouchableOpacity
-                      style={[styles.payBtn, { backgroundColor: '#22406E' }]}
+                      style={[styles.payBtn, { backgroundColor: colors.primary }]}
                       activeOpacity={0.8}
                       onPress={() => navigation.navigate('Checkout', {
                         amount: parseFloat(bill.totalAmount),

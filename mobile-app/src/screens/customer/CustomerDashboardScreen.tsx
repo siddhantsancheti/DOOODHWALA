@@ -125,7 +125,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
               setLanguage(newLang);
             }}
           >
-            <Text style={{ color: '#22406E', fontWeight: '700', fontSize: 12, fontFamily: fontFamilyBold }}>
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 12, fontFamily: fontFamilyBold }}>
               {language === 'English' ? 'EN' : language === 'Hindi' ? 'HI' : 'MR'}
             </Text>
           </TouchableOpacity>

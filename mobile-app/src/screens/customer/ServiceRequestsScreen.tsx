@@ -345,9 +345,9 @@ export default function ServiceRequestsScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5EFE5' },
+  safeArea: { flex: 1, backgroundColor: colors.surfaceSecondary },
   container: { flex: 1 },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5EFE5' },
+  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surfaceSecondary },
   
   // Header
   header: { 
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border,
   },
   milkmanNotesBox: {
-    backgroundColor: '#F2F5FA', borderColor: '#BFDBFE',
+    backgroundColor: colors.primaryLight, borderColor: '#BFDBFE',
     borderLeftWidth: 4, borderLeftColor: '#7FA5DA',
   },
   notesText: { fontSize: 13, color: colors.gray600, fontWeight: '500', lineHeight: 20 },
@@ -450,14 +450,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: spacing.lg,
   },
   quoteTotalLabel: { fontSize: 20, fontWeight: '700', color: colors.foreground },
-  quoteTotalValue: { fontSize: 24, fontWeight: '800', color: '#2F7D5B' },
+  quoteTotalValue: { fontSize: 24, fontWeight: '800', color: colors.success },
   actionRow: { flexDirection: 'row', gap: spacing.md },
   actionBtn: {
     flex: 1, flexDirection: 'row', height: 44,
     borderRadius: borderRadius.md, justifyContent: 'center',
     alignItems: 'center', gap: spacing.xs, ...shadows.sm,
   },
-  acceptBtn: { backgroundColor: '#2F7D5B' },
+  acceptBtn: { backgroundColor: colors.success },
   rejectBtn: { backgroundColor: colors.white, borderWidth: 2, borderColor: colors.border },
   actionBtnText: { fontWeight: '600', fontSize: fontSize.base },
 
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   // Edit Mode Styles
   headerTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: spacing.lg },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  editBtn: { width: 32, height: 32, backgroundColor: '#F2F5FA', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
+  editBtn: { width: 32, height: 32, backgroundColor: colors.primaryLight, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#BFDBFE' },
   editActions: { flexDirection: 'row', gap: spacing.sm },
   saveBtn: { width: 32, height: 32, backgroundColor: colors.primary, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   cancelBtn: { width: 32, height: 32, backgroundColor: colors.white, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },

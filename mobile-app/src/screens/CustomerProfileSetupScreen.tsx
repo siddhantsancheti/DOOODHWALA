@@ -540,7 +540,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     alignSelf: 'center',
     right: 20,
     transform: [{ translateY: 10 }],
-    backgroundColor: '#22406E', // bg-primary
+    backgroundColor: colors.primary, // bg-primary
     padding: 12, // p-3
     borderRadius: 24,
     shadowColor: '#000',

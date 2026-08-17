@@ -72,7 +72,7 @@ export default function CheckoutScreen({ route, navigation }: any) {
           contact: user?.phone || '',
           name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Customer',
         },
-        theme: { color: '#22406E' },
+        theme: { color: colors.primary },
       };
 
       const paymentData = await RazorpayCheckout.open(options);
@@ -354,7 +354,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     height: 54, borderRadius: 14, backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16,
   },
-  payBtnCod: { backgroundColor: '#2F7D5B' },
+  payBtnCod: { backgroundColor: colors.success },
   payBtnBusy: { opacity: 0.7 },
   payBtnText: { fontSize: 17, color: '#FFFFFF', fontFamily: fontFamilyBold, fontWeight: '700' },
   secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },

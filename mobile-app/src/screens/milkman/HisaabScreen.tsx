@@ -205,7 +205,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
       gap: 12, marginTop: 8, marginBottom: 4,
     },
     sectionTitle: { flex: 1, minWidth: 0, fontSize: 16, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '700' },
-    sectionPending: { fontSize: 12, color: '#A8382F', fontFamily: fontFamilyBold, fontWeight: '600' },
+    sectionPending: { fontSize: 12, color: colors.destructive, fontFamily: fontFamilyBold, fontWeight: '600' },
 
     billRow: {
       flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14,
@@ -215,8 +215,8 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     billName: { fontSize: 15, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '600' },
     billPaid: { fontSize: 12, color: colors.mutedForeground, fontFamily, marginTop: 1 },
     billAmount: { fontSize: 15, fontFamily: fontFamilyBold, fontWeight: '700' },
-    billDue: { color: '#A8382F' },
-    billClear: { color: '#2F7D5B', fontSize: 13 },
+    billDue: { color: colors.destructive },
+    billClear: { color: colors.success, fontSize: 13 },
 
     empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 32, gap: 8 },
     emptyTitle: { fontSize: 17, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '700' },

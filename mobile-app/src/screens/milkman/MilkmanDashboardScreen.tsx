@@ -490,7 +490,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={[styles.avatarBox, { backgroundColor: isDark ? '#22304A' : '#E4EAF3' }]}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: '#22406E', fontFamily: fontFamilyBold }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary, fontFamily: fontFamilyBold }}>
                 {milkmanProfile.businessName?.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -723,7 +723,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                     {t('notifications') || 'Notifications'}
                   </Text>
                   {unreadNotifications > 0 && (
-                    <View style={{ backgroundColor: '#A8382F', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                    <View style={{ backgroundColor: colors.destructive, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                       <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>{unreadNotifications}</Text>
                     </View>
                   )}
@@ -914,7 +914,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       <Text style={[styles.mOrderName, { color: textColor, fontFamily: fontFamilyBold }]}>{t('order')} #{payment.orderId}</Text>
                       <Text style={[styles.txDate, { color: textMuted, fontFamily }]}>{new Date(payment.createdAt).toLocaleString()}</Text>
                     </View>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#2F7D5B', fontFamily: fontFamilyBold }}>₹{payment.amount}</Text>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.success, fontFamily: fontFamilyBold }}>₹{payment.amount}</Text>
                   </View>
                   
                   <View style={{ marginTop: 16, backgroundColor: isDark ? '#332C25' : '#F0E9DE', padding: 12, borderRadius: 8 }}>
@@ -973,7 +973,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       {r.customerNotes ? <Text style={{ color: textMuted, fontSize: 12, marginTop: 4, fontStyle: 'italic', fontFamily }}>{r.customerNotes}</Text> : null}
                     </View>
                     <View style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#E4EAF3', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ color: '#22406E', fontSize: 10, fontWeight: '700', fontFamily: fontFamilyBold }}>{t('newLabel') || 'NEW'}</Text>
+                      <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '700', fontFamily: fontFamilyBold }}>{t('newLabel') || 'NEW'}</Text>
                     </View>
                   </View>
                   <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: borderColor, paddingTop: 12 }}>
@@ -1073,7 +1073,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       <Text style={[styles.txDate, { color: textMuted, fontFamily }]}>{new Date(order.updatedAt || order.createdAt).toLocaleDateString()}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.txAmount, { color: '#2F7D5B', fontFamily: fontFamilyBold }]}>+ ₹{order.totalAmount}</Text>
+                  <Text style={[styles.txAmount, { color: colors.success, fontFamily: fontFamilyBold }]}>+ ₹{order.totalAmount}</Text>
                 </View>
               );
             })}
@@ -1150,7 +1150,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                     <Text style={{ color: textColor, fontWeight: '600', fontFamily }}>{t('cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={{ flex: 2, height: 48, borderRadius: 8, backgroundColor: '#22406E', justifyContent: 'center', alignItems: 'center' }}
+                    style={{ flex: 2, height: 48, borderRadius: 8, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}
                     onPress={() => {
                       const updated = [...(milkmanProfile.dairyItems || [])];
                       if (isAddingProduct) {
@@ -1210,7 +1210,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       }}
                     />
                     <TouchableOpacity
-                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#22406E', justifyContent: 'center', alignItems: 'center' }}
+                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}
                       onPress={() => {
                         const cur = parseFloat(localQuantities[index] || '0');
                         const next = cur + 1;
@@ -1271,7 +1271,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyTitle: { fontSize: 24, fontWeight: '700', marginTop: 24, fontFamily: fontFamilyBold },
   emptySub: { fontSize: 16, textAlign: 'center', marginVertical: 16, lineHeight: 24, fontFamily },
-  primaryBtn: { backgroundColor: '#22406E', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8 },
+  primaryBtn: { backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8 },
   primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', fontFamily: fontFamilyBold },
 
   scrollContent: { padding: 16, paddingBottom: 60 },
@@ -1299,7 +1299,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   },
   headerBadge: {
     position: 'absolute', top: -3, right: -3,
-    backgroundColor: '#A8382F', borderRadius: 10,
+    backgroundColor: colors.destructive, borderRadius: 10,
     minWidth: 18, height: 18, paddingHorizontal: 4,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: '#FFFFFF',
@@ -1380,20 +1380,20 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   wideTileSub: { fontSize: 13, fontFamily, marginTop: 2 },
   wideTileBadge: {
     minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7,
-    backgroundColor: '#22406E', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center',
   },
   activityBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#22406E', marginBottom: 12,
+    padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.primary, marginBottom: 12,
   },
-  activityBannerText: { flex: 1, fontSize: 13, color: '#22406E', fontWeight: '600', fontFamily: fontFamilyBold },
+  activityBannerText: { flex: 1, fontSize: 13, color: colors.primary, fontWeight: '600', fontFamily: fontFamilyBold },
   heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 20, lineHeight: 20, fontFamily },
   heroButton: {
     backgroundColor: '#FFFFFF',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 14, borderRadius: 8, gap: 8,
   },
-  heroButtonText: { color: '#22406E', fontWeight: '700', fontSize: 16, fontFamily: fontFamilyBold },
+  heroButtonText: { color: colors.primary, fontWeight: '700', fontSize: 16, fontFamily: fontFamilyBold },
 
   // Summary Card / Today's Progress
   card: {
@@ -1490,14 +1490,14 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   },
   pricingLabel: {
     fontSize: 14,
-    color: '#7A6E60',
+    color: colors.mutedForeground,
     marginBottom: 4,
     fontFamily,
   },
   pricingValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1A1714',
+    color: colors.foreground,
     fontFamily: fontFamilyBold,
   },
 
@@ -1576,7 +1576,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E6DCCD',
+    borderColor: colors.border,
   },
   actionButton: {
     flexDirection: 'row',
@@ -1588,12 +1588,12 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     flex: 1,
   },
   acceptButton: {
-    backgroundColor: '#2F7D5B',
+    backgroundColor: colors.success,
   },
   rejectButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#C0453B',
+    borderColor: colors.destructive,
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -1602,10 +1602,10 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     fontFamily: fontFamilyBold,
   },
   rejectText: {
-    color: '#C0453B',
+    color: colors.destructive,
   },
   badgeCount: {
-    backgroundColor: '#C0453B',
+    backgroundColor: colors.destructive,
     borderRadius: 10,
     minWidth: 20,
     height: 20,

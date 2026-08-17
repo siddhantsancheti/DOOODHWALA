@@ -354,7 +354,7 @@ export default function ChatScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
       {/* HEADER */}
-      <View style={[styles.header, { backgroundColor: '#2F7D5B' }]}>
+      <View style={[styles.header, { backgroundColor: colors.success }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <ArrowLeft size={24} color="#FFFFFF" />
@@ -522,7 +522,7 @@ export default function ChatScreen({ route, navigation }: any) {
                               <Text style={styles.orderActionBtnText}>{t('acceptOrder')}</Text>
                             </TouchableOpacity>
                           ) : !msg.isDelivered ? (
-                            <TouchableOpacity style={[styles.orderActionBtn, { backgroundColor: '#2F7D5B' }]} onPress={() => markDeliveredMutation.mutate(msg.id)}>
+                            <TouchableOpacity style={[styles.orderActionBtn, { backgroundColor: colors.success }]} onPress={() => markDeliveredMutation.mutate(msg.id)}>
                               <CheckCheck size={14} color="#FFF" />
                               <Text style={styles.orderActionBtnText}>{t('markDelivered')}</Text>
                             </TouchableOpacity>
@@ -553,12 +553,12 @@ export default function ChatScreen({ route, navigation }: any) {
           <View style={[styles.tabs, { borderBottomColor: borderColor }]}>
             <TouchableOpacity style={[styles.tab, mode === 'message' && styles.activeTab]} onPress={() => setMode('message')}>
               <MessageSquare size={16} color={mode === 'message' ? '#2F7D5B' : textMuted} />
-              <Text style={[styles.tabText, mode === 'message' && { color: '#2F7D5B' }]}>{t('message')}</Text>
+              <Text style={[styles.tabText, mode === 'message' && { color: colors.success }]}>{t('message')}</Text>
             </TouchableOpacity>
             {user?.userType === 'customer' && (
               <TouchableOpacity style={[styles.tab, mode === 'order' && styles.activeTab]} onPress={() => setMode('order')}>
                 <ShoppingCart size={16} color={mode === 'order' ? '#2F7D5B' : textMuted} />
-                <Text style={[styles.tabText, mode === 'order' && { color: '#2F7D5B' }]}>{t('order')}</Text>
+                <Text style={[styles.tabText, mode === 'order' && { color: colors.success }]}>{t('order')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -579,7 +579,7 @@ export default function ChatScreen({ route, navigation }: any) {
                    ))}
                    <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: borderColor, flexDirection: 'row', justifyContent: 'space-between' }}>
                      <Text style={{ fontWeight: 'bold', color: textColor }}>Total</Text>
-                     <Text style={{ fontWeight: 'bold', color: '#2F7D5B' }}>₹{orderItems.reduce((s, i) => s + i.price * i.quantity, 0)}</Text>
+                     <Text style={{ fontWeight: 'bold', color: colors.success }}>₹{orderItems.reduce((s, i) => s + i.price * i.quantity, 0)}</Text>
                    </View>
                  </View>
                )}
@@ -592,7 +592,7 @@ export default function ChatScreen({ route, navigation }: any) {
                        style={[
                          styles.productChip, 
                          { backgroundColor: isDark ? '#332C25' : '#F0E9DE', borderColor },
-                         selectedProduct?.name === item.name && { backgroundColor: '#2F7D5B', borderColor: '#2F7D5B' }
+                         selectedProduct?.name === item.name && { backgroundColor: colors.success, borderColor: colors.success }
                        ]}
                        onPress={() => setSelectedProduct(item)}
                      >
@@ -657,7 +657,7 @@ export default function ChatScreen({ route, navigation }: any) {
                   <Send size={18} color="#FFF" />
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={[styles.sendBtn, { backgroundColor: '#2F7D5B' }]} onPress={() => Alert.alert(t('voiceMessage'), "Voice messages require microphone permissions and library installation on mobile. For now, text your dairyman.")}>
+                <TouchableOpacity style={[styles.sendBtn, { backgroundColor: colors.success }]} onPress={() => Alert.alert(t('voiceMessage'), "Voice messages require microphone permissions and library installation on mobile. For now, text your dairyman.")}>
                   <Mic size={18} color="#FFF" />
                 </TouchableOpacity>
               )}
@@ -783,7 +783,7 @@ export default function ChatScreen({ route, navigation }: any) {
           <View style={[styles.shareMenu, { backgroundColor: surfaceColor }]}>
             <View style={styles.shareGrid}>
               <TouchableOpacity style={styles.shareItem} onPress={() => handleShareMedia('camera')}>
-                <View style={[styles.shareIconBox, { backgroundColor: '#22406E' }]}><Camera size={24} color="#FFF" /></View>
+                <View style={[styles.shareIconBox, { backgroundColor: colors.primary }]}><Camera size={24} color="#FFF" /></View>
                 <Text style={[styles.shareText, { color: textColor }]}>{t('camera')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.shareItem} onPress={() => handleShareMedia('gallery')}>
@@ -795,7 +795,7 @@ export default function ChatScreen({ route, navigation }: any) {
                 <Text style={[styles.shareText, { color: textColor }]}>{t('document')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.shareItem} onPress={handleShareLocation}>
-                <View style={[styles.shareIconBox, { backgroundColor: '#C0453B' }]}><MapPin size={24} color="#FFF" /></View>
+                <View style={[styles.shareIconBox, { backgroundColor: colors.destructive }]}><MapPin size={24} color="#FFF" /></View>
                 <Text style={[styles.shareText, { color: textColor }]}>{t('location')}</Text>
               </TouchableOpacity>
             </View>
@@ -837,7 +837,7 @@ export default function ChatScreen({ route, navigation }: any) {
               </View>
             </View>
             
-            <TouchableOpacity style={{ backgroundColor: '#2F7D5B', padding: 16, borderRadius: 12, alignItems: 'center' }} onPress={() => { setShowBillSummary(false); navigation.navigate('Checkout', { amount: currentBill?.totalAmount }); }}>
+            <TouchableOpacity style={{ backgroundColor: colors.success, padding: 16, borderRadius: 12, alignItems: 'center' }} onPress={() => { setShowBillSummary(false); navigation.navigate('Checkout', { amount: currentBill?.totalAmount }); }}>
               <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>{t('payNow')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={{ padding: 16, alignItems: 'center', marginTop: 8 }} onPress={() => setShowBillSummary(false)}>
@@ -872,7 +872,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   myMsgWrapper: { alignSelf: 'flex-end' },
   theirMsgWrapper: { alignSelf: 'flex-start' },
   bubble: { padding: 10, paddingHorizontal: 14, borderRadius: 16, minWidth: 80 },
-  myBubble: { backgroundColor: '#2F7D5B', borderTopRightRadius: 4 },
+  myBubble: { backgroundColor: colors.success, borderTopRightRadius: 4 },
   theirBubble: { borderTopLeftRadius: 4, borderWidth: 1, borderColor: isDark ? '#332C25' : '#E6DCCD' },
   
   senderName: { fontSize: 12, fontWeight: 'bold', marginBottom: 4, fontFamily: fontFamilyBold },
@@ -893,11 +893,11 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   orderActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 8, gap: 6 },
   orderActionBtnText: { color: '#FFF', fontSize: 13, fontWeight: 'bold', fontFamily: fontFamilyBold },
   deliveredBadge: { backgroundColor: 'rgba(22,163,74,0.1)', padding: 8, borderRadius: 8, alignItems: 'center' },
-  deliveredBadgeText: { color: '#2F7D5B', fontWeight: 'bold', fontSize: 13, fontFamily: fontFamilyBold },
+  deliveredBadgeText: { color: colors.success, fontWeight: 'bold', fontSize: 13, fontFamily: fontFamilyBold },
   
   billCard: { padding: 12, borderRadius: 8, marginBottom: 8 },
   billCardHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  billCardTitle: { fontSize: 14, fontWeight: 'bold', color: '#2F7D5B', fontFamily: fontFamilyBold },
+  billCardTitle: { fontSize: 14, fontWeight: 'bold', color: colors.success, fontFamily: fontFamilyBold },
   
   msgFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
   msgTime: { fontSize: 10, fontFamily },
@@ -906,7 +906,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   bottomArea: { borderTopWidth: 1 },
   tabs: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 12, gap: 8 },
-  activeTab: { borderBottomWidth: 2, borderBottomColor: '#2F7D5B' },
+  activeTab: { borderBottomWidth: 2, borderBottomColor: colors.success },
   tabText: { fontSize: 14, fontWeight: '600', fontFamily: fontFamilyBold },
   
   orderPanel: { padding: 16 },
@@ -920,12 +920,12 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   qtyBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   qtyInput: { flex: 1, height: 44, borderRadius: 8, borderWidth: 1, textAlign: 'center', fontSize: 18, fontWeight: 'bold', fontFamily: fontFamilyBold },
   addCartBtn: { backgroundColor: '#7FA5DA', height: 44, paddingHorizontal: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  placeOrderBtn: { backgroundColor: '#2F7D5B', height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
+  placeOrderBtn: { backgroundColor: colors.success, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
   
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', padding: 12, gap: 12 },
   attachBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
   textInput: { flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 22, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, fontSize: 16, fontFamily },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2F7D5B', justifyContent: 'center', alignItems: 'center', marginBottom: 0 },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center', marginBottom: 0 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 40 },
@@ -940,7 +940,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   // rather than pushing the price and edit control off the row.
   svcRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E6DCCD',
+    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
   },
   svcText: { flex: 1, minWidth: 0 },
   svcName: { fontSize: 15, fontWeight: '600' },

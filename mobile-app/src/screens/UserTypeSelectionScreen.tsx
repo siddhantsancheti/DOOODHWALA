@@ -146,7 +146,7 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
                   <View style={styles.featuresList}>
                     {milkmanFeatures.map((feature, i) => (
                       <View key={i} style={styles.featureRow}>
-                        <View style={[styles.featureDot, { backgroundColor: '#2F7D5B' }]} />
+                        <View style={[styles.featureDot, { backgroundColor: colors.success }]} />
                         <Text style={[styles.featureText, { color: colors.mutedForeground }]}>{feature}</Text>
                       </View>
                     ))}
