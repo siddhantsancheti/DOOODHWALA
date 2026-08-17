@@ -71,13 +71,10 @@ async function main() {
         } else {
             console.log(`NEW   #${customer.id} ${customer.name ?? ""} → would create household`);
             created++;
-            continue; // nothing to tag without a chat id
         }
 
-        if (!chatId) continue;
-
-        // Point this customer's untagged history at their household, so bills
-        // grouped by chat see the orders they already placed.
+        // Counted before the chat id is needed, so a dry run reports the real
+        // number for new households too rather than silently showing zero.
         const untagged = await db
             .select({ id: chatMessages.id })
             .from(chatMessages)
@@ -88,7 +85,7 @@ async function main() {
             ));
 
         if (untagged.length > 0) {
-            if (APPLY) {
+            if (APPLY && chatId) {
                 await db
                     .update(chatMessages)
                     .set({ familyChatId: chatId })
