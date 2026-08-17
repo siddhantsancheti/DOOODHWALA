@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import { broadcast } from "./websocket";
 import { partyUserIds } from "./services/wsParties";
+import { ensureHouseholdChat } from "./services/households";
 
 const router = Router();
 
@@ -128,11 +129,14 @@ router.post("/", async (req: AuthRequest, res) => {
         // and daily-preset jobs already post one — an order placed here with no
         // message would be invisible to the milkman and impossible to mark
         // delivered.
+        const householdChatId = await ensureHouseholdChat(customer.id, Number(milkmanId));
+
         const [orderMessage] = await db
             .insert(chatMessages)
             .values({
                 customerId: customer.id,
                 milkmanId,
+                familyChatId: householdChatId,
                 senderId: userId,
                 senderType: "customer",
                 message: `${quantity} ${itemName ? `× ${itemName}` : "L"}`

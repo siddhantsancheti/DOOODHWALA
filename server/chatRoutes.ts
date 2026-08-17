@@ -10,6 +10,7 @@ import "./services/fcmService"; // ensure firebase-admin is initialized for Stor
 import { nudgeCustomerToOrder } from "./services/routeNotify";
 import { partyUserIds } from "./services/wsParties";
 import { type AuthRequest } from "./middleware/auth";
+import { ensureHouseholdChat } from "./services/households";
 
 const router = Router();
 
@@ -168,11 +169,20 @@ const sendMessageHandler = async (req: AuthRequest, res: any) => {
             voiceDuration
         } = req.body;
 
+        // Tag the message with the sender's household so bills, counting and
+        // the delivery run can group by chat. ensureHouseholdChat returns the
+        // existing one, and creates it if somehow missing, so this both tags
+        // and self-heals.
+        const householdChatId = customerId
+            ? await ensureHouseholdChat(Number(customerId), Number(milkmanId))
+            : null;
+
         const [newMessage] = await db
             .insert(chatMessages)
             .values({
                 milkmanId,
                 customerId,
+                familyChatId: householdChatId,
                 senderId: userId,
                 message,
                 senderType,
