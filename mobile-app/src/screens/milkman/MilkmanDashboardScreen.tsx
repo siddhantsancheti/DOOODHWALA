@@ -206,7 +206,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
     queryKey: ['/api/orders/milkman'], enabled: !!milkmanProfile,
   });
   const { data: customers, isLoading: isCustomersLoading } = useQuery<any>({
-    queryKey: ['/api/milkmen/customers'], enabled: !!milkmanProfile,
+    queryKey: ['/api/milkmen/households'], enabled: !!milkmanProfile,
   });
 
   const { data: serviceRequests = [], isLoading: isSrLoading } = useQuery<any[]>({
@@ -309,7 +309,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/service-requests/milkman"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/milkmen/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/milkmen/households"] });
       setSelectedRequest(null);
       Alert.alert(t('success'), t('requestAccepted'));
     },
@@ -449,6 +449,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
       : 0
   ), [milkmanBills]);
   const todaysEarnings = useMemo(() => completedOrders.reduce((s, o) => s + Number(o.totalAmount || 0), 0), [completedOrders]);
+  // Households, not people — a family of four is one customer.
   const totalCustomersCount = Array.isArray(customers) ? customers.length : 0;
   const progressPerc = todaysOrders.length > 0 ? (completedOrders.length / todaysOrders.length) * 100 : 0;
 
@@ -1058,7 +1059,9 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             </View>
             <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 16, fontFamily: fontFamilyBold }]}>{t('recentTransactions')}</Text>
             {completedOrders.map((order) => {
-              const cust = customers?.find((c: any) => c.id === order.customerId);
+              // Households are keyed by chat; primaryCustomerId is the row an
+              // order carries.
+              const cust = customers?.find((c: any) => c.primaryCustomerId === order.customerId);
               return (
                 <View key={`tx-${order.id}`} style={[styles.txCard, { backgroundColor: surfaceColor, borderColor }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>

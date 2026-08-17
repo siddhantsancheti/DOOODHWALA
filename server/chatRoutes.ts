@@ -113,6 +113,7 @@ router.get("/orders", async (req: AuthRequest, res) => {
             .select({
                 id: chatMessages.id,
                 customerId: chatMessages.customerId,
+                familyChatId: chatMessages.familyChatId,
                 customerName: customers.name,
                 customerAddress: customers.address,
                 customerPhone: customers.phone,

@@ -9,9 +9,11 @@ import { ArrowLeft, ChevronRight, MapPin, MessageSquare, Search, Users, X } from
 import { apiRequest } from '../../lib/queryClient';
 import { useTranslation } from '../../contexts/LanguageContext';
 
-interface Customer {
-  id: number;
-  name: string | null;
+interface Household {
+  chatId: number;
+  name: string;
+  memberCount: number;
+  primaryCustomerId: number | null;
   address: string | null;
   phone: string | null;
 }
@@ -30,10 +32,12 @@ export default function MilkmanCustomersScreen({ navigation, route }: any) {
     [colors, isDark, fontFamily, fontFamilyBold],
   );
 
-  const { data: customers = [], isLoading, refetch, isRefetching } = useQuery<Customer[]>({
-    queryKey: ['/api/milkmen/customers'],
+  // Households, not people: a family of four is one row, because that is one
+  // door, one bill and one delivery. See docs/HOUSEHOLD_MODEL.md.
+  const { data: customers = [], isLoading, refetch, isRefetching } = useQuery<Household[]>({
+    queryKey: ['/api/milkmen/households'],
     queryFn: async () => {
-      const res = await apiRequest({ url: '/api/milkmen/customers', method: 'GET' });
+      const res = await apiRequest({ url: '/api/milkmen/households', method: 'GET' });
       return res.json();
     },
   });
@@ -76,7 +80,7 @@ export default function MilkmanCustomersScreen({ navigation, route }: any) {
 
       <FlatList
         data={filtered}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item) => String(item.chatId)}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
@@ -84,7 +88,11 @@ export default function MilkmanCustomersScreen({ navigation, route }: any) {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.row}
-            onPress={() => navigation.navigate('Chat', { customerId: item.id, milkmanId })}
+            onPress={() => item.primaryCustomerId && navigation.navigate('Chat', {
+              customerId: item.primaryCustomerId,
+              milkmanId,
+              familyChatId: item.chatId,
+            })}
             activeOpacity={0.7}
           >
             <View style={styles.avatar}>
@@ -95,6 +103,11 @@ export default function MilkmanCustomersScreen({ navigation, route }: any) {
                 chevron off the row. */}
             <View style={styles.rowText}>
               <Text style={styles.name} numberOfLines={1}>{item.name || t('customer')}</Text>
+              {item.memberCount > 1 && (
+                <Text style={styles.memberCount} numberOfLines={1}>
+                  {item.memberCount} {t('members')}
+                </Text>
+              )}
               {!!item.address && (
                 <View style={styles.addressRow}>
                   <MapPin size={11} color={colors.mutedForeground} />
@@ -155,6 +168,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     avatarText: { fontSize: 18, color: colors.primary, fontFamily: fontFamilyBold, fontWeight: '700' },
     rowText: { flex: 1, minWidth: 0 },
     name: { fontSize: 16, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '600' },
+    memberCount: { fontSize: 11, color: colors.primary, fontFamily, marginTop: 1 },
     addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
     address: { flex: 1, fontSize: 12, color: colors.mutedForeground, fontFamily },
 
