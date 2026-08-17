@@ -42,6 +42,17 @@ ufw --force enable >/dev/null 2>&1 || true
 echo "Local firewall open on 22/80/443. Port 5001 stays closed — Caddy proxies to it."
 
 step "Packages"
+# Ubuntu runs its own unattended-upgrades on boot and holds the apt lock. Wait
+# for it rather than failing — on a fresh VM this script is usually run within
+# minutes of first boot, which is exactly when that job is active.
+for i in $(seq 1 60); do
+    if fuser /var/lib/apt/lists/lock /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        [ "$i" = 1 ] && echo "Waiting for Ubuntu's background updater to finish..."
+        sleep 10
+    else
+        break
+    fi
+done
 apt-get update -qq
 apt-get install -y -qq curl git gnupg postgresql-client unattended-upgrades >/dev/null
 if ! command -v node >/dev/null; then
