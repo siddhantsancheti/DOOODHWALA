@@ -254,7 +254,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
                   <TouchableOpacity onPress={() => setShowLanguageSubmenu(false)} style={styles.submenuBack}>
                     <ChevronRight size={18} color={textMuted} style={{ transform: [{ rotate: '180deg' }] }} />
                   </TouchableOpacity>
-                  <Text style={[styles.dropdownLabel, { color: textColor, marginBottom: 0 }]}>Select Language</Text>
+                  <Text style={[styles.dropdownLabel, { color: textColor, marginBottom: 0 }]}>{t('selectLanguageLabel')}</Text>
                 </View>
                 <View style={[styles.dropdownSeparator, { backgroundColor: borderColor }]} />
                 

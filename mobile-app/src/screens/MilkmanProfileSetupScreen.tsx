@@ -436,7 +436,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
               onPress={() => setDeliverySlots([...deliverySlots, { id: String(Date.now()), name: '', startTime: '10:00', endTime: '12:00', isActive: true }])}
             >
               <Plus size={18} color="#22406E" />
-              <Text style={styles.addRowText}>Add Delivery Slot</Text>
+              <Text style={styles.addRowText}>{t('addDeliverySlot')}</Text>
             </TouchableOpacity>
           </View>
 

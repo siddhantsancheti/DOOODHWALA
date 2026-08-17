@@ -11,8 +11,10 @@ import {
 } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export default function ServiceRequestsScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { user } = useAuth();
   const [editingRequest, setEditingRequest] = React.useState<number | null>(null);
@@ -132,8 +134,8 @@ export default function ServiceRequestsScreen({ navigation }: any) {
             <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
           <View style={styles.titleContainer}>
-            <Text style={styles.pageTitle}>Service Requests</Text>
-            <Text style={styles.pageSubtitle}>Track your custom pricing requests</Text>
+            <Text style={styles.pageTitle}>{t('serviceRequestsLabel')}</Text>
+            <Text style={styles.pageSubtitle}>{t('trackPricingRequests')}</Text>
           </View>
         </View>
 
@@ -239,7 +241,7 @@ export default function ServiceRequestsScreen({ navigation }: any) {
                     {editingRequest === req.id && (
                       <TouchableOpacity style={styles.addSvcBtn} onPress={addService}>
                         <Plus size={16} color={colors.primary} />
-                        <Text style={styles.addSvcText}>Add Service</Text>
+                        <Text style={styles.addSvcText}>{t('addService')}</Text>
                       </TouchableOpacity>
                     )}
 
@@ -257,7 +259,7 @@ export default function ServiceRequestsScreen({ navigation }: any) {
                         <Text style={styles.notesText}>{req.customerNotes}</Text>
                       </View>
                     ) : (
-                      <Text style={styles.noNotesText}>No notes provided</Text>
+                      <Text style={styles.noNotesText}>{t('noNotesProvided')}</Text>
                     )}
 
                     {req.milkmanNotes && (
@@ -286,7 +288,7 @@ export default function ServiceRequestsScreen({ navigation }: any) {
                             {acceptQuoteMutation.isPending ? <ActivityIndicator color={colors.white} /> : (
                               <>
                                 <CheckCircle size={16} color={colors.white} />
-                                <Text style={[styles.actionBtnText, { color: colors.white }]}>Accept Quote</Text>
+                                <Text style={[styles.actionBtnText, { color: colors.white }]}>{t('acceptQuote')}</Text>
                               </>
                             )}
                           </TouchableOpacity>
@@ -299,7 +301,7 @@ export default function ServiceRequestsScreen({ navigation }: any) {
                             {rejectQuoteMutation.isPending ? <ActivityIndicator color={colors.gray700} /> : (
                               <>
                                 <XCircle size={16} color={colors.gray700} />
-                                <Text style={[styles.actionBtnText, { color: colors.gray700 }]}>Reject Quote</Text>
+                                <Text style={[styles.actionBtnText, { color: colors.gray700 }]}>{t('rejectQuote')}</Text>
                               </>
                             )}
                           </TouchableOpacity>
@@ -325,7 +327,7 @@ export default function ServiceRequestsScreen({ navigation }: any) {
         ) : (
           <View style={styles.emptyCard}>
             <ShoppingCart size={48} color={colors.gray400} style={{ marginBottom: spacing.md }} />
-            <Text style={styles.emptyTitle}>No Service Requests</Text>
+            <Text style={styles.emptyTitle}>{t('noServiceRequests')}</Text>
             <Text style={styles.emptyDesc}>
               You haven't made any service requests yet. Request custom pricing from your assigned milkman.
             </Text>
@@ -334,7 +336,7 @@ export default function ServiceRequestsScreen({ navigation }: any) {
               onPress={() => navigation.navigate('CustomerHome')}
               activeOpacity={0.8}
             >
-              <Text style={styles.emptyBtnText}>Go to Your Doodhwala</Text>
+              <Text style={styles.emptyBtnText}>{t('goToYourDoodhwala')}</Text>
             </TouchableOpacity>
           </View>
         )}

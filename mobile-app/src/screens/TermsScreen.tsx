@@ -31,7 +31,7 @@ const ROLE_GRADIENT: Record<Role, [string, string]> = {
 export default function TermsScreen({ route, navigation }: any) {
   const role: Role = route.params?.role ?? 'customer';
   const queryClient = useQueryClient();
-  const { colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
+  const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
 
   const [agreed, setAgreed] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
@@ -112,7 +112,7 @@ export default function TermsScreen({ route, navigation }: any) {
           You need a connection to review and accept the terms before continuing.
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => refetch()} activeOpacity={0.85}>
-          <Text style={styles.retryText}>Try again</Text>
+          <Text style={styles.retryText}>{t('tryAgain')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -150,7 +150,7 @@ export default function TermsScreen({ route, navigation }: any) {
       {!reachedEnd && (
         <View style={styles.scrollHint} pointerEvents="none">
           <ArrowDown size={14} color={colors.mutedForeground} strokeWidth={2.5} />
-          <Text style={styles.scrollHintText}>Scroll to read the full terms</Text>
+          <Text style={styles.scrollHintText}>{t('scrollToRead')}</Text>
         </View>
       )}
 
@@ -185,11 +185,11 @@ export default function TermsScreen({ route, navigation }: any) {
         >
           {submitting
             ? <ActivityIndicator color="#FFFFFF" />
-            : <Text style={styles.acceptText}>Agree and continue</Text>}
+            : <Text style={styles.acceptText}>{t('agreeAndContinue')}</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} disabled={submitting}>
-          <Text style={styles.declineText}>Go back</Text>
+          <Text style={styles.declineText}>{t('back')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

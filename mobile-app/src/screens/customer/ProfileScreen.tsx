@@ -12,7 +12,7 @@ import { fontSize, fontWeight, borderRadius, spacing, shadows } from '../../them
 import { useTranslation } from '../../contexts/LanguageContext';
 
 export default function ProfileScreen({ navigation }: any) {
-  const { colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
+  const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   const styles = useMemo(
     () => createStyles(colors, isDark, fontFamily, fontFamilyBold),
     [colors, isDark, fontFamily, fontFamilyBold],
@@ -130,7 +130,7 @@ export default function ProfileScreen({ navigation }: any) {
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>Profile Information</Text>
+          <Text style={styles.pageTitle}>{t('profileInformation')}</Text>
           
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
@@ -148,7 +148,7 @@ export default function ProfileScreen({ navigation }: any) {
           {!isEditing ? (
             <TouchableOpacity style={styles.editMainBtn} onPress={handleEdit} activeOpacity={0.8}>
               <Edit3 size={16} color={colors.white} />
-              <Text style={styles.editMainText}>Edit Profile</Text>
+              <Text style={styles.editMainText}>{t('editProfile')}</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.editActionsTop}>
@@ -168,7 +168,7 @@ export default function ProfileScreen({ navigation }: any) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <User size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Personal Information</Text>
+            <Text style={styles.cardTitle}>{t('personalInformation')}</Text>
           </View>
           <View style={styles.cardContent}>
             <InfoRow label="Account Type" value={profileType} isBadge />
@@ -190,7 +190,7 @@ export default function ProfileScreen({ navigation }: any) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Phone size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Contact Information</Text>
+            <Text style={styles.cardTitle}>{t('contactInformation')}</Text>
           </View>
           <View style={styles.cardContent}>
             <InfoRow 
@@ -223,7 +223,7 @@ export default function ProfileScreen({ navigation }: any) {
         {customerProfile && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Customer Details</Text>
+              <Text style={styles.cardTitle}>{t('customerDetails')}</Text>
             </View>
             <View style={styles.cardContent}>
               <InfoRow label="Assigned Milkman" value={profile?.assignedMilkmanId ? `ID: ${profile.assignedMilkmanId}` : 'Not assigned'} />
@@ -241,7 +241,7 @@ export default function ProfileScreen({ navigation }: any) {
         {milkmanProfile && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Milkman Details</Text>
+              <Text style={styles.cardTitle}>{t('milkmanDetails')}</Text>
             </View>
             <View style={styles.cardContent}>
               <InfoRow 
@@ -271,14 +271,14 @@ export default function ProfileScreen({ navigation }: any) {
         )}
 
         <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.8}>
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.logoutText}>{t('signOut')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.8} disabled={isDeleting}>
           {isDeleting ? (
             <ActivityIndicator color={colors.destructive} />
           ) : (
-            <Text style={styles.deleteText}>Delete Account</Text>
+            <Text style={styles.deleteText}>{t('deleteAccountLabel')}</Text>
           )}
         </TouchableOpacity>
 
@@ -289,7 +289,7 @@ export default function ProfileScreen({ navigation }: any) {
 }
 
 function InfoRow({ label, value, icon, isBadge, badgeColor, isMono, isVerified, isEditing, editValue, onEdit, multiline }: any) {
-  const { colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
+  const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   const infoStyles = useMemo(
     () => createInfoStyles(colors, isDark, fontFamily, fontFamilyBold),
     [colors, isDark, fontFamily, fontFamilyBold],

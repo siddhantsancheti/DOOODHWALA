@@ -11,8 +11,10 @@ import {
   User, MapPin, Clock, Phone, Minus, Plus, ShoppingCart, Star, CheckCircle, ArrowLeft
 } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export default function OrderScreen({ route, navigation }: any) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { user } = useAuth();
   const milkmanId = route.params?.milkmanId || 1;
@@ -121,12 +123,12 @@ export default function OrderScreen({ route, navigation }: any) {
         {/* Header */}
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.8} onPress={() => navigation.goBack()}>
           <ArrowLeft size={16} color={colors.foreground} />
-          <Text style={styles.backBtnText}>Back to Dashboard</Text>
+          <Text style={styles.backBtnText}>{t('backToDashboard')}</Text>
         </TouchableOpacity>
         
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Place Your Order</Text>
-          <Text style={styles.pageDesc}>Complete your order details below</Text>
+          <Text style={styles.pageTitle}>{t('placeYourOrder')}</Text>
+          <Text style={styles.pageDesc}>{t('completeOrderDetails')}</Text>
         </View>
 
         {/* Milkman Info */}
@@ -134,7 +136,7 @@ export default function OrderScreen({ route, navigation }: any) {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <User size={20} color={colors.foreground} />
-              <Text style={styles.cardTitle}>Milkman Details</Text>
+              <Text style={styles.cardTitle}>{t('milkmanDetails')}</Text>
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.milkmanName}>{milkman.businessName}</Text>
@@ -174,7 +176,7 @@ export default function OrderScreen({ route, navigation }: any) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <ShoppingCart size={20} color={colors.foreground} />
-            <Text style={styles.cardTitle}>Services & Pricing</Text>
+            <Text style={styles.cardTitle}>{t('servicesAndPricing')}</Text>
           </View>
           <View style={styles.cardContentSectionless}>
             {milkman?.dairyItems?.map((item: any) => (
@@ -213,11 +215,11 @@ export default function OrderScreen({ route, navigation }: any) {
         {/* Delivery Details */}
         <View style={styles.card}>
           <View style={styles.cardHeaderBorderless}>
-            <Text style={styles.cardTitle}>Order Details</Text>
+            <Text style={styles.cardTitle}>{t('orderDetailsLabel')}</Text>
           </View>
           <View style={styles.cardContent}>
 
-            <Text style={styles.label}>Customer Name</Text>
+            <Text style={styles.label}>{t('customerNameLabel')}</Text>
             <TextInput
               style={[styles.input, focusedField === 'name' && styles.inputFocused]}
               placeholder="Enter your name"
@@ -228,7 +230,7 @@ export default function OrderScreen({ route, navigation }: any) {
               onBlur={() => setFocusedField('')}
             />
 
-            <Text style={styles.label}>Delivery Address</Text>
+            <Text style={styles.label}>{t('deliveryAddress')}</Text>
             <TextInput
               style={[styles.input, styles.textArea, focusedField === 'address' && styles.inputFocused]}
               placeholder="Enter complete delivery address"
@@ -240,7 +242,7 @@ export default function OrderScreen({ route, navigation }: any) {
               onBlur={() => setFocusedField('')}
             />
 
-            <Text style={styles.label}>Delivery Date</Text>
+            <Text style={styles.label}>{t('deliveryDate')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
               {nextSevenDays.map((day) => (
                 <TouchableOpacity
@@ -253,7 +255,7 @@ export default function OrderScreen({ route, navigation }: any) {
               ))}
             </ScrollView>
 
-            <Text style={styles.label}>Delivery Time</Text>
+            <Text style={styles.label}>{t('deliveryTimeLabel')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
               {timeSlots.map((slot) => (
                 <TouchableOpacity
@@ -281,7 +283,7 @@ export default function OrderScreen({ route, navigation }: any) {
             <View style={styles.divider} />
 
             {/* Order Summary inside the form card */}
-            <Text style={styles.summaryTitle}>Order Summary</Text>
+            <Text style={styles.summaryTitle}>{t('orderSummary')}</Text>
             
             {selectedItemsList.length > 0 ? (
               <View style={styles.itemizedList}>
@@ -297,7 +299,7 @@ export default function OrderScreen({ route, navigation }: any) {
             <View style={styles.divider} />
             
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
+              <Text style={styles.totalLabel}>{t('totalAmountLabel')}</Text>
               <Text style={styles.totalAmount}>₹{total.toFixed(2)}</Text>
             </View>
 
@@ -307,7 +309,7 @@ export default function OrderScreen({ route, navigation }: any) {
               disabled={total === 0}
               activeOpacity={0.8}
             >
-              <Text style={styles.placeOrderText}>Place Order</Text>
+              <Text style={styles.placeOrderText}>{t('placeOrder')}</Text>
             </TouchableOpacity>
 
           </View>

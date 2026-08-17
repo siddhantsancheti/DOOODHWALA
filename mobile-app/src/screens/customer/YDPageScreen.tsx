@@ -331,7 +331,7 @@ export default function YDPageScreen({ navigation }: any) {
               <Clock size={20} color="#A8730F" />
             </View>
             <View style={styles.pendingTextGroup}>
-              <Text style={[styles.pendingTitle, { color: isDark ? '#F6E3B4' : '#713F12' }]}>Request Pending</Text>
+              <Text style={[styles.pendingTitle, { color: isDark ? '#F6E3B4' : '#713F12' }]}>{t('requestPendingLabel')}</Text>
               <Text style={[styles.pendingSubtitle, { color: isDark ? '#F0C860' : '#854D0E' }]}>Waiting for acceptance from dairyman.</Text>
             </View>
             <TouchableOpacity 
@@ -387,7 +387,7 @@ export default function YDPageScreen({ navigation }: any) {
               onPress={() => navigation.navigate('Bills')}
             >
               <CreditCard size={20} color="#FFFFFF" />
-              <Text style={[styles.assignedActionText, { color: '#FFFFFF' }]}>Pay Bills</Text>
+              <Text style={[styles.assignedActionText, { color: '#FFFFFF' }]}>{t('payBills')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -451,7 +451,7 @@ export default function YDPageScreen({ navigation }: any) {
                 )}
               </View>
               <TouchableOpacity style={[styles.joinCodeBtn, { backgroundColor: colors.primary }]} onPress={() => { setGroupMode('join'); setShowGroupModal(true); }}>
-                <Text style={styles.joinCodeBtnText}>Join with Code</Text>
+                <Text style={styles.joinCodeBtnText}>{t('joinWithCode')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -545,7 +545,7 @@ export default function YDPageScreen({ navigation }: any) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor }]}>
             <View style={styles.modalTopRow}>
-              <Text style={[styles.modalTitleSmall, { color: textColor }]}>Chat Info</Text>
+              <Text style={[styles.modalTitleSmall, { color: textColor }]}>{t('chatInfo')}</Text>
               <TouchableOpacity onPress={() => setShowChatInfo(false)}><X size={24} color={textColor} /></TouchableOpacity>
             </View>
 
@@ -584,7 +584,7 @@ export default function YDPageScreen({ navigation }: any) {
                 onPress={() => { setShowChatInfo(false); setGroupMode('create'); setShowGroupModal(true); }}
               >
                 <Users size={20} color={textColor} />
-                <Text style={[styles.bigActionText, { color: textColor }]}>Create a household group</Text>
+                <Text style={[styles.bigActionText, { color: textColor }]}>{t('createHouseholdGroup')}</Text>
               </TouchableOpacity>
             )}
 
@@ -604,7 +604,7 @@ export default function YDPageScreen({ navigation }: any) {
               onPress={() => yourDairyman?.phone && Linking.openURL(`tel:${yourDairyman.phone}`)}
             >
               <Phone size={20} color={textColor} />
-              <Text style={[styles.bigActionText, { color: textColor }]}>Call Dairyman</Text>
+              <Text style={[styles.bigActionText, { color: textColor }]}>{t('callDairyman')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -617,7 +617,7 @@ export default function YDPageScreen({ navigation }: any) {
             <TouchableOpacity onPress={() => setShowMediaGallery(false)} style={styles.chatBackBtn}>
               <ArrowLeft size={22} color={textColor} />
             </TouchableOpacity>
-            <Text style={[styles.chatHeaderTitle, { color: textColor }]}>Shared Media</Text>
+            <Text style={[styles.chatHeaderTitle, { color: textColor }]}>{t('sharedMedia')}</Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
@@ -661,7 +661,7 @@ export default function YDPageScreen({ navigation }: any) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor }]}>
             <View style={styles.modalTopRow}>
-              <Text style={[styles.modalTitleSmall, { color: textColor }]}>Household Group</Text>
+              <Text style={[styles.modalTitleSmall, { color: textColor }]}>{t('householdGroup')}</Text>
               <TouchableOpacity onPress={() => setShowGroupModal(false)}><X size={24} color={textColor} /></TouchableOpacity>
             </View>
 
@@ -683,7 +683,7 @@ export default function YDPageScreen({ navigation }: any) {
 
             {groupMode === 'create' ? (
               <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: textColor }]}>Group Name</Text>
+                <Text style={[styles.inputLabel, { color: textColor }]}>{t('groupName')}</Text>
                 <TextInput
                   style={[styles.modalInput, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, fontFamily }]}
                   placeholder="e.g. Sharma Family" placeholderTextColor={textMuted}
@@ -693,19 +693,19 @@ export default function YDPageScreen({ navigation }: any) {
                   Creates a shared group for {customerProfile?.assignedMilkmanId ? 'your dairyman' : 'the dairyman you select'}. All members order into one chat and share one monthly bill.
                 </Text>
                 <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]} onPress={handleCreateGroup} disabled={createGroupMutation.isPending}>
-                  {createGroupMutation.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalSubmitBtnText}>Create Group</Text>}
+                  {createGroupMutation.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalSubmitBtnText}>{t('createGroup')}</Text>}
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.inputContainer}>
-                <Text style={[styles.inputLabel, { color: textColor }]}>Group Code</Text>
+                <Text style={[styles.inputLabel, { color: textColor }]}>{t('groupCode')}</Text>
                 <TextInput
                   style={[styles.modalInput, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, fontFamily }]}
                   placeholder="e.g. GRP7QX" placeholderTextColor={textMuted}
                   value={groupCode} onChangeText={setGroupCode} autoCapitalize="characters"
                 />
                 <TouchableOpacity style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]} onPress={handleJoinGroup} disabled={isJoining}>
-                  {isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalSubmitBtnText}>Join Group</Text>}
+                  {isJoining ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.modalSubmitBtnText}>{t('joinGroup')}</Text>}
                 </TouchableOpacity>
               </View>
             )}
@@ -779,7 +779,7 @@ export default function YDPageScreen({ navigation }: any) {
             </View>
 
             <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
-              <Text style={[styles.inputLabel, { color: textColor }]}>Select Products</Text>
+              <Text style={[styles.inputLabel, { color: textColor }]}>{t('selectProducts')}</Text>
               <Text style={{ color: textMuted, fontSize: 12, fontFamily, marginBottom: 8 }}>
                 Pick the products you want. Your dairyman will set the price after accepting.
               </Text>
@@ -810,7 +810,7 @@ export default function YDPageScreen({ navigation }: any) {
                 </Text>
               )}
 
-              <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>Delivery Time</Text>
+              <Text style={[styles.inputLabel, { color: textColor, marginTop: 16 }]}>{t('deliveryTimeLabel')}</Text>
               <Text style={{ color: textMuted, fontSize: 12, fontFamily, marginBottom: 8 }}>
                 Select one or more — e.g. both morning and evening.
               </Text>
@@ -852,7 +852,7 @@ export default function YDPageScreen({ navigation }: any) {
             >
               {createRequestMutation.isPending
                 ? <ActivityIndicator color="#FFFFFF" />
-                : <Text style={styles.modalSubmitBtnText}>Send Request</Text>}
+                : <Text style={styles.modalSubmitBtnText}>{t('sendRequest')}</Text>}
             </TouchableOpacity>
           </View>
         </View>

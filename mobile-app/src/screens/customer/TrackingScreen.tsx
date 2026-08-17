@@ -63,7 +63,7 @@ function formatETA(seconds: number): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function TrackingScreen({ navigation }: any) {
-  const { colors, isDark } = useTranslation();
+  const { t, colors, isDark } = useTranslation();
 
   const surfaceColor = isDark ? '#1F1B17' : '#FFFFFF';
   const textColor    = isDark ? '#F5EFE5' : '#1A1714';
@@ -260,19 +260,19 @@ export default function TrackingScreen({ navigation }: any) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ArrowLeft size={22} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.navTitle, { color: textColor }]}>Track Delivery</Text>
+          <Text style={[styles.navTitle, { color: textColor }]}>{t('trackDelivery')}</Text>
         </View>
         <View style={styles.emptyWrap}>
           <View style={styles.emptyIconWrap}>
             <Package size={56} color="#A99B89" />
           </View>
-          <Text style={[styles.emptyTitle, { color: textColor }]}>No Active Order</Text>
+          <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noActiveOrder')}</Text>
           <Text style={[styles.emptyDesc, { color: textMuted }]}>
             Place an order to track your milkman in real-time.
           </Text>
           <TouchableOpacity style={styles.placeOrderBtn} onPress={() => navigation.navigate('CustomerHome')}>
             <Package size={16} color="#fff" />
-            <Text style={styles.placeOrderBtnText}>Place New Order</Text>
+            <Text style={styles.placeOrderBtnText}>{t('placeNewOrder')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -456,7 +456,7 @@ export default function TrackingScreen({ navigation }: any) {
 
         {/* ── DELIVERY TIMELINE ─────────────────────────────────────────────── */}
         <View style={[styles.card, { backgroundColor: surfaceColor, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Delivery Timeline</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{t('deliveryTimeline')}</Text>
 
           <View style={styles.timeline}>
             {/* Step 1 */}
@@ -466,8 +466,8 @@ export default function TrackingScreen({ navigation }: any) {
               </View>
               <View style={styles.tlLine} />
               <View style={styles.tlContent}>
-                <Text style={[styles.tlTitle, { color: textColor }]}>Order Confirmed</Text>
-                <Text style={[styles.tlSub, { color: textMuted }]}>Milkman has accepted your order</Text>
+                <Text style={[styles.tlTitle, { color: textColor }]}>{t('orderConfirmedLabel')}</Text>
+                <Text style={[styles.tlSub, { color: textMuted }]}>{t('milkmanAcceptedOrder')}</Text>
               </View>
             </View>
 
@@ -514,15 +514,15 @@ export default function TrackingScreen({ navigation }: any) {
 
         {/* ── ORDER DETAILS ─────────────────────────────────────────────────── */}
         <View style={[styles.card, { backgroundColor: surfaceColor, borderColor }]}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Order Details</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>{t('orderDetailsLabel')}</Text>
           <View style={styles.detailRow}>
             <Package size={16} color={textMuted} />
-            <Text style={[styles.detailLabel, { color: textMuted }]}>Order ID</Text>
+            <Text style={[styles.detailLabel, { color: textMuted }]}>{t('orderIdLabel')}</Text>
             <Text style={[styles.detailValue, { color: textColor }]}>#{activeOrder?.id || '—'}</Text>
           </View>
           <View style={styles.detailRow}>
             <MapPin size={16} color={textMuted} />
-            <Text style={[styles.detailLabel, { color: textMuted }]}>Delivery To</Text>
+            <Text style={[styles.detailLabel, { color: textMuted }]}>{t('deliveryTo')}</Text>
             <Text style={[styles.detailValue, { color: textColor }]} numberOfLines={2}>
               {customerProfile?.address || 'Your address'}
             </Text>
@@ -545,7 +545,7 @@ export default function TrackingScreen({ navigation }: any) {
           activeOpacity={0.8}
         >
           <Share2 size={16} color="#5C5248" />
-          <Text style={styles.shareBtnText}>Share Tracking Info</Text>
+          <Text style={styles.shareBtnText}>{t('shareTrackingInfo')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

@@ -13,7 +13,7 @@ import { downloadBill } from '../../lib/documents';
 
 export default function BillsScreen({ navigation }: any) {
   const { user } = useAuth();
-  const { colors, isDark } = useTranslation();
+  const { t, colors, isDark } = useTranslation();
 
   const { data: bills, isLoading: billsLoading } = useQuery<any[]>({
     queryKey: ['/api/bills/list'],
@@ -51,7 +51,7 @@ export default function BillsScreen({ navigation }: any) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ArrowLeft size={24} color={textColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Monthly Bills</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>{t('monthlyBills')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -76,15 +76,15 @@ export default function BillsScreen({ navigation }: any) {
 
                 <View style={styles.billDetails}>
                   <View style={styles.billRow}>
-                    <Text style={[styles.billLabel, { color: textMuted }]}>Total Quantity</Text>
+                    <Text style={[styles.billLabel, { color: textMuted }]}>{t('totalQuantity')}</Text>
                     <Text style={[styles.billValue, { color: textColor }]}>{bill.totalQuantity} L</Text>
                   </View>
                   <View style={styles.billRow}>
-                    <Text style={[styles.billLabel, { color: textMuted }]}>Total Amount</Text>
+                    <Text style={[styles.billLabel, { color: textMuted }]}>{t('totalAmountLabel')}</Text>
                     <Text style={[styles.billAmount, { color: colors.primary }]}>₹{bill.totalAmount}</Text>
                   </View>
                   <View style={styles.billRow}>
-                    <Text style={[styles.billLabel, { color: textMuted }]}>Due Date</Text>
+                    <Text style={[styles.billLabel, { color: textMuted }]}>{t('dueDate')}</Text>
                     <Text style={[styles.billValue, { color: textColor }]}>{new Date(bill.dueDate).toLocaleDateString()}</Text>
                   </View>
                 </View>
@@ -102,12 +102,12 @@ export default function BillsScreen({ navigation }: any) {
                       })}
                     >
                       <CreditCard size={18} color="#FFFFFF" />
-                      <Text style={styles.payBtnText}>Pay Now</Text>
+                      <Text style={styles.payBtnText}>{t('payNow')}</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity style={[styles.downloadBtn, { borderColor }]} activeOpacity={0.8} onPress={() => downloadBill(bill)}>
                     <Download size={18} color={textColor} />
-                    <Text style={[styles.downloadText, { color: textColor }]}>Download Bill</Text>
+                    <Text style={[styles.downloadText, { color: textColor }]}>{t('downloadBill')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -116,7 +116,7 @@ export default function BillsScreen({ navigation }: any) {
         ) : (
           <View style={styles.emptyContainer}>
             <Receipt size={64} color={textMuted} />
-            <Text style={[styles.emptyTitle, { color: textColor }]}>No Bills Found</Text>
+            <Text style={[styles.emptyTitle, { color: textColor }]}>{t('noBillsFound')}</Text>
             <Text style={[styles.emptySubtitle, { color: textMuted }]}>Your monthly generated bills will appear here.</Text>
           </View>
         )}

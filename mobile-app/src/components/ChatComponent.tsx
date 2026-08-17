@@ -33,6 +33,7 @@ const getDateLabel = (date: Date) => {
 // Memoized message bubble — only re-renders when ITS props change, so a new
 // message (or a parent re-render) doesn't redraw the whole conversation.
 const MessageRow = React.memo(function MessageRow({ msg, isNewDay, isMe, senderName, colors, isDark, surfaceColor, textColor, textMuted, userType, onPayBill }: any) {
+  const { t } = useTranslation();
   const msgDate = new Date(msg.createdAt);
   const showTicks = isMe && msg.senderType === 'customer';
   return (
@@ -44,19 +45,19 @@ const MessageRow = React.memo(function MessageRow({ msg, isNewDay, isMe, senderN
           {msg.messageType === 'order' && (
             <View style={[styles.requestBanner, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(249,115,22,0.1)' }]}>
               <Package size={14} color={isMe ? '#FFFFFF' : '#EA580C'} />
-              <Text style={[styles.requestBannerText, { color: isMe ? '#FFFFFF' : '#EA580C' }]}>Order Request</Text>
+              <Text style={[styles.requestBannerText, { color: isMe ? '#FFFFFF' : '#EA580C' }]}>{t('orderRequest')}</Text>
             </View>
           )}
           {msg.messageType === 'bill' ? (
             <View style={[styles.billMsgCard, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', borderColor: colors.primary }]}>
               <View style={styles.billMsgHeader}>
                 <Receipt size={18} color={colors.primary} />
-                <Text style={[styles.billMsgTitle, { color: textColor }]}>Monthly Bill</Text>
+                <Text style={[styles.billMsgTitle, { color: textColor }]}>{t('monthlyBill')}</Text>
               </View>
               <Text style={[styles.billMsgText, { color: textColor }]}>{msg.message}</Text>
               {userType === 'customer' && (
                 <TouchableOpacity style={[styles.billPayBtn, { backgroundColor: colors.primary }]} onPress={() => onPayBill(msg)}>
-                  <Text style={styles.billPayBtnText}>Pay Now</Text>
+                  <Text style={styles.billPayBtnText}>{t('payNow')}</Text>
                 </TouchableOpacity>
               )}
             </View>

@@ -7,8 +7,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Package, Clock, CheckCircle, XCircle, ShoppingBag, Download, ArrowLeft, Calendar } from 'lucide-react-native';
 import { colors, fontSize, fontWeight, borderRadius, spacing, shadows, useTheme } from '../../theme';
 import { downloadOrderReceipt } from '../../lib/documents';
+import { useTranslation } from '../../contexts/LanguageContext';
 
 export default function ViewOrdersScreen({ navigation }: any) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const [tab, setTab] = useState<'active' | 'history'>('active');
 
@@ -112,11 +114,11 @@ export default function ViewOrdersScreen({ navigation }: any) {
                       <Text style={styles.detailValue}>{order.quantity}</Text>
                     </View>
                     <View style={styles.detailCol}>
-                      <Text style={styles.detailLabel}>Milk Type</Text>
+                      <Text style={styles.detailLabel}>{t('milkType')}</Text>
                       <Text style={styles.detailValue}>{order.milkType || 'Fresh Milk'}</Text>
                     </View>
                     <View style={styles.detailCol}>
-                      <Text style={styles.detailLabel}>Delivery Time</Text>
+                      <Text style={styles.detailLabel}>{t('deliveryTimeLabel')}</Text>
                       <Text style={styles.detailValue}>{order.deliveryTime}</Text>
                     </View>
                     <View style={styles.detailCol}>
@@ -133,7 +135,7 @@ export default function ViewOrdersScreen({ navigation }: any) {
                     {tab === 'active' && (
                       <TouchableOpacity style={styles.trackBtn} activeOpacity={0.8} onPress={() => navigation.navigate('Tracking')}>
                         <Package size={16} color={colors.white} />
-                        <Text style={styles.trackBtnText}>Track Delivery</Text>
+                        <Text style={styles.trackBtnText}>{t('trackDelivery')}</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity style={[styles.receiptBtn, tab === 'history' && styles.receiptBtnFull]} activeOpacity={0.8} onPress={() => downloadOrderReceipt(order)}>
@@ -161,12 +163,12 @@ export default function ViewOrdersScreen({ navigation }: any) {
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <Calendar size={20} color={colors.foreground} />
-            <Text style={styles.summaryTitle}>Order Summary</Text>
+            <Text style={styles.summaryTitle}>{t('orderSummary')}</Text>
           </View>
           
           <View style={styles.summaryGrid}>
             <View style={[styles.summaryItem, { backgroundColor: colors.primaryLight }]}> {/* Blue 50 */}
-              <Text style={styles.summaryLabel}>Total Orders</Text>
+              <Text style={styles.summaryLabel}>{t('totalOrdersLabel')}</Text>
               <Text style={[styles.summaryNumber, { color: colors.primary }]}>{orderList.length}</Text>
             </View>
             <View style={[styles.summaryItem, { backgroundColor: '#F1F8F3' }]}> {/* Green 50 */}
@@ -174,7 +176,7 @@ export default function ViewOrdersScreen({ navigation }: any) {
               <Text style={[styles.summaryNumber, { color: colors.success }]}>{historyOrders.length}</Text>
             </View>
             <View style={[styles.summaryItem, { backgroundColor: '#FFF7ED' }]}> {/* Orange 50 */}
-              <Text style={styles.summaryLabel}>Active Orders</Text>
+              <Text style={styles.summaryLabel}>{t('activeOrders')}</Text>
               <Text style={[styles.summaryNumber, { color: '#EA580C' }]}>{activeOrders.length}</Text>
             </View>
           </View>

@@ -11,7 +11,7 @@
     "db:push": "drizzle-kit push",
     "check:terms": "node scripts/check-terms.mjs",
     "check:households": "node scripts/check-household-callsites.mjs",
-    "check:i18n": "node scripts/check-i18n.mjs --max 96",
+    "check:i18n": "node scripts/check-i18n.mjs --max 18",
     "backfill:households": "tsx scripts/backfill-households.ts"
   },
   "dependencies": {

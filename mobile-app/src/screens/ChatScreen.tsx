@@ -824,7 +824,7 @@ export default function ChatScreen({ route, navigation }: any) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surfaceColor, padding: 24, paddingVertical: 32 }]}>
             <Text style={{ textAlign: 'center', fontSize: 24, fontWeight: 'bold', color: textColor, marginBottom: 8 }}>₹{currentBill?.totalAmount}</Text>
-            <Text style={{ textAlign: 'center', color: textMuted, marginBottom: 24 }}>Current Unpaid Balance</Text>
+            <Text style={{ textAlign: 'center', color: textMuted, marginBottom: 24 }}>{t('unpaidBalance')}</Text>
             
             <View style={{ backgroundColor: isDark ? '#332C25' : '#F0E9DE', padding: 16, borderRadius: 12, marginBottom: 24 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -832,7 +832,7 @@ export default function ChatScreen({ route, navigation }: any) {
                  <Text style={{ color: textColor, fontWeight: 'bold' }}>{currentBill?.billMonth}</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                 <Text style={{ color: textColor }}>Orders Included</Text>
+                 <Text style={{ color: textColor }}>{t('ordersIncluded')}</Text>
                  <Text style={{ color: textColor, fontWeight: 'bold' }}>{currentBill?.totalOrders}</Text>
               </View>
             </View>
