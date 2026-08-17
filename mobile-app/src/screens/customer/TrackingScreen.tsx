@@ -65,10 +65,10 @@ function formatETA(seconds: number): string {
 export default function TrackingScreen({ navigation }: any) {
   const { colors, isDark } = useTranslation();
 
-  const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor    = isDark ? '#F9FAFB' : '#111827';
-  const textMuted    = isDark ? '#9CA3AF' : '#4B5563';
-  const borderColor  = isDark ? '#374151' : '#E5E7EB';
+  const surfaceColor = isDark ? '#1F1B17' : '#FFFFFF';
+  const textColor    = isDark ? '#F5EFE5' : '#1A1714';
+  const textMuted    = isDark ? '#A99B89' : '#5C5248';
+  const borderColor  = isDark ? '#332C25' : '#E6DCCD';
 
   // ── Queries ─────────────────────────────────────────────────────────────────
   const { data: customerProfile, isLoading: profileLoading } = useQuery<any>({
@@ -247,7 +247,7 @@ export default function TrackingScreen({ navigation }: any) {
   if (profileLoading || ordersLoading) {
     return (
       <View style={[styles.loader, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#22406E" />
         <Text style={{ marginTop: 12, color: textMuted }}>Loading tracking…</Text>
       </View>
     );
@@ -264,7 +264,7 @@ export default function TrackingScreen({ navigation }: any) {
         </View>
         <View style={styles.emptyWrap}>
           <View style={styles.emptyIconWrap}>
-            <Package size={56} color="#9CA3AF" />
+            <Package size={56} color="#A99B89" />
           </View>
           <Text style={[styles.emptyTitle, { color: textColor }]}>No Active Order</Text>
           <Text style={[styles.emptyDesc, { color: textMuted }]}>
@@ -285,9 +285,9 @@ export default function TrackingScreen({ navigation }: any) {
     : (activeOrder?.status === 'out_for_delivery' ? 'out_for_delivery' : 'confirmed');
 
   const statusConfig = {
-    confirmed:        { label: 'Order Confirmed',    color: '#2563EB', bg: '#EFF6FF', icon: CheckCircle },
+    confirmed:        { label: 'Order Confirmed',    color: '#22406E', bg: '#F2F5FA', icon: CheckCircle },
     out_for_delivery: { label: 'Out for Delivery',   color: '#D97706', bg: '#FFFBEB', icon: Truck },
-    delivered:        { label: 'Delivered! 🎉',      color: '#16A34A', bg: '#F0FDF4', icon: CheckCircle },
+    delivered:        { label: 'Delivered! 🎉',      color: '#2F7D5B', bg: '#F1F8F3', icon: CheckCircle },
   };
   const sc = statusConfig[deliveryStatus];
 
@@ -299,11 +299,11 @@ export default function TrackingScreen({ navigation }: any) {
           <ArrowLeft size={22} color={textColor} />
         </TouchableOpacity>
         <Text style={[styles.navTitle, { color: textColor }]}>Track Order #{activeOrder?.id ?? ''}</Text>
-        <View style={[styles.wsBadge, { backgroundColor: isConnected ? '#DCFCE7' : '#F3F4F6' }]}>
+        <View style={[styles.wsBadge, { backgroundColor: isConnected ? '#DFF0E6' : '#F0E9DE' }]}>
           {isConnected
-            ? <Wifi size={13} color="#16A34A" />
-            : <WifiOff size={13} color="#9CA3AF" />}
-          <Text style={[styles.wsBadgeText, { color: isConnected ? '#16A34A' : '#9CA3AF' }]}>
+            ? <Wifi size={13} color="#2F7D5B" />
+            : <WifiOff size={13} color="#A99B89" />}
+          <Text style={[styles.wsBadgeText, { color: isConnected ? '#2F7D5B' : '#A99B89' }]}>
             {isConnected ? 'Live' : 'Polling'}
           </Text>
         </View>
@@ -340,7 +340,7 @@ export default function TrackingScreen({ navigation }: any) {
         {/* ── STOPS-AWAY (position in milkman's route) ──────────────────────── */}
         {deliveryStatus !== 'delivered' && queue?.yourStop && (queue.totalStops > 1) && (
           <View style={[styles.stopsCard, { backgroundColor: surfaceColor, borderColor }]}>
-            <Route size={16} color="#2563EB" />
+            <Route size={16} color="#22406E" />
             <Text style={[styles.stopsText, { color: textColor }]}>
               You're stop <Text style={{ fontWeight: '800' }}>#{queue.yourStop}</Text> of {queue.totalStops}
               {typeof queue.stopsAhead === 'number'
@@ -419,7 +419,7 @@ export default function TrackingScreen({ navigation }: any) {
         {/* ── MILKMAN INFO CARD ─────────────────────────────────────────────── */}
         <View style={[styles.milkmanCard, { backgroundColor: surfaceColor, borderColor }]}>
           <View style={styles.milkmanAvatar}>
-            <Truck size={22} color="#2563EB" />
+            <Truck size={22} color="#22406E" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.milkmanName, { color: textColor }]}>
@@ -438,18 +438,18 @@ export default function TrackingScreen({ navigation }: any) {
           </View>
           <View style={styles.milkmanActions}>
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: '#DCFCE7' }]}
+              style={[styles.iconBtn, { backgroundColor: '#DFF0E6' }]}
               onPress={() => milkman.phone && Linking.openURL(`tel:${milkman.phone}`)}
               activeOpacity={0.8}
             >
-              <Phone size={18} color="#16A34A" />
+              <Phone size={18} color="#2F7D5B" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: '#EFF6FF' }]}
+              style={[styles.iconBtn, { backgroundColor: '#F2F5FA' }]}
               onPress={() => navigation.navigate('YDPage')}
               activeOpacity={0.8}
             >
-              <MessageCircle size={18} color="#2563EB" />
+              <MessageCircle size={18} color="#22406E" />
             </TouchableOpacity>
           </View>
         </View>
@@ -461,7 +461,7 @@ export default function TrackingScreen({ navigation }: any) {
           <View style={styles.timeline}>
             {/* Step 1 */}
             <View style={styles.timelineRow}>
-              <View style={[styles.tlDot, { backgroundColor: '#16A34A' }]}>
+              <View style={[styles.tlDot, { backgroundColor: '#2F7D5B' }]}>
                 <CheckCircle size={12} color="#fff" />
               </View>
               <View style={styles.tlLine} />
@@ -474,9 +474,9 @@ export default function TrackingScreen({ navigation }: any) {
             {/* Step 2 */}
             <View style={styles.timelineRow}>
               <View style={[styles.tlDot, {
-                backgroundColor: deliveryStatus === 'confirmed' ? (isDark ? '#374151' : '#E5E7EB') : '#D97706'
+                backgroundColor: deliveryStatus === 'confirmed' ? (isDark ? '#332C25' : '#E6DCCD') : '#D97706'
               }]}>
-                <Truck size={12} color={deliveryStatus === 'confirmed' ? '#6B7280' : '#fff'} />
+                <Truck size={12} color={deliveryStatus === 'confirmed' ? '#7A6E60' : '#fff'} />
               </View>
               <View style={styles.tlLine} />
               <View style={styles.tlContent}>
@@ -494,12 +494,12 @@ export default function TrackingScreen({ navigation }: any) {
             {/* Step 3 */}
             <View style={[styles.timelineRow, { marginBottom: 0 }]}>
               <View style={[styles.tlDot, {
-                backgroundColor: deliveryStatus === 'delivered' ? '#16A34A' : (isDark ? '#374151' : '#E5E7EB')
+                backgroundColor: deliveryStatus === 'delivered' ? '#2F7D5B' : (isDark ? '#332C25' : '#E6DCCD')
               }]}>
-                <CheckCircle size={12} color={deliveryStatus === 'delivered' ? '#fff' : '#6B7280'} />
+                <CheckCircle size={12} color={deliveryStatus === 'delivered' ? '#fff' : '#7A6E60'} />
               </View>
               <View style={styles.tlContent}>
-                <Text style={[styles.tlTitle, { color: deliveryStatus === 'delivered' ? '#16A34A' : textMuted }]}>
+                <Text style={[styles.tlTitle, { color: deliveryStatus === 'delivered' ? '#2F7D5B' : textMuted }]}>
                   {deliveryStatus === 'delivered' ? '🎉 Delivered!' : 'Delivery Pending'}
                 </Text>
                 <Text style={[styles.tlSub, { color: textMuted }]}>
@@ -544,7 +544,7 @@ export default function TrackingScreen({ navigation }: any) {
           onPress={() => Share.share({ message: `Track my DOOODHWALA delivery in real-time! Order #${activeOrder?.id}` })}
           activeOpacity={0.8}
         >
-          <Share2 size={16} color="#4B5563" />
+          <Share2 size={16} color="#5C5248" />
           <Text style={styles.shareBtnText}>Share Tracking Info</Text>
         </TouchableOpacity>
 
@@ -572,14 +572,14 @@ const styles = StyleSheet.create({
 
   // Empty state
   emptyWrap:      { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, marginTop: 60 },
-  emptyIconWrap:  { width: 96, height: 96, borderRadius: 48, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  emptyIconWrap:  { width: 96, height: 96, borderRadius: 48, backgroundColor: '#F0E9DE', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   emptyTitle:     { fontSize: 22, fontWeight: '700', marginBottom: 10 },
   emptyDesc:      { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 28 },
-  placeOrderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 10 },
+  placeOrderBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#22406E', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 10 },
   placeOrderBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   // Arriving banner
-  arrivingBanner:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 14, borderRadius: 12, marginBottom: 12, backgroundColor: '#16A34A' },
+  arrivingBanner:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 14, borderRadius: 12, marginBottom: 12, backgroundColor: '#2F7D5B' },
   arrivingText:    { color: '#fff', fontSize: 15, fontWeight: '800' },
 
   // Stops-away card
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
 
   // Markers
   customerPin: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#2563EB',
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#22406E',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 3, borderColor: '#fff',
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 5,
@@ -622,17 +622,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(34,197,94,0.25)',
   },
   milkmanPin: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: '#16A34A',
+    width: 38, height: 38, borderRadius: 19, backgroundColor: '#2F7D5B',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 3, borderColor: '#fff',
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 5,
   },
 
   // Map legend
-  legendDotGreen:  { width: 10, height: 10, borderRadius: 5, backgroundColor: '#16A34A' },
-  legendDotBlue:   { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
-  legendLineBlue:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#2563EB' },
-  legendLineGrey:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#9CA3AF' },
+  legendDotGreen:  { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2F7D5B' },
+  legendDotBlue:   { width: 10, height: 10, borderRadius: 5, backgroundColor: '#22406E' },
+  legendLineBlue:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#22406E' },
+  legendLineGrey:  { width: 18, height: 3, borderRadius: 2, backgroundColor: '#A99B89' },
 
   // Milkman card
   milkmanCard: {
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
     padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 16, ...shadows.sm,
   },
   milkmanAvatar: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#EFF6FF',
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#F2F5FA',
     justifyContent: 'center', alignItems: 'center',
   },
   milkmanName:    { fontSize: 16, fontWeight: '700' },
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   tlDot:        { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 2, marginRight: 14 },
   tlLine: {
     position: 'absolute', left: 13, top: 30, bottom: -20, width: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E6DCCD',
   },
   tlContent:    { flex: 1 },
   tlTitle:      { fontSize: 14, fontWeight: '600' },
@@ -674,8 +674,8 @@ const styles = StyleSheet.create({
   // Share button
   shareBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB',
+    backgroundColor: '#F5EFE5', borderWidth: 1, borderColor: '#E6DCCD',
     paddingVertical: 14, borderRadius: 12, marginBottom: 16,
   },
-  shareBtnText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  shareBtnText: { fontSize: 14, fontWeight: '600', color: '#332C25' },
 });

@@ -5,6 +5,7 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import { BillingService } from "./services/billingService";
 import { broadcast } from "./websocket";
+import { retireOtherSoloHouseholds } from "./services/households";
 
 const router = Router();
 
@@ -59,6 +60,10 @@ router.post("/", async (req: AuthRequest, res) => {
         const customer = await getOrCreateCustomer(req);
         await db.update(customers).set({ assignedMilkmanId: milkmanId, updatedAt: new Date() }).where(eq(customers.id, customer.id));
 
+        // They already had a household of one from being assigned; this group
+        // replaces it, so close the old one rather than counting them twice.
+        await retireOtherSoloHouseholds(req.user!.id, milkmanId, group.id);
+
         res.json(group);
     } catch (error) {
         console.error("Create group error:", error);
@@ -90,6 +95,8 @@ router.post("/join", async (req: AuthRequest, res) => {
 
         const customer = await getOrCreateCustomer(req);
         await db.update(customers).set({ assignedMilkmanId: group.milkmanId, updatedAt: new Date() }).where(eq(customers.id, customer.id));
+
+        await retireOtherSoloHouseholds(req.user!.id, group.milkmanId, group.id);
 
         res.json(group);
     } catch (error) {

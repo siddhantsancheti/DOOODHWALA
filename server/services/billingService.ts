@@ -10,131 +10,6 @@ function currentMonthKey(): string {
 }
 
 export class BillingService {
-    static async generateMonthlyBill(milkmanId: number): Promise<void> {
-        const currentMonth = currentMonthKey();
-
-        // 1. Get only UN-BILLED order messages for this milkman. Every order
-        //    carries a billId once it has been billed; filtering on billId IS NULL
-        //    guarantees the same order can never be aggregated into a second bill
-        //    (this was the root cause of the same order appearing in two months).
-        const orderMessages = await db
-            .select()
-            .from(chatMessages)
-            .where(
-                and(
-                    eq(chatMessages.milkmanId, milkmanId),
-                    eq(chatMessages.messageType, "order"),
-                    isNull(chatMessages.billId)
-                )
-            );
-
-        // 2. Group orders by customer (track which message rows feed each bill so
-        //    they can be stamped with the bill id afterwards).
-        const customerOrders: Record<number, { total: number, items: any[], msgIds: number[] }> = {};
-
-        orderMessages.forEach((msg) => {
-            if (!msg.customerId) return;
-
-            if (!customerOrders[msg.customerId]) {
-                customerOrders[msg.customerId] = {
-                    total: 0,
-                    items: [],
-                    msgIds: []
-                };
-            }
-
-            const amount = msg.orderTotal ? parseFloat(msg.orderTotal) : 0;
-            customerOrders[msg.customerId].total += amount;
-            customerOrders[msg.customerId].msgIds.push(msg.id);
-
-            // Derive quantity: prefer orderQuantity, else sum the multi-product
-            // orderItems (so the bill never shows "0 L" when there were orders).
-            const items = Array.isArray(msg.orderItems) ? (msg.orderItems as any[]) : [];
-            const qty = parseFloat(msg.orderQuantity?.toString() || "0")
-                || items.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
-
-            customerOrders[msg.customerId].items.push({
-                product: msg.orderProduct || items.map((i) => i.product).join(", ") || "Order",
-                quantity: qty,
-                price: qty > 0 ? amount / qty : amount,
-                amount: amount
-            });
-        });
-
-        // 3. Create or extend the current-month bill for each customer
-        for (const [customerIdStr, data] of Object.entries(customerOrders)) {
-            const customerId = parseInt(customerIdStr);
-            if (data.items.length === 0) continue; // nothing new to bill
-
-            // Check if a pending bill already exists for this month
-            const existingBills = await db
-                .select()
-                .from(bills)
-                .where(
-                    and(
-                        eq(bills.milkmanId, milkmanId),
-                        eq(bills.customerId, customerId),
-                        eq(bills.billMonth, currentMonth),
-                        eq(bills.status, "pending")
-                    )
-                );
-
-            let targetBillId: number;
-
-            if (existingBills.length > 0) {
-                // Append the new orders to the existing pending bill (don't replace,
-                // or already-billed-this-month orders would be lost).
-                const ex = existingBills[0];
-                const prevItems = Array.isArray(ex.items) ? (ex.items as any[]) : [];
-                const newItems = [...prevItems, ...data.items];
-                const newTotal = (parseFloat(ex.totalAmount) || 0) + data.total;
-                await db
-                    .update(bills)
-                    .set({
-                        totalAmount: newTotal.toString(),
-                        totalOrders: newItems.length,
-                        items: newItems,
-                        updatedAt: new Date()
-                    })
-                    .where(eq(bills.id, ex.id));
-                targetBillId = ex.id;
-            } else {
-                // Create new bill
-                const [newBill] = await db.insert(bills).values({
-                    milkmanId,
-                    customerId,
-                    billMonth: currentMonth,
-                    totalAmount: data.total.toString(),
-                    totalOrders: data.items.length,
-                    items: data.items,
-                    status: "pending",
-                    dueDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Due in 7 days
-                }).returning();
-                targetBillId = newBill.id;
-
-                // 4. Send chat message informing about the new bill
-                const [milkmanData] = await db.select().from(milkmen).where(eq(milkmen.id, milkmanId)).limit(1);
-
-                await db.insert(chatMessages).values({
-                    milkmanId,
-                    customerId,
-                    senderId: milkmanData?.userId || "system", // Use milkman's user ID if available
-                    senderType: "milkman",
-                    message: `📄 Bill Generated for ${currentMonth}\nTotal Amount: ₹${data.total.toFixed(2)}\nDue Date: ${new Date(new Date().setDate(new Date().getDate() + 7)).toLocaleDateString()}`,
-                    messageType: "bill",
-                    orderTotal: data.total.toString(),
-                    billId: newBill.id,
-                });
-            }
-
-            // 5. Stamp every billed order so it is never billed again.
-            await db
-                .update(chatMessages)
-                .set({ billId: targetBillId })
-                .where(inArray(chatMessages.id, data.msgIds));
-        }
-    }
-
     // Aggregate every member's order messages for a household group into ONE
     // combined bill (familyChatId set, customerId null). Any member may pay it.
     // Returns the pending group bill (existing or freshly created), or null if
@@ -247,26 +122,88 @@ export class BillingService {
         if (billedMsgIds.length > 0) {
             await db.update(chatMessages).set({ billId: newBill.id }).where(inArray(chatMessages.id, billedMsgIds));
         }
+
+        // Put the bill in the conversation, the same as an individual bill does
+        // — without this the customer never sees the Pay Now card.
+        //
+        // One message per member, all pointing at the same bill: chat messages
+        // are fetched by customerId, so a single row tagged only with the chat
+        // would be invisible to everyone. Any member paying settles the bill for
+        // the household.
+        const [milkmanData] = await db.select().from(milkmen).where(eq(milkmen.id, milkmanId)).limit(1);
+        const dueDate = new Date(new Date().setDate(new Date().getDate() + 7));
+
+        for (const memberCustomer of memberCustomers) {
+            await db.insert(chatMessages).values({
+                milkmanId,
+                customerId: memberCustomer.id,
+                familyChatId,
+                senderId: milkmanData?.userId || "system",
+                senderType: "milkman",
+                message: `📄 Bill Generated for ${currentMonth}\nTotal Amount: ₹${total.toFixed(2)}\nDue Date: ${dueDate.toLocaleDateString()}`,
+                messageType: "bill",
+                orderTotal: total.toString(),
+                billId: newBill.id,
+            });
+        }
+
         return newBill;
+    }
+
+    /**
+     * Bill every household, once.
+     *
+     * This used to iterate milkmen and call generateMonthlyBill, which grouped
+     * by customerId — so a family of three received three bills, while the
+     * household bill was only ever produced on demand by
+     * GET /api/groups/:id/bill. Both paths claim orders via `billId IS NULL`,
+     * so whichever ran first won and the other came back empty.
+     *
+     * One path now: one household, one bill. Every assigned customer has a
+     * household (see docs/HOUSEHOLD_MODEL.md), so nobody is missed.
+     */
+    /** Bill every household belonging to one milkman. */
+    static async generateBillsForMilkman(milkmanId: number): Promise<number> {
+        const households = await db
+            .select({ id: familyChats.id })
+            .from(familyChats)
+            .where(and(eq(familyChats.milkmanId, milkmanId), eq(familyChats.isActive, true)));
+
+        let billed = 0;
+        for (const household of households) {
+            try {
+                if (await this.generateGroupBill(household.id)) billed++;
+            } catch (err) {
+                console.error(`Failed to bill household ${household.id}`, err);
+            }
+        }
+        return billed;
     }
 
     static async generateAllMonthlyBills(): Promise<void> {
         try {
-            // Fetch all milkmen
-            const allMilkmen = await db.select().from(milkmen);
+            const households = await db
+                .select({ id: familyChats.id, name: familyChats.chatName })
+                .from(familyChats)
+                .where(eq(familyChats.isActive, true));
 
-            console.log(`Starting monthly billing for ${allMilkmen.length} milkmen...`);
+            console.log(`Starting monthly billing for ${households.length} household(s)...`);
 
-            for (const milkman of allMilkmen) {
+            let billed = 0;
+            for (const household of households) {
                 try {
-                    await this.generateMonthlyBill(milkman.id);
-                    console.log(`Generated bills for milkman ${milkman.id}`);
+                    const bill = await this.generateGroupBill(household.id);
+                    if (bill) {
+                        billed++;
+                        console.log(`Billed household ${household.id} (${household.name})`);
+                    }
                 } catch (err) {
-                    console.error(`Failed to generate bills for milkman ${milkman.id}`, err);
+                    // One bad household must not stop the rest of the run.
+                    console.error(`Failed to bill household ${household.id}`, err);
                 }
             }
 
-            console.log("Monthly billing completed.");
+            console.log(`Monthly billing completed: ${billed} bill(s) across ${households.length} household(s).`);
         } catch (error) {
             console.error("Critical error in generateAllMonthlyBills:", error);
         }

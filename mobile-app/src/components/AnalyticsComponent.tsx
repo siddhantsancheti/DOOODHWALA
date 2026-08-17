@@ -5,15 +5,17 @@ import { BarChart3, TrendingUp, Clock, Star, Package, ChevronLeft, ChevronRight,
 import { useTranslation } from '../contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
-const PALETTE = ['#3B82F6', '#10B981', '#F59E0B', '#A855F7', '#EF4444', '#06B6D4'];
+// Chart series drawn from the brand range rather than stock chart colours,
+// so a graph sits in the app instead of looking pasted in.
+const PALETTE = ['#22406E', '#E08A2E', '#2F7D5B', '#5C4B8A', '#B0563C', '#3D6098'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function AnalyticsComponent({ milkman }: { milkman: any }) {
   const { isDark } = useTranslation();
-  const textColor = isDark ? '#F9FAFB' : '#111827';
-  const textMuted = isDark ? '#9CA3AF' : '#6B7280';
-  const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
-  const borderColor = isDark ? '#374151' : '#E5E7EB';
+  const textColor = isDark ? '#F5EFE5' : '#1A1714';
+  const textMuted = isDark ? '#A99B89' : '#7A6E60';
+  const surfaceColor = isDark ? '#1F1B17' : '#FFFFFF';
+  const borderColor = isDark ? '#332C25' : '#E6DCCD';
 
   const [activeView, setActiveView] = useState<'charts' | 'table'>('charts');
 
@@ -94,7 +96,7 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
       {/* View Switcher Tabs */}
-      <View style={[styles.viewSwitcher, { backgroundColor: isDark ? '#111827' : '#F3F4F6' }]}>
+      <View style={[styles.viewSwitcher, { backgroundColor: isDark ? '#1A1714' : '#F0E9DE' }]}>
         <TouchableOpacity 
           style={[styles.viewTab, activeView === 'charts' && styles.activeViewTab]} 
           onPress={() => setActiveView('charts')}
@@ -114,7 +116,7 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
       {activeView === 'charts' ? (
         <View style={styles.content}>
           <View style={styles.headerRow}>
-            <TrendingUp size={24} color="#16A34A" />
+            <TrendingUp size={24} color="#2F7D5B" />
             <Text style={[styles.title, { color: textColor }]}>Performance Summary</Text>
           </View>
           
@@ -134,11 +136,11 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
           <View style={styles.chartContainer}>
             {monthlyData.map((item, index) => (
               <View key={index} style={styles.barWrapper}>
-                <View style={[styles.barBase, { backgroundColor: isDark ? '#374151' : '#F3F4F6' }]}>
+                <View style={[styles.barBase, { backgroundColor: isDark ? '#332C25' : '#F0E9DE' }]}>
                   <View 
                     style={[
                       styles.barFill, 
-                      { height: `${(item.qty / maxQty) * 100}%`, backgroundColor: '#3B82F6' }
+                      { height: `${(item.qty / maxQty) * 100}%`, backgroundColor: '#7FA5DA' }
                     ]} 
                   />
                 </View>
@@ -173,7 +175,7 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
                     <Text style={[styles.breakdownLabel, { color: textColor }]}>{p.name}</Text>
                   </View>
                   <View style={styles.breakdownBarContainer}>
-                    <View style={[styles.breakdownBarBg, { backgroundColor: isDark ? '#374151' : '#F1F5F9' }]}>
+                    <View style={[styles.breakdownBarBg, { backgroundColor: isDark ? '#332C25' : '#F1F5F9' }]}>
                       <View style={[styles.breakdownBarFill, { width: `${p.percent}%`, backgroundColor: p.color }]} />
                     </View>
                     <Text style={[styles.breakdownPercent, { color: textMuted }]}>{p.percent}%</Text>
@@ -199,7 +201,7 @@ export default function AnalyticsComponent({ milkman }: { milkman: any }) {
                 <Text style={[styles.cellText, { flex: 1.5, color: textColor }]}>{row.date}</Text>
                 <Text style={[styles.cellText, { flex: 2, color: textColor }]} numberOfLines={1}>{row.product}</Text>
                 <Text style={[styles.cellText, { flex: 1, color: textColor, textAlign: 'right' }]}>{row.qty}</Text>
-                <Text style={[styles.cellText, { flex: 1.2, color: '#2563EB', textAlign: 'right', fontWeight: 'bold' }]}>₹{row.amount}</Text>
+                <Text style={[styles.cellText, { flex: 1.2, color: '#22406E', textAlign: 'right', fontWeight: 'bold' }]}>₹{row.amount}</Text>
               </View>
             ))}
             {tableRows.length === 0 && (
@@ -218,7 +220,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   viewSwitcher: { flexDirection: 'row', margin: 20, padding: 4, borderRadius: 12 },
   viewTab: { flex: 1, flexDirection: 'row', height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 8, gap: 8 },
-  activeViewTab: { backgroundColor: '#2563EB' },
+  activeViewTab: { backgroundColor: '#22406E' },
   viewTabText: { fontSize: 13, fontWeight: '700' },
   content: { paddingHorizontal: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },

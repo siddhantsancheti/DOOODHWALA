@@ -20,15 +20,15 @@ export default function BillsScreen({ navigation }: any) {
     enabled: !!user,
   });
 
-  const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#F9FAFB' : '#111827';
-  const textMuted = isDark ? '#9CA3AF' : '#6B7280';
-  const borderColor = isDark ? '#374151' : '#F3F4F6';
+  const surfaceColor = isDark ? '#1F1B17' : '#FFFFFF';
+  const textColor = isDark ? '#F5EFE5' : '#1A1714';
+  const textMuted = isDark ? '#A99B89' : '#7A6E60';
+  const borderColor = isDark ? '#332C25' : '#F0E9DE';
 
   if (billsLoading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#22406E" />
       </View>
     );
   }
@@ -37,10 +37,10 @@ export default function BillsScreen({ navigation }: any) {
 
   const getStatusStyle = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'paid': return { bg: '#DCFCE7', color: '#16A34A', icon: CheckCircle };
-      case 'pending': return { bg: '#FEF9C3', color: '#CA8A04', icon: Clock };
-      case 'overdue': return { bg: '#FEE2E2', color: '#DC2626', icon: Calculator };
-      default: return { bg: '#F3F4F6', color: '#6B7280', icon: Receipt };
+      case 'paid': return { bg: '#DFF0E6', color: '#2F7D5B', icon: CheckCircle };
+      case 'pending': return { bg: '#FBEFD5', color: '#A8730F', icon: Clock };
+      case 'overdue': return { bg: '#F8E4E1', color: '#A8382F', icon: Calculator };
+      default: return { bg: '#F0E9DE', color: '#7A6E60', icon: Receipt };
     }
   };
 
@@ -81,7 +81,7 @@ export default function BillsScreen({ navigation }: any) {
                   </View>
                   <View style={styles.billRow}>
                     <Text style={[styles.billLabel, { color: textMuted }]}>Total Amount</Text>
-                    <Text style={[styles.billAmount, { color: '#2563EB' }]}>₹{bill.totalAmount}</Text>
+                    <Text style={[styles.billAmount, { color: '#22406E' }]}>₹{bill.totalAmount}</Text>
                   </View>
                   <View style={styles.billRow}>
                     <Text style={[styles.billLabel, { color: textMuted }]}>Due Date</Text>
@@ -92,7 +92,7 @@ export default function BillsScreen({ navigation }: any) {
                 <View style={styles.billActions}>
                     {(bill.status === 'pending' || bill.status === 'overdue') && (
                     <TouchableOpacity
-                      style={[styles.payBtn, { backgroundColor: '#2563EB' }]}
+                      style={[styles.payBtn, { backgroundColor: '#22406E' }]}
                       activeOpacity={0.8}
                       onPress={() => navigation.navigate('Checkout', {
                         amount: parseFloat(bill.totalAmount),

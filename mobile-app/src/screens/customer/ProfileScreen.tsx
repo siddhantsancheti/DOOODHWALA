@@ -309,7 +309,7 @@ function InfoRow({ label, value, icon, isBadge, badgeColor, isMono, isVerified, 
             placeholder={`Enter ${label.toLowerCase()}`}
           />
         ) : isBadge ? (
-          <View style={[infoStyles.badge, { backgroundColor: badgeColor ? `${badgeColor}20` : (isDark ? 'rgba(37,99,235,0.25)' : '#DBEAFE') }]}>
+          <View style={[infoStyles.badge, { backgroundColor: badgeColor ? `${badgeColor}20` : (isDark ? 'rgba(37,99,235,0.25)' : '#E4EAF3') }]}>
             <Text style={[infoStyles.badgeText, { color: badgeColor || colors.primary }]}>{value}</Text>
           </View>
         ) : (
@@ -343,10 +343,10 @@ const createInfoStyles = (colors: any, isDark: boolean, fontFamily: string, font
   },
   badgeText: { fontSize: fontSize.xs, fontWeight: '600', fontFamily: fontFamilyBold },
   verifiedBadge: {
-    marginLeft: spacing.sm, backgroundColor: isDark ? 'rgba(22,163,74,0.2)' : '#DCFCE7',
+    marginLeft: spacing.sm, backgroundColor: isDark ? 'rgba(22,163,74,0.2)' : '#DFF0E6',
     paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full,
   },
-  verifiedText: { color: '#16A34A', fontSize: fontSize.xs, fontWeight: '600', fontFamily: fontFamilyBold },
+  verifiedText: { color: '#2F7D5B', fontSize: fontSize.xs, fontWeight: '600', fontFamily: fontFamilyBold },
 });
 
 const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFamilyBold: string) => StyleSheet.create({

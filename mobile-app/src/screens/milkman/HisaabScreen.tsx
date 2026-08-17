@@ -77,7 +77,7 @@ export default function HisaabScreen({ navigation, route }: any) {
         ListHeaderComponent={
           <>
             <LinearGradient
-              colors={['#16A34A', '#15803D']}
+              colors={['#2F7D5B', '#265F46']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.earningCard}
@@ -115,7 +115,7 @@ export default function HisaabScreen({ navigation, route }: any) {
                 Say so rather than letting a 0% deduction read as "no fee". */}
             {!data.commissionSet && (
               <View style={styles.notice}>
-                <Info size={15} color="#CA8A04" />
+                <Info size={15} color="#A8730F" />
                 <Text style={styles.noticeText}>{t('commissionNotSet')}</Text>
               </View>
             )}
@@ -195,7 +195,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     notice: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       padding: 12, borderRadius: 12, marginBottom: 12,
-      backgroundColor: isDark ? 'rgba(234,179,8,0.12)' : '#FEF9C3',
+      backgroundColor: isDark ? 'rgba(234,179,8,0.12)' : '#FBEFD5',
       borderWidth: 1, borderColor: isDark ? 'rgba(234,179,8,0.35)' : '#FDE68A',
     },
     noticeText: { flex: 1, fontSize: 12, color: isDark ? '#FDE68A' : '#854D0E', fontFamily, lineHeight: 17 },
@@ -205,7 +205,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
       gap: 12, marginTop: 8, marginBottom: 4,
     },
     sectionTitle: { flex: 1, minWidth: 0, fontSize: 16, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '700' },
-    sectionPending: { fontSize: 12, color: '#DC2626', fontFamily: fontFamilyBold, fontWeight: '600' },
+    sectionPending: { fontSize: 12, color: '#A8382F', fontFamily: fontFamilyBold, fontWeight: '600' },
 
     billRow: {
       flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14,
@@ -215,8 +215,8 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     billName: { fontSize: 15, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '600' },
     billPaid: { fontSize: 12, color: colors.mutedForeground, fontFamily, marginTop: 1 },
     billAmount: { fontSize: 15, fontFamily: fontFamilyBold, fontWeight: '700' },
-    billDue: { color: '#DC2626' },
-    billClear: { color: '#16A34A', fontSize: 13 },
+    billDue: { color: '#A8382F' },
+    billClear: { color: '#2F7D5B', fontSize: 13 },
 
     empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 32, gap: 8 },
     emptyTitle: { fontSize: 17, color: colors.foreground, fontFamily: fontFamilyBold, fontWeight: '700' },

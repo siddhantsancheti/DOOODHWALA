@@ -168,8 +168,8 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
   const update = (key: string, val: string) => setFormData({ ...formData, [key]: val });
   const isValid = formData.contactName && formData.businessName && formData.address && formData.city;
 
-  const errorColor = '#DC2626';
-  const errorBorder = '#EF4444';
+  const errorColor = '#A8382F';
+  const errorBorder = '#C0453B';
   const fieldError = (field: string) => submitAttempted && !(formData as any)[field];
 
   const renderInput = (key: string, placeholder: string, opts?: any) => (
@@ -212,7 +212,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
           {/* Contact Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
-              <Truck size={20} color="#2563EB" />
+              <Truck size={20} color="#22406E" />
               <Text style={styles.sectionTitle}>{t('contactInfo')}</Text>
             </View>
             <View style={styles.fieldGroup}>
@@ -252,24 +252,24 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
           {/* Service Area Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
-              <MapPin size={20} color="#2563EB" />
+              <MapPin size={20} color="#22406E" />
               <Text style={styles.sectionTitle}>{t('serviceArea')}</Text>
             </View>
             <TouchableOpacity
               style={[
                 styles.locationBtn,
-                formData.latitude ? { borderColor: '#22C55E', backgroundColor: isDark ? 'rgba(34,197,94,0.08)' : '#F0FDF4' } : {},
+                formData.latitude ? { borderColor: '#3E9B72', backgroundColor: isDark ? 'rgba(34,197,94,0.08)' : '#F1F8F3' } : {},
               ]}
               onPress={getCurrentLocation}
               disabled={isLocating || locationAutoCapture === 'capturing'}
               activeOpacity={0.7}
             >
               {(isLocating || locationAutoCapture === 'capturing') ? (
-                <ActivityIndicator size="small" color="#2563EB" style={{ marginRight: 8 }} />
+                <ActivityIndicator size="small" color="#22406E" style={{ marginRight: 8 }} />
               ) : (
-                <MapPin size={20} color={formData.latitude ? '#22C55E' : '#2563EB'} style={{ marginRight: 8 }} />
+                <MapPin size={20} color={formData.latitude ? '#3E9B72' : '#22406E'} style={{ marginRight: 8 }} />
               )}
-              <Text style={[styles.locationBtnText, formData.latitude ? { color: '#22C55E' } : {}]}>
+              <Text style={[styles.locationBtnText, formData.latitude ? { color: '#3E9B72' } : {}]}>
                 {locationAutoCapture === 'capturing'
                   ? 'Detecting location…'
                   : formData.latitude
@@ -340,7 +340,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
           {/* Products Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
-              <Clock size={20} color="#2563EB" />
+              <Clock size={20} color="#22406E" />
               <Text style={styles.sectionTitle}>{t('productsPricing')}</Text>
             </View>
             
@@ -373,7 +373,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
                 />
                 {dairyItems.length > 1 && (
                   <TouchableOpacity style={{ marginLeft: 8, padding: 4 }} onPress={() => setDairyItems(dairyItems.filter((_, i) => i !== index))}>
-                    <X size={18} color="#EF4444" />
+                    <X size={18} color="#C0453B" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -382,7 +382,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
               style={styles.addRowBtn}
               onPress={() => setDairyItems([...dairyItems, { name: '', unit: 'per litre', price: '', isCustom: true }])}
             >
-              <Plus size={18} color="#2563EB" />
+              <Plus size={18} color="#22406E" />
               <Text style={styles.addRowText}>{t('addNewProduct') || 'Add Product'}</Text>
             </TouchableOpacity>
           </View>
@@ -390,7 +390,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
           {/* Delivery Slots Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
-              <Clock size={20} color="#2563EB" />
+              <Clock size={20} color="#22406E" />
               <Text style={styles.sectionTitle}>{t('deliverySlots')}</Text>
             </View>
             {deliverySlots.map((slot, index) => (
@@ -425,7 +425,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
                   </TouchableOpacity>
                   {deliverySlots.length > 1 && (
                     <TouchableOpacity style={{ padding: 4 }} onPress={() => setDeliverySlots(deliverySlots.filter((_, i) => i !== index))}>
-                      <X size={18} color="#EF4444" />
+                      <X size={18} color="#C0453B" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -435,7 +435,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
               style={styles.addRowBtn}
               onPress={() => setDeliverySlots([...deliverySlots, { id: String(Date.now()), name: '', startTime: '10:00', endTime: '12:00', isActive: true }])}
             >
-              <Plus size={18} color="#2563EB" />
+              <Plus size={18} color="#22406E" />
               <Text style={styles.addRowText}>Add Delivery Slot</Text>
             </TouchableOpacity>
           </View>
@@ -443,7 +443,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
           {/* Bank Details Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
-              <CreditCard size={20} color="#2563EB" />
+              <CreditCard size={20} color="#22406E" />
               <Text style={styles.sectionTitle}>{t('bankDetailsOptional')}</Text>
             </View>
             <View style={styles.fieldGroup}>
@@ -491,7 +491,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   header: { alignItems: 'center', marginBottom: 24 },
   headerIcon: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#22406E',
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 16,
   },
@@ -539,30 +539,30 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   required: { color: colors.destructive },
   productNameInput: {
     fontSize: 16, fontWeight: '600', color: colors.foreground, fontFamily: fontFamilyBold,
-    borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#E5E7EB', paddingVertical: 2,
+    borderBottomWidth: 1, borderBottomColor: isDark ? '#332C25' : '#E6DCCD', paddingVertical: 2,
   },
   addRowBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 10, marginTop: 10, borderRadius: 8,
-    borderWidth: 1, borderStyle: 'dashed', borderColor: '#2563EB',
+    borderWidth: 1, borderStyle: 'dashed', borderColor: '#22406E',
   },
-  addRowText: { color: '#2563EB', fontWeight: '700', fontSize: 14, fontFamily: fontFamilyBold },
-  slotRowEdit: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#F3F4F6' },
+  addRowText: { color: '#22406E', fontWeight: '700', fontSize: 14, fontFamily: fontFamilyBold },
+  slotRowEdit: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#332C25' : '#F0E9DE' },
   slotNameInput: {
     fontSize: 15, fontWeight: '600', color: colors.foreground, fontFamily: fontFamilyBold,
-    borderBottomWidth: 1, borderBottomColor: isDark ? '#374151' : '#E5E7EB', paddingVertical: 2,
+    borderBottomWidth: 1, borderBottomColor: isDark ? '#332C25' : '#E6DCCD', paddingVertical: 2,
   },
   slotTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   timeInput: {
-    width: 64, height: 36, borderWidth: 1, borderColor: isDark ? '#374151' : '#E5E7EB',
+    width: 64, height: 36, borderWidth: 1, borderColor: isDark ? '#332C25' : '#E6DCCD',
     borderRadius: 8, textAlign: 'center', fontSize: 14, color: colors.foreground, fontFamily,
   },
   inputRow: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 8,
-    backgroundColor: colors.surfaceSecondary || (isDark ? '#374151' : '#F9FAFB'), height: 48,
+    backgroundColor: colors.surfaceSecondary || (isDark ? '#332C25' : '#F5EFE5'), height: 48,
     paddingHorizontal: 16, justifyContent: 'center',
   },
-  inputFocused: { borderColor: '#2563EB', borderWidth: 2 },
+  inputFocused: { borderColor: '#22406E', borderWidth: 2 },
   input: {
     fontSize: 16, color: colors.foreground, height: '100%',
     fontFamily,
@@ -571,18 +571,18 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   // Location
   locationBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#2563EB', borderStyle: 'dashed',
+    borderWidth: 1, borderColor: '#22406E', borderStyle: 'dashed',
     borderRadius: 8, paddingVertical: 14,
-    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#EFF6FF', marginBottom: 16,
+    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#F2F5FA', marginBottom: 16,
   },
   locationBtnText: {
-    color: '#2563EB', fontSize: 16, fontWeight: '500',
+    color: '#22406E', fontSize: 16, fontWeight: '500',
     fontFamily,
   },
 
   // Submit
   submitBtn: {
-    backgroundColor: '#2563EB', height: 52, borderRadius: 12,
+    backgroundColor: '#22406E', height: 52, borderRadius: 12,
     justifyContent: 'center', alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -591,14 +591,14 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     elevation: 5,
     marginTop: 24,
   },
-  submitBtnDisabled: { backgroundColor: '#9CA3AF' },
+  submitBtnDisabled: { backgroundColor: '#A99B89' },
   submitBtnText: {
     color: '#FFFFFF', fontSize: 18, fontWeight: '700',
     fontFamily: fontFamilyBold,
   },
   textAreaRow: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 8,
-    backgroundColor: colors.surfaceSecondary || (isDark ? '#374151' : '#F9FAFB'),
+    backgroundColor: colors.surfaceSecondary || (isDark ? '#332C25' : '#F5EFE5'),
     paddingHorizontal: 16, paddingVertical: 12, minHeight: 88,
   },
   textArea: {
@@ -629,9 +629,9 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   slotTime: { fontSize: 12, color: colors.mutedForeground, fontFamily },
   toggleBtn: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: isDark ? '#4B5563' : '#F3F4F6',
+    backgroundColor: isDark ? '#5C5248' : '#F0E9DE',
   },
-  toggleBtnActive: { backgroundColor: '#2563EB' },
-  toggleBtnText: { fontSize: 12, color: isDark ? '#D1D5DB' : '#4B5563', fontWeight: '600', fontFamily },
+  toggleBtnActive: { backgroundColor: '#22406E' },
+  toggleBtnText: { fontSize: 12, color: isDark ? '#D5C8B5' : '#5C5248', fontWeight: '600', fontFamily },
   toggleBtnTextActive: { color: '#FFFFFF' },
 });

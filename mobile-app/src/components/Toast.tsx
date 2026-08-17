@@ -18,9 +18,9 @@ export function toast(message: string, type: ToastType = 'info') {
 }
 
 const COLORS: Record<ToastType, string> = {
-  success: '#16A34A',
-  error: '#DC2626',
-  info: '#1F2937',
+  success: '#2F7D5B',
+  error: '#A8382F',
+  info: '#1F1B17',
 };
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

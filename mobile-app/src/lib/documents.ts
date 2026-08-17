@@ -5,7 +5,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
 
-const BRAND = '#2563EB';
+const BRAND = '#22406E';
 
 function rupee(n: any): string {
   const v = parseFloat(n ?? 0) || 0;
@@ -18,19 +18,19 @@ function shell(title: string, body: string): string {
     <head><meta charset="utf-8" />
       <style>
         * { font-family: -apple-system, Roboto, Helvetica, sans-serif; }
-        body { padding: 28px; color: #111827; }
+        body { padding: 28px; color: #1A1714; }
         .brand { color: ${BRAND}; font-size: 26px; font-weight: 800; letter-spacing: .5px; }
-        .sub { color: #6B7280; font-size: 13px; margin-top: 2px; }
+        .sub { color: #7A6E60; font-size: 13px; margin-top: 2px; }
         h1 { font-size: 20px; margin: 24px 0 4px; }
-        .row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #F3F4F6; font-size: 14px; }
-        .label { color: #6B7280; }
+        .row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #F0E9DE; font-size: 14px; }
+        .label { color: #7A6E60; }
         .value { font-weight: 600; }
         table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
-        th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #E5E7EB; }
-        th { color: #6B7280; font-weight: 600; }
+        th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #E6DCCD; }
+        th { color: #7A6E60; font-weight: 600; }
         .total { margin-top: 18px; display:flex; justify-content: space-between; font-size: 18px; font-weight: 800; color: ${BRAND}; }
         .badge { display:inline-block; padding: 4px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; }
-        .foot { margin-top: 34px; color: #9CA3AF; font-size: 11px; text-align: center; }
+        .foot { margin-top: 34px; color: #A99B89; font-size: 11px; text-align: center; }
       </style>
     </head>
     <body>
@@ -67,9 +67,9 @@ export async function downloadBill(bill: any) {
             <td>${rupee(it.price)}</td>
             <td>${rupee(it.amount)}</td>
           </tr>`).join('')
-      : `<tr><td colspan="4" style="color:#9CA3AF">Itemised orders unavailable</td></tr>`;
+      : `<tr><td colspan="4" style="color:#A99B89">Itemised orders unavailable</td></tr>`;
 
-    const statusColor = bill.status === 'paid' ? '#16A34A' : bill.status === 'overdue' ? '#DC2626' : '#CA8A04';
+    const statusColor = bill.status === 'paid' ? '#2F7D5B' : bill.status === 'overdue' ? '#A8382F' : '#A8730F';
     const body = `
       <div class="row"><span class="label">Bill Number</span><span class="value">#${bill.id}</span></div>
       <div class="row"><span class="label">Billing Period</span><span class="value">${bill.month || ''} ${bill.year || ''}</span></div>

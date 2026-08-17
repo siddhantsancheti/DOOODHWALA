@@ -42,7 +42,7 @@ function ActionTile({ icon, tint, value, label, caption, badge, badgeColor, onPr
       <View style={styles.tileTop}>
         <View style={[styles.tileIcon, { backgroundColor: tint }]}>{icon}</View>
         {!!badge && badge > 0 && (
-          <View style={[styles.tileBadge, { backgroundColor: badgeColor || '#EF4444' }]}>
+          <View style={[styles.tileBadge, { backgroundColor: badgeColor || '#C0453B' }]}>
             <Text style={styles.tileBadgeText}>{badge > 99 ? '99+' : badge}</Text>
           </View>
         )}
@@ -206,7 +206,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
     queryKey: ['/api/orders/milkman'], enabled: !!milkmanProfile,
   });
   const { data: customers, isLoading: isCustomersLoading } = useQuery<any>({
-    queryKey: ['/api/milkmen/customers'], enabled: !!milkmanProfile,
+    queryKey: ['/api/milkmen/households'], enabled: !!milkmanProfile,
   });
 
   const { data: serviceRequests = [], isLoading: isSrLoading } = useQuery<any[]>({
@@ -309,7 +309,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/service-requests/milkman"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/milkmen/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/milkmen/households"] });
       setSelectedRequest(null);
       Alert.alert(t('success'), t('requestAccepted'));
     },
@@ -449,6 +449,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
       : 0
   ), [milkmanBills]);
   const todaysEarnings = useMemo(() => completedOrders.reduce((s, o) => s + Number(o.totalAmount || 0), 0), [completedOrders]);
+  // Households, not people — a family of four is one customer.
   const totalCustomersCount = Array.isArray(customers) ? customers.length : 0;
   const progressPerc = todaysOrders.length > 0 ? (completedOrders.length / todaysOrders.length) * 100 : 0;
 
@@ -458,7 +459,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
   if (isLoading) {
     return (
       <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#22406E" />
         <Text style={[styles.loadingText, { color: colors.primary, fontFamily }]}>{t('loadingDashboard')}</Text>
       </View>
     );
@@ -467,19 +468,19 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
   if (!milkmanProfile && !isProfileLoading) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-        <Truck size={48} color={isDark ? '#6B7280' : '#D1D5DB'} />
-        <Text style={[styles.emptyTitle, { color: isDark ? '#F9FAFB' : '#111827', fontFamily: fontFamilyBold }]}>{t('profileRequired')}</Text>
-        <Text style={[styles.emptySub, { color: isDark ? '#9CA3AF' : '#6B7280', fontFamily }]}>{t('profileSetupRequired')}</Text>
+        <Truck size={48} color={isDark ? '#7A6E60' : '#D5C8B5'} />
+        <Text style={[styles.emptyTitle, { color: isDark ? '#F5EFE5' : '#1A1714', fontFamily: fontFamilyBold }]}>{t('profileRequired')}</Text>
+        <Text style={[styles.emptySub, { color: isDark ? '#A99B89' : '#7A6E60', fontFamily }]}>{t('profileSetupRequired')}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('MilkmanProfileSetup')} activeOpacity={0.8}>
           <Text style={[styles.primaryBtnText, { fontFamily: fontFamilyBold }]}>{t('setUpProfile')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
-  const surfaceColor = isDark ? '#1F2937' : '#FFFFFF';
-  const textColor = isDark ? '#F9FAFB' : '#111827';
-  const textMuted = isDark ? '#9CA3AF' : '#6B7280';
-  const borderColor = isDark ? '#374151' : '#F3F4F6';
+  const surfaceColor = isDark ? '#1F1B17' : '#FFFFFF';
+  const textColor = isDark ? '#F5EFE5' : '#1A1714';
+  const textMuted = isDark ? '#A99B89' : '#7A6E60';
+  const borderColor = isDark ? '#332C25' : '#F0E9DE';
 
   return (
     <View style={[styles.safeArea, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -488,8 +489,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={[styles.avatarBox, { backgroundColor: isDark ? '#1E40AF' : '#DBEAFE' }]}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: '#2563EB', fontFamily: fontFamilyBold }}>
+            <View style={[styles.avatarBox, { backgroundColor: isDark ? '#22304A' : '#E4EAF3' }]}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: '#22406E', fontFamily: fontFamilyBold }}>
                 {milkmanProfile.businessName?.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -527,18 +528,18 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             action buttons (notifications / settings / logout) are always
             visible and never pushed off screen by this wider control. */}
         <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, backgroundColor: milkmanProfile.isAvailable ? (isDark ? 'rgba(34,197,94,0.2)' : '#DCFCE7') : (isDark ? 'rgba(239,68,68,0.1)' : '#FEE2E2'), borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, backgroundColor: milkmanProfile.isAvailable ? (isDark ? 'rgba(34,197,94,0.2)' : '#DFF0E6') : (isDark ? 'rgba(239,68,68,0.1)' : '#F8E4E1'), borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {isConnected ? <Wifi size={14} color="#16A34A" /> : <WifiOff size={14} color="#9CA3AF" />}
-              <Text style={{ fontSize: 13, fontWeight: '700', color: milkmanProfile.isAvailable ? '#16A34A' : '#9CA3AF', fontFamily: fontFamilyBold }}>
+              {isConnected ? <Wifi size={14} color="#2F7D5B" /> : <WifiOff size={14} color="#A99B89" />}
+              <Text style={{ fontSize: 13, fontWeight: '700', color: milkmanProfile.isAvailable ? '#2F7D5B' : '#A99B89', fontFamily: fontFamilyBold }}>
                 {milkmanProfile.isAvailable ? t('active') : t('disabledLabel')}
               </Text>
             </View>
             <Switch
               value={!!milkmanProfile.isAvailable}
               onValueChange={(v) => updateAvailabilityMutation.mutate(v)}
-              trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
-              thumbColor={milkmanProfile.isAvailable ? '#16A34A' : '#9CA3AF'}
+              trackColor={{ false: '#D5C8B5', true: '#86EFAC' }}
+              thumbColor={milkmanProfile.isAvailable ? '#2F7D5B' : '#A99B89'}
             />
           </View>
         </View>
@@ -650,8 +651,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                     style={styles.dropdownItem} 
                     onPress={handleLogout}
                   >
-                    <LogOut size={18} color="#EF4444" style={styles.dropdownIcon} />
-                    <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('logout')}</Text>
+                    <LogOut size={18} color="#C0453B" style={styles.dropdownIcon} />
+                    <Text style={[styles.dropdownItemText, { color: "#C0453B", fontFamily }]}>{t('logout')}</Text>
                   </TouchableOpacity>
 
                   {/* Delete Account — permanent, last item */}
@@ -659,8 +660,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                     style={styles.dropdownItem}
                     onPress={handleDeleteAccount}
                   >
-                    <Trash2 size={18} color="#EF4444" style={styles.dropdownIcon} />
-                    <Text style={[styles.dropdownItemText, { color: "#EF4444", fontFamily }]}>{t('deleteAccount') || 'Delete Account'}</Text>
+                    <Trash2 size={18} color="#C0453B" style={styles.dropdownIcon} />
+                    <Text style={[styles.dropdownItemText, { color: "#C0453B", fontFamily }]}>{t('deleteAccount') || 'Delete Account'}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -722,7 +723,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                     {t('notifications') || 'Notifications'}
                   </Text>
                   {unreadNotifications > 0 && (
-                    <View style={{ backgroundColor: '#DC2626', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                    <View style={{ backgroundColor: '#A8382F', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                       <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>{unreadNotifications}</Text>
                     </View>
                   )}
@@ -745,8 +746,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                   </View>
                 ) : (
                   notifications.map((n: any) => (
-                    <View key={n.id} style={[styles.notifItem, { borderBottomColor: borderColor, backgroundColor: n.isRead ? 'transparent' : (isDark ? 'rgba(37,99,235,0.08)' : '#EFF6FF') }]}>
-                      <View style={[styles.notifDot, { backgroundColor: n.isRead ? '#9CA3AF' : '#2563EB' }]} />
+                    <View key={n.id} style={[styles.notifItem, { borderBottomColor: borderColor, backgroundColor: n.isRead ? 'transparent' : (isDark ? 'rgba(37,99,235,0.08)' : '#F2F5FA') }]}>
+                      <View style={[styles.notifDot, { backgroundColor: n.isRead ? '#A99B89' : '#22406E' }]} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.notifTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{n.title}</Text>
                         <Text style={[styles.notifBody, { color: textMuted, fontFamily }]}>{n.message}</Text>
@@ -767,7 +768,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             top of the screen. Today's progress lives inside it rather than in
             a separate card — it is the status of this exact action. */}
         <LinearGradient
-          colors={['#2563EB', '#1D4ED8']}
+          colors={['#22406E', '#162C4D']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
@@ -798,7 +799,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             onPress={() => navigation.navigate('DeliveryRun', { milkmanId: milkmanProfile?.id })}
             activeOpacity={0.9}
           >
-            <Navigation size={20} color="#2563EB" />
+            <Navigation size={20} color="#22406E" />
             <Text style={styles.heroButtonText} numberOfLines={1}>{t('startRoute')}</Text>
           </TouchableOpacity>
         </LinearGradient>
@@ -816,8 +817,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             styles={styles}
           />
           <ActionTile
-            icon={<Receipt size={22} color="#16A34A" />}
-            tint={isDark ? 'rgba(22,163,74,0.18)' : '#DCFCE7'}
+            icon={<Receipt size={22} color="#2F7D5B" />}
+            tint={isDark ? 'rgba(22,163,74,0.18)' : '#DFF0E6'}
             value={`₹${pendingBillsTotal.toFixed(0)}`}
             label={t('hisaab')}
             caption={t('pendingDues')}
@@ -825,22 +826,22 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             styles={styles}
           />
           <ActionTile
-            icon={<ClipboardList size={22} color="#2563EB" />}
-            tint={isDark ? 'rgba(37,99,235,0.18)' : '#DBEAFE'}
+            icon={<ClipboardList size={22} color="#22406E" />}
+            tint={isDark ? 'rgba(37,99,235,0.18)' : '#E4EAF3'}
             value={String(pendingRequestsCount)}
             label={t('acceptServiceRequests') || 'Service Requests'}
             badge={pendingRequestsCount}
-            badgeColor="#EF4444"
+            badgeColor="#C0453B"
             onPress={() => setShowRequestsModal(true)}
             styles={styles}
           />
           <ActionTile
-            icon={<Banknote size={22} color="#CA8A04" />}
-            tint={isDark ? 'rgba(234,179,8,0.18)' : '#FEF9C3'}
+            icon={<Banknote size={22} color="#A8730F" />}
+            tint={isDark ? 'rgba(234,179,8,0.18)' : '#FBEFD5'}
             value={String(codPayments.length)}
             label={t('acceptPayments')}
             badge={codPayments.length}
-            badgeColor="#16A34A"
+            badgeColor="#2F7D5B"
             onPress={() => setShowCODModal(true)}
             styles={styles}
           />
@@ -852,8 +853,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
           onPress={() => navigation.navigate('OrdersSummary')}
           activeOpacity={0.85}
         >
-          <View style={[styles.tileIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.18)' : '#DBEAFE' }]}>
-            <Package size={22} color="#2563EB" />
+          <View style={[styles.tileIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.18)' : '#E4EAF3' }]}>
+            <Package size={22} color="#22406E" />
           </View>
           <View style={styles.wideTileText}>
             <Text style={[styles.wideTileTitle, { color: textColor }]} numberOfLines={1}>
@@ -875,11 +876,11 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
 
         {hasNewActivity && (
           <TouchableOpacity
-            style={[styles.activityBanner, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#EFF6FF' }]}
+            style={[styles.activityBanner, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#F2F5FA' }]}
             onPress={() => setShowRequestsModal(true)}
             activeOpacity={0.85}
           >
-            <Bell size={18} color="#2563EB" />
+            <Bell size={18} color="#22406E" />
             <Text style={styles.activityBannerText} numberOfLines={2}>
               {t('newActivity')} — {t('checkRequests')}
             </Text>
@@ -901,7 +902,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
           <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
             {codPayments.length === 0 ? (
               <View style={styles.emptyList}>
-                <CheckCircle size={48} color="#16A34A" />
+                <CheckCircle size={48} color="#2F7D5B" />
                 <Text style={[styles.emptyListTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('noPendingCod')}</Text>
                 <Text style={[styles.emptyListSub, { color: textMuted, fontFamily }]}>{t('allVerified')}</Text>
               </View>
@@ -913,13 +914,13 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       <Text style={[styles.mOrderName, { color: textColor, fontFamily: fontFamilyBold }]}>{t('order')} #{payment.orderId}</Text>
                       <Text style={[styles.txDate, { color: textMuted, fontFamily }]}>{new Date(payment.createdAt).toLocaleString()}</Text>
                     </View>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#16A34A', fontFamily: fontFamilyBold }}>₹{payment.amount}</Text>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#2F7D5B', fontFamily: fontFamilyBold }}>₹{payment.amount}</Text>
                   </View>
                   
-                  <View style={{ marginTop: 16, backgroundColor: isDark ? '#374151' : '#F3F4F6', padding: 12, borderRadius: 8 }}>
+                  <View style={{ marginTop: 16, backgroundColor: isDark ? '#332C25' : '#F0E9DE', padding: 12, borderRadius: 8 }}>
                     <Text style={{ color: textMuted, fontSize: 12, marginBottom: 8, fontFamily: fontFamilyBold }}>{t('enterOtpPrompt')}</Text>
                     <TextInput
-                      style={[styles.input, { backgroundColor: isDark ? '#111827' : '#FFFFFF', borderColor, color: textColor, borderWidth: 1, textAlign: 'center', fontSize: 24, letterSpacing: 8, fontWeight: '700', fontFamily: fontFamilyBold }]}
+                      style={[styles.input, { backgroundColor: isDark ? '#1A1714' : '#FFFFFF', borderColor, color: textColor, borderWidth: 1, textAlign: 'center', fontSize: 24, letterSpacing: 8, fontWeight: '700', fontFamily: fontFamilyBold }]}
                       placeholder="000000"
                       keyboardType="numeric"
                       maxLength={6}
@@ -927,7 +928,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       onChangeText={setCodOtp}
                     />
                     <TouchableOpacity 
-                      style={[styles.primaryBtn, { marginTop: 12, backgroundColor: codOtp.length === 6 ? '#16A34A' : '#9CA3AF' }]}
+                      style={[styles.primaryBtn, { marginTop: 12, backgroundColor: codOtp.length === 6 ? '#2F7D5B' : '#A99B89' }]}
                       disabled={codOtp.length !== 6 || verifyOtpMutation.isPending}
                       onPress={() => verifyOtpMutation.mutate({ paymentId: payment.id, otp: codOtp })}
                     >
@@ -971,8 +972,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       <Text style={{ color: textMuted, fontSize: 12, marginTop: 2, fontFamily }}>{r.address || r.customer?.address}</Text>
                       {r.customerNotes ? <Text style={{ color: textMuted, fontSize: 12, marginTop: 4, fontStyle: 'italic', fontFamily }}>{r.customerNotes}</Text> : null}
                     </View>
-                    <View style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ color: '#2563EB', fontSize: 10, fontWeight: '700', fontFamily: fontFamilyBold }}>{t('newLabel') || 'NEW'}</Text>
+                    <View style={{ backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#E4EAF3', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                      <Text style={{ color: '#22406E', fontSize: 10, fontWeight: '700', fontFamily: fontFamilyBold }}>{t('newLabel') || 'NEW'}</Text>
                     </View>
                   </View>
                   <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: borderColor, paddingTop: 12 }}>
@@ -1035,7 +1036,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
           </View>
           <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
             <LinearGradient
-              colors={['#16A34A', '#15803D']}
+              colors={['#2F7D5B', '#265F46']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.earningsHero}
             >
@@ -1058,19 +1059,21 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
             </View>
             <Text style={[styles.sectionTitle, { color: textColor, marginBottom: 16, fontFamily: fontFamilyBold }]}>{t('recentTransactions')}</Text>
             {completedOrders.map((order) => {
-              const cust = customers?.find((c: any) => c.id === order.customerId);
+              // Households are keyed by chat; primaryCustomerId is the row an
+              // order carries.
+              const cust = customers?.find((c: any) => c.primaryCustomerId === order.customerId);
               return (
                 <View key={`tx-${order.id}`} style={[styles.txCard, { backgroundColor: surfaceColor, borderColor }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <View style={[styles.txIconBox, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7' }]}>
-                      <DollarSign size={16} color="#16A34A" />
+                    <View style={[styles.txIconBox, { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#DFF0E6' }]}>
+                      <DollarSign size={16} color="#2F7D5B" />
                     </View>
                     <View>
                       <Text style={[styles.txName, { color: textColor, fontFamily: fontFamilyBold }]}>{cust?.name || t('customer')}</Text>
                       <Text style={[styles.txDate, { color: textMuted, fontFamily }]}>{new Date(order.updatedAt || order.createdAt).toLocaleDateString()}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.txAmount, { color: '#16A34A', fontFamily: fontFamilyBold }]}>+ ₹{order.totalAmount}</Text>
+                  <Text style={[styles.txAmount, { color: '#2F7D5B', fontFamily: fontFamilyBold }]}>+ ₹{order.totalAmount}</Text>
                 </View>
               );
             })}
@@ -1110,7 +1113,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                 <View style={{ marginBottom: 16 }}>
                   <Text style={{ color: textMuted, marginBottom: 8, fontFamily }}>{t('productName')}</Text>
                   <TextInput
-                    style={[styles.input, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
+                    style={[styles.input, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
                     placeholder={t('productNamePlaceholder')}
                     value={isAddingProduct ? newProduct.name : editingProduct.name}
                     onChangeText={(val) => isAddingProduct ? setNewProduct({ ...newProduct, name: val }) : setEditingProduct({...editingProduct, name: val})}
@@ -1121,7 +1124,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: textMuted, marginBottom: 8, fontFamily }}>{t('price')} (₹)</Text>
                     <TextInput
-                      style={[styles.input, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
+                      style={[styles.input, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
                       placeholder="60"
                       keyboardType="numeric"
                       value={isAddingProduct ? newProduct.price : editingProduct.price?.toString()}
@@ -1131,7 +1134,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: textMuted, marginBottom: 8, fontFamily }}>{t('unit')}</Text>
                     <TextInput
-                      style={[styles.input, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
+                      style={[styles.input, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor, color: textColor, borderWidth: 1, fontFamily }]}
                       placeholder={t('liter')}
                       value={isAddingProduct ? t('liter') : editingProduct.unit}
                       onChangeText={(val) => isAddingProduct ? null : setEditingProduct({...editingProduct, unit: val})}
@@ -1141,13 +1144,13 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity 
-                    style={{ flex: 1, height: 48, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}
+                    style={{ flex: 1, height: 48, borderRadius: 8, backgroundColor: isDark ? '#332C25' : '#F0E9DE', justifyContent: 'center', alignItems: 'center' }}
                     onPress={() => { setIsAddingProduct(false); setEditingProduct(null); setNewProduct({ name: "", price: "" }); }}
                   >
                     <Text style={{ color: textColor, fontWeight: '600', fontFamily }}>{t('cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={{ flex: 2, height: 48, borderRadius: 8, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' }}
+                    style={{ flex: 2, height: 48, borderRadius: 8, backgroundColor: '#22406E', justifyContent: 'center', alignItems: 'center' }}
                     onPress={() => {
                       const updated = [...(milkmanProfile.dairyItems || [])];
                       if (isAddingProduct) {
@@ -1187,7 +1190,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
                     <Text style={{ color: textMuted, fontSize: 13, fontFamily }}>{t('qty')}:</Text>
                     <TouchableOpacity
-                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: isDark ? '#374151' : '#E5E7EB', justifyContent: 'center', alignItems: 'center' }}
+                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: isDark ? '#332C25' : '#E6DCCD', justifyContent: 'center', alignItems: 'center' }}
                       onPress={() => {
                         const cur = parseFloat(localQuantities[index] || '0');
                         const next = Math.max(0, cur - 1);
@@ -1207,7 +1210,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       }}
                     />
                     <TouchableOpacity
-                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center' }}
+                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#22406E', justifyContent: 'center', alignItems: 'center' }}
                       onPress={() => {
                         const cur = parseFloat(localQuantities[index] || '0');
                         const next = cur + 1;
@@ -1221,7 +1224,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 8 }}>
                   <TouchableOpacity
-                    style={[styles.invToggle, { backgroundColor: item.isAvailable ? (isDark ? '#374151' : '#F3F4F6') : '#2563EB' }]}
+                    style={[styles.invToggle, { backgroundColor: item.isAvailable ? (isDark ? '#332C25' : '#F0E9DE') : '#22406E' }]}
                     onPress={() => {
                       const updated = [...milkmanProfile.dairyItems];
                       updated[index] = { ...item, isAvailable: !item.isAvailable };
@@ -1248,7 +1251,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                       ]);
                     }}
                   >
-                    <Trash2 size={18} color="#EF4444" />
+                    <Trash2 size={18} color="#C0453B" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1268,7 +1271,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyTitle: { fontSize: 24, fontWeight: '700', marginTop: 24, fontFamily: fontFamilyBold },
   emptySub: { fontSize: 16, textAlign: 'center', marginVertical: 16, lineHeight: 24, fontFamily },
-  primaryBtn: { backgroundColor: '#2563EB', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8 },
+  primaryBtn: { backgroundColor: '#22406E', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 8 },
   primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', fontFamily: fontFamilyBold },
 
   scrollContent: { padding: 16, paddingBottom: 60 },
@@ -1296,7 +1299,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   },
   headerBadge: {
     position: 'absolute', top: -3, right: -3,
-    backgroundColor: '#DC2626', borderRadius: 10,
+    backgroundColor: '#A8382F', borderRadius: 10,
     minWidth: 18, height: 18, paddingHorizontal: 4,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: '#FFFFFF',
@@ -1377,20 +1380,20 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   wideTileSub: { fontSize: 13, fontFamily, marginTop: 2 },
   wideTileBadge: {
     minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7,
-    backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#22406E', justifyContent: 'center', alignItems: 'center',
   },
   activityBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#2563EB', marginBottom: 12,
+    padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#22406E', marginBottom: 12,
   },
-  activityBannerText: { flex: 1, fontSize: 13, color: '#2563EB', fontWeight: '600', fontFamily: fontFamilyBold },
+  activityBannerText: { flex: 1, fontSize: 13, color: '#22406E', fontWeight: '600', fontFamily: fontFamilyBold },
   heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 20, lineHeight: 20, fontFamily },
   heroButton: {
     backgroundColor: '#FFFFFF',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 14, borderRadius: 8, gap: 8,
   },
-  heroButtonText: { color: '#2563EB', fontWeight: '700', fontSize: 16, fontFamily: fontFamilyBold },
+  heroButtonText: { color: '#22406E', fontWeight: '700', fontSize: 16, fontFamily: fontFamilyBold },
 
   // Summary Card / Today's Progress
   card: {
@@ -1487,14 +1490,14 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   },
   pricingLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#7A6E60',
     marginBottom: 4,
     fontFamily,
   },
   pricingValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1714',
     fontFamily: fontFamilyBold,
   },
 
@@ -1573,7 +1576,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E6DCCD',
   },
   actionButton: {
     flexDirection: 'row',
@@ -1585,12 +1588,12 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     flex: 1,
   },
   acceptButton: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#2F7D5B',
   },
   rejectButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#EF4444',
+    borderColor: '#C0453B',
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -1599,10 +1602,10 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     fontFamily: fontFamilyBold,
   },
   rejectText: {
-    color: '#EF4444',
+    color: '#C0453B',
   },
   badgeCount: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#C0453B',
     borderRadius: 10,
     minWidth: 20,
     height: 20,

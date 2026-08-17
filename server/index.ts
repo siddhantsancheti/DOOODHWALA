@@ -242,9 +242,11 @@ app.use((req, res, next) => {
 
                 // 4. Send Message to Chat
                 const orderMessage = `Daily Order: ${item.quantity} ${item.unit} of ${item.product}`;
+                const { ensureHouseholdChat } = await import("./services/households");
                 await db.insert(chatMessages).values({
                     customerId: customer.id,
                     milkmanId: milkman.id,
+                    familyChatId: await ensureHouseholdChat(customer.id, milkman.id),
                     senderId: customer.userId,
                     senderType: "customer",
                     message: orderMessage,
@@ -349,9 +351,11 @@ app.use((req, res, next) => {
 
                 // Send chat message
                 const orderMessage = `🔄 Subscription: ${sub.quantity} ${sub.unit || 'liter'} of ${sub.productName}${sub.specialInstructions ? ` (${sub.specialInstructions})` : ''}`;
+                const { ensureHouseholdChat: ensureHH } = await import("./services/households");
                 await db.insert(chatMessages).values({
                     customerId: sub.customerId,
                     milkmanId: sub.milkmanId,
+                    familyChatId: await ensureHH(sub.customerId, sub.milkmanId),
                     senderId: customer.userId,
                     senderType: "customer",
                     message: orderMessage,
@@ -417,7 +421,7 @@ app.use((req, res, next) => {
             const milkmanIds = [...new Set(ended.map((s) => s.milkmanId))];
             for (const milkmanId of milkmanIds) {
                 try {
-                    await BillingService.generateMonthlyBill(milkmanId);
+                    await BillingService.generateBillsForMilkman(milkmanId);
                 } catch (err) {
                     console.error(`Settlement billing failed for milkman ${milkmanId}:`, err);
                 }

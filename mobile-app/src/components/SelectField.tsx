@@ -140,7 +140,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 8,
-      backgroundColor: colors.surfaceSecondary || (isDark ? '#374151' : '#F9FAFB'),
+      backgroundColor: colors.surfaceSecondary || (isDark ? '#332C25' : '#F5EFE5'),
     },
     fieldError: { borderColor: colors.destructive, borderWidth: 2 },
     fieldDisabled: { opacity: 0.5 },
@@ -183,7 +183,7 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
       paddingHorizontal: 12,
       height: 42,
       borderRadius: 10,
-      backgroundColor: colors.surfaceSecondary || (isDark ? '#374151' : '#F3F4F6'),
+      backgroundColor: colors.surfaceSecondary || (isDark ? '#332C25' : '#F0E9DE'),
     },
     searchInput: {
       flex: 1,

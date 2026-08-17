@@ -64,8 +64,8 @@ export default function AppNavigator() {
 
     if (isLoading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' }}>
-                <ActivityIndicator size="large" color="#2563EB" />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAF6EF' }}>
+                <ActivityIndicator size="large" color="#22406E" />
             </View>
         );
     }

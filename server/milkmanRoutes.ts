@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "./db";
-import { milkmen, users, products, customers, orders, bills, chatMessages } from "@shared/schema";
-import { eq, asc, and } from "drizzle-orm";
+import { milkmen, users, products, customers, orders, bills, chatMessages, familyChats, familyChatMembers } from "@shared/schema";
+import { eq, asc, and, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { type AuthRequest } from "./middleware/auth";
 
@@ -92,6 +92,121 @@ async function currentMilkman(req: AuthRequest) {
         .limit(1);
     return milkman ?? null;
 }
+
+// GET /api/milkmen/households — the milkman's customers as doors, not people.
+//
+// One row per active household chat. A family of four is one row here and one
+// row on the delivery run, which is the whole point: the milkman walks to one
+// door once. See docs/HOUSEHOLD_MODEL.md.
+router.get("/households", async (req: AuthRequest, res) => {
+    try {
+        const milkman = await currentMilkman(req);
+        if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
+
+        const chats = await db
+            .select()
+            .from(familyChats)
+            .where(and(eq(familyChats.milkmanId, milkman.id), eq(familyChats.isActive, true)))
+            .orderBy(asc(familyChats.chatName));
+
+        if (chats.length === 0) return res.json([]);
+
+        const chatIds = chats.map((c) => c.id);
+        const members = await db
+            .select()
+            .from(familyChatMembers)
+            .where(inArray(familyChatMembers.chatId, chatIds));
+
+        // Every member's customer row, so we can pick the household's address
+        // and the customer id the chat screen opens with.
+        const memberUserIds = [...new Set(members.map((m) => m.userId))];
+        const memberCustomers = memberUserIds.length
+            ? await db.select().from(customers).where(inArray(customers.userId, memberUserIds))
+            : [];
+        const customerByUser = new Map(memberCustomers.map((c) => [c.userId, c]));
+
+        const households = chats.map((chat) => {
+            const mine = members.filter((m) => m.chatId === chat.id);
+            // The creator's customer row is the household's own: their address
+            // is the door, and their id is what the chat opens with.
+            const primary = customerByUser.get(chat.createdBy)
+                ?? mine.map((m) => customerByUser.get(m.userId)).find(Boolean);
+
+            return {
+                chatId: chat.id,
+                name: chat.chatName,
+                chatCode: chat.chatCode,
+                memberCount: mine.length,
+                primaryCustomerId: primary?.id ?? null,
+                address: primary?.address ?? null,
+                phone: primary?.phone ?? null,
+                routeOrder: primary?.routeOrder ?? 0,
+            };
+        });
+
+        households.sort((a, b) => (a.routeOrder ?? 0) - (b.routeOrder ?? 0));
+        res.json(households);
+    } catch (error) {
+        console.error("Get households error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// PATCH /api/milkmen/households/:chatId — correct a household's delivery
+// address or its position on the route.
+//
+// A household has one door. The address lives on the primary customer's row,
+// which is what /households reads and what the route is built from, so writing
+// it there keeps one address per household rather than one per person.
+router.patch("/households/:chatId", async (req: AuthRequest, res) => {
+    try {
+        const milkman = await currentMilkman(req);
+        if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
+
+        const chatId = parseInt(req.params.chatId);
+        if (isNaN(chatId)) return res.status(400).json({ message: "Invalid household id" });
+
+        const [chat] = await db
+            .select()
+            .from(familyChats)
+            .where(eq(familyChats.id, chatId))
+            .limit(1);
+
+        if (!chat || chat.milkmanId !== milkman.id) {
+            return res.status(403).json({ message: "Not your household" });
+        }
+
+        const { address, routeOrder } = req.body;
+        if (address === undefined && routeOrder === undefined) {
+            return res.status(400).json({ message: "Nothing to update" });
+        }
+
+        const [primary] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.userId, chat.createdBy))
+            .limit(1);
+
+        if (!primary) {
+            return res.status(404).json({ message: "Household has no primary customer" });
+        }
+
+        const update: Record<string, any> = { updatedAt: new Date() };
+        if (address !== undefined) update.address = String(address).trim();
+        if (routeOrder !== undefined) update.routeOrder = Number(routeOrder);
+
+        const [updated] = await db
+            .update(customers)
+            .set(update)
+            .where(eq(customers.id, primary.id))
+            .returning();
+
+        res.json({ chatId, address: updated.address, routeOrder: updated.routeOrder });
+    } catch (error) {
+        console.error("Update household error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
 // GET /api/milkmen/hisaab — the milkman's account: what was earned, what the
 // platform takes, what is left, and who still owes money.

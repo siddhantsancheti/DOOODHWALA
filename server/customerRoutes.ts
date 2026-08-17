@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "./db";
 import { customers, users, bills } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, or } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import { BillingService } from "./services/billingService";
+import { ensureHouseholdChat } from "./services/households";
 
 const router = Router();
 
@@ -251,6 +252,9 @@ const assignYdHandler = async (req: AuthRequest, res: any) => {
             .where(eq(customers.id, customer.id))
             .returning();
 
+        // Every customer is a household of one until family joins them.
+        await ensureHouseholdChat(customer.id, milkmanId);
+
         res.json(updatedCustomer);
     } catch (error) {
         console.error("Assign milkman error:", error);
@@ -282,17 +286,22 @@ router.post("/finalize-bill", async (req: AuthRequest, res) => {
             return res.status(400).json({ message: "No milkman assigned" });
         }
 
-        // Roll all of this customer's order messages into a pending bill.
-        await BillingService.generateMonthlyBill(customer.assignedMilkmanId);
+        // Roll this household's unbilled orders into its pending bill. Bills
+        // are per household now, so generating and reading per customer would
+        // miss everything a family member ordered.
+        const chatId = await ensureHouseholdChat(customer.id, customer.assignedMilkmanId);
+        if (chatId) await BillingService.generateGroupBill(chatId);
 
         const [pendingBill] = await db
             .select()
             .from(bills)
             .where(
                 and(
-                    eq(bills.customerId, customer.id),
                     eq(bills.milkmanId, customer.assignedMilkmanId),
-                    eq(bills.status, "pending")
+                    eq(bills.status, "pending"),
+                    chatId
+                        ? eq(bills.familyChatId, chatId)
+                        : eq(bills.customerId, customer.id),
                 )
             )
             .orderBy(desc(bills.createdAt))
@@ -328,14 +337,20 @@ router.post("/unassign-yd", async (req: AuthRequest, res) => {
             return res.status(400).json({ message: "No milkman assigned" });
         }
 
+        // Both shapes count: bills raised against this customer directly, and
+        // the household bill their family shares. Leaving with either unpaid
+        // would walk away from money owed.
+        const householdChatId = await ensureHouseholdChat(customer.id, customer.assignedMilkmanId);
         const pendingBills = await db
             .select()
             .from(bills)
             .where(
                 and(
-                    eq(bills.customerId, customer.id),
                     eq(bills.milkmanId, customer.assignedMilkmanId),
-                    eq(bills.status, "pending")
+                    eq(bills.status, "pending"),
+                    householdChatId
+                        ? or(eq(bills.customerId, customer.id), eq(bills.familyChatId, householdChatId))
+                        : eq(bills.customerId, customer.id),
                 )
             );
 
