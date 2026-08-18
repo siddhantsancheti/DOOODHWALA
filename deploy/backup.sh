@@ -48,7 +48,12 @@ fi
 gzip -t "$OUT"
 
 # Confirm the dump actually contains the tables, not just an error message.
-if ! zgrep -q "CREATE TABLE" "$OUT"; then
+#
+# grep -c, not grep -q: -q exits on the first match, which breaks the pipe
+# feeding it, and under `pipefail` that reads as a failed check — so a good
+# backup was being reported as empty and deleted, precisely because it found
+# tables straight away. -c consumes the whole stream and cannot SIGPIPE.
+if [ "$(gunzip -c "$OUT" | grep -c 'CREATE TABLE' || true)" -eq 0 ]; then
     echo "FATAL: backup contains no CREATE TABLE statements" >&2
     rm -f "$OUT"
     exit 1
