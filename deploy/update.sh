@@ -29,8 +29,13 @@ echo "==> Building"
 # finishes.
 NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
-echo "==> Applying database migrations"
-npm run db:push
+# Schema changes are NOT applied automatically. `drizzle-kit push` diffs the
+# whole schema, prompts interactively, and on this database offers to rename
+# app_config — the table every installed phone reads its server address from.
+# That must never run unattended. Apply changes deliberately instead:
+#
+#   psql "$DATABASE_URL" -f migrations/apply-v29.sql
+echo "==> Schema: apply migrations/*.sql by hand if this release needs them"
 
 echo
 echo "Build OK. Now run:  sudo systemctl restart dooodhwala"
