@@ -18,7 +18,9 @@ git checkout main
 git pull --ff-only origin main
 
 echo "==> Installing"
-npm ci --omit=dev 2>/dev/null || npm install --production=false
+# Full install, including devDependencies: vite, esbuild and drizzle-kit are
+# all dev deps and all needed by the build and migration steps below.
+npm ci || npm install
 
 echo "==> Building"
 npm run build
