@@ -54,7 +54,19 @@ for i in $(seq 1 60); do
     fi
 done
 apt-get update -qq
-apt-get install -y -qq curl git gnupg postgresql-client unattended-upgrades >/dev/null
+apt-get install -y -qq curl git gnupg lsb-release ca-certificates unattended-upgrades >/dev/null
+
+# Postgres client from the PGDG repo, not Ubuntu's. Ubuntu 22.04 ships
+# pg_dump 14, and pg_dump refuses to dump a server newer than itself — managed
+# Postgres (Supabase, Neon) is well past 14, so the stock client cannot back up
+# the database at all.
+if ! pg_dump --version 2>/dev/null | grep -qE ' 1[7-9]| 2[0-9]'; then
+    install -d /usr/share/postgresql-common/pgdg
+    curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc         https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main"         > /etc/apt/sources.list.d/pgdg.list
+    apt-get update -qq
+    apt-get install -y -qq postgresql-client-17 >/dev/null
+fi
 if ! command -v node >/dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
     apt-get install -y -qq nodejs >/dev/null

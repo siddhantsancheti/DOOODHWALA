@@ -237,6 +237,26 @@ nothing on it can alert. Add one external check — UptimeRobot's free tier
 pings `https://your-domain/healthz` every 5 minutes and emails you. That is
 the one piece that must live somewhere else.
 
+## Two things that bite when the database is managed
+
+**pg_dump must be at least as new as the server.** Ubuntu 22.04 ships
+pg_dump 14; Supabase runs 17. The stock client refuses outright with
+"aborting because of server version mismatch", so setup.sh installs
+postgresql-client-17 from the PGDG repo instead.
+
+**Use a session-capable connection string.** Supabase's transaction pooler
+(port 6543) does not support what pg_dump needs. Use the session pooler or
+direct connection (port 5432) for `DATABASE_URL`; it serves the app equally
+well.
+
+**Write `.env` on the server, or strip carriage returns.** A file created in
+Notepad on Windows carries CRLF line endings, and the trailing `` becomes
+part of every value — producing baffling errors like a database name that
+"does not exist". Fix with:
+```bash
+sudo sed -i 's/$//' /home/dooodhwala/DOOODHWALA/.env
+```
+
 ## Backups: what is actually protected
 
 The backup verifies itself — non-empty, valid gzip, contains `CREATE TABLE` —
