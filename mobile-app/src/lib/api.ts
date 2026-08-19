@@ -1,4 +1,4 @@
-import { buildApiUrl } from "./queryClient";
+import { buildApiUrl, ensureApiBaseUrl } from "./queryClient";
 import * as SecureStore from "./storage";
 
 export interface APIResponse<T = any> {
@@ -32,6 +32,7 @@ export class AuthAPI {
         const fullPhone = `+91${cleanPhone}`;
 
         try {
+            await ensureApiBaseUrl();
             const response = await fetch(buildApiUrl('/api/auth/send-otp'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -58,6 +59,7 @@ export class AuthAPI {
         const fullPhone = `+91${cleanPhone}`;
 
         try {
+            await ensureApiBaseUrl();
             const response = await fetch(buildApiUrl('/api/auth/verify-otp'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -89,6 +91,7 @@ export class AuthAPI {
     // Exchange a verified Firebase phone-auth ID token for our app JWT.
     async firebaseLogin(idToken: string): Promise<APIResponse> {
         try {
+            await ensureApiBaseUrl();
             const response = await fetch(buildApiUrl('/api/auth/firebase-login'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },

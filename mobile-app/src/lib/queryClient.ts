@@ -75,9 +75,15 @@ async function throwIfResNotOk(res: Response) {
     }
 }
 
-// Refresh URL at most once every 5 minutes to avoid hammering Supabase
+// Refresh URL at most once every 5 minutes to avoid hammering Supabase.
+//
+// Exported because the auth calls in lib/api.ts use fetch() directly rather
+// than apiRequest, and without awaiting this they send the very first request
+// of the session — the OTP — to the stale build-time fallback instead of the
+// address configured in Supabase. That is invisible until you move hosts, and
+// then it looks like the new server is down.
 let lastUrlRefresh = 0;
-async function maybeRefreshUrl() {
+export async function ensureApiBaseUrl() {
     const now = Date.now();
     if (now - lastUrlRefresh > 5 * 60 * 1000) {
         lastUrlRefresh = now;
@@ -90,7 +96,7 @@ export async function apiRequest(params: {
     method: string;
     body?: unknown;
 }): Promise<Response> {
-    await maybeRefreshUrl();
+    await ensureApiBaseUrl();
 
     let url = params.url;
     let requestMethod = params.method;
