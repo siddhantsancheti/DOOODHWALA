@@ -10,6 +10,7 @@ import { type AuthRequest } from "./middleware/auth";
 import { broadcast } from "./websocket";
 import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
+import { notifyUsers } from "./services/notify";
 
 const router = Router();
 
@@ -52,6 +53,29 @@ async function notifyBillPaid(bill: any, paidByUserId: string | null) {
                     );
                 }
             }
+
+            // The payer gets a receipt too. Only the milkman was told, so a
+            // customer had no confirmation their money had actually landed —
+            // which is the moment people most want reassurance.
+            const payerIds: (string | null | undefined)[] = [];
+            if (bill.familyChatId) {
+                const members = await db
+                    .select({ userId: familyChatMembers.userId })
+                    .from(familyChatMembers)
+                    .where(eq(familyChatMembers.chatId, bill.familyChatId));
+                payerIds.push(...members.map((m) => m.userId));
+            } else if (bill.customerId) {
+                const cust = await db.query.customers.findFirst({
+                    where: eq(customers.id, bill.customerId),
+                });
+                payerIds.push(cust?.userId);
+            }
+            await notifyUsers(
+                payerIds,
+                "Payment successful",
+                `Your bill of ₹${bill.totalAmount} is paid. Thank you!`,
+                { type: "bill_paid", relatedId: bill.id },
+            );
         }
     } catch (e) {
         console.error("notifyBillPaid failed:", e);

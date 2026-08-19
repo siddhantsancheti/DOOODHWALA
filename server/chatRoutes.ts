@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { getStorage } from "firebase-admin/storage";
 import { db } from "./db";
-import { chatMessages, users, orders, milkmen, products, notifications, customers, familyChats } from "@shared/schema";
+import { chatMessages, users, orders, milkmen, products, notifications, customers, familyChats, familyChatMembers } from "@shared/schema";
 import { eq, or, and, asc, desc, gt, isNotNull } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
@@ -11,6 +11,7 @@ import { nudgeCustomerToOrder } from "./services/routeNotify";
 import { partyUserIds } from "./services/wsParties";
 import { type AuthRequest } from "./middleware/auth";
 import { ensureHouseholdChat } from "./services/households";
+import { notifyUser, notifyUsers, describeMessage } from "./services/notify";
 
 const router = Router();
 
@@ -257,29 +258,65 @@ const sendMessageHandler = async (req: AuthRequest, res: any) => {
                     where: eq(milkmen.id, newMessage.milkmanId),
                 });
                 if (milkmanRow) {
-                    await db.insert(notifications).values({
-                        userId: milkmanRow.userId,
-                        title: "New Order Request",
-                        message: `New order request for ${newMessage.orderProduct || "items"}.`,
-                        type: "order",
-                        relatedId: newMessage.id,
-                        isRead: false,
-                    });
-                    const milkmanUser = await db.query.users.findFirst({
-                        where: eq(users.id, milkmanRow.userId),
-                    });
-                    if (milkmanUser && milkmanUser.fcmToken) {
-                        await sendPushNotification(
-                            milkmanUser.fcmToken,
-                            "New Order Request",
-                            `New order request for ${newMessage.orderProduct || "items"}.`,
-                            { type: "order_request", messageId: String(newMessage.id) }
-                        );
-                    }
+                    await notifyUser(
+                        milkmanRow.userId,
+                        "New Order Request",
+                        `New order request for ${newMessage.orderProduct || "items"}.`,
+                        { type: "order", relatedId: newMessage.id, data: { messageId: String(newMessage.id) } },
+                    );
                 }
             } catch (notifError) {
                 console.error("Failed to notify milkman of new order:", notifError);
             }
+        }
+
+        // Every message notifies the other side, not just orders. A bill, a
+        // reply, a photo, another family member's order — if it appears in the
+        // conversation, the people in that conversation hear about it.
+        try {
+            const { title, body } = describeMessage(newMessage);
+
+            if (newMessage.senderType === "customer") {
+                // Customer wrote: tell the milkman (unless it was an order,
+                // which already notified above).
+                if (newMessage.messageType !== "order") {
+                    const mk = await db.query.milkmen.findFirst({
+                        where: eq(milkmen.id, newMessage.milkmanId),
+                    });
+                    await notifyUser(mk?.userId, title, body, {
+                        type: "chat",
+                        relatedId: newMessage.id,
+                        data: { customerId: String(newMessage.customerId ?? "") },
+                    });
+                }
+            } else {
+                // Milkman or system wrote: tell everyone in the household, so a
+                // bill or a reply reaches whoever is actually holding a phone.
+                const recipients: (string | null | undefined)[] = [];
+
+                if (newMessage.familyChatId) {
+                    const members = await db
+                        .select({ userId: familyChatMembers.userId })
+                        .from(familyChatMembers)
+                        .where(eq(familyChatMembers.chatId, newMessage.familyChatId));
+                    recipients.push(...members.map((m) => m.userId));
+                } else if (newMessage.customerId) {
+                    const cust = await db.query.customers.findFirst({
+                        where: eq(customers.id, newMessage.customerId),
+                    });
+                    recipients.push(cust?.userId);
+                }
+
+                // Never notify the sender about their own message.
+                await notifyUsers(
+                    recipients.filter((id) => id !== userId),
+                    title,
+                    body,
+                    { type: "chat", relatedId: newMessage.id },
+                );
+            }
+        } catch (chatNotifyErr) {
+            console.error("Failed to notify chat participants:", chatNotifyErr);
         }
     } catch (error) {
         console.error("Send message error:", error);

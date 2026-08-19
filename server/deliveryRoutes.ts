@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import { sendPushNotification } from "./services/fcmService";
 import { broadcastLocationUpdate } from "./websocket";
 import { nudgeCustomerToOrder, distanceMetres, PROXIMITY_THRESHOLD_M } from "./services/routeNotify";
+import { notifyUsers } from "./services/notify";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -501,6 +502,16 @@ router.post("/start-route", async (req, res) => {
             .from(customers)
             .where(eq(customers.assignedMilkmanId, milkman.id))
             .orderBy(asc(customers.routeOrder));
+
+        // Tell everyone on the round it has started. Previously only the
+        // first stop heard anything, so a customer four houses down had no idea
+        // milk was on its way until it arrived.
+        await notifyUsers(
+            routeCustomers.map((c) => c.userId),
+            "Delivery started",
+            `${milkman.businessName || "Your milkman"} has started today's round.`,
+            { type: "delivery_started", relatedId: milkman.id },
+        );
 
         let firstNudged = false;
         if (routeCustomers.length > 0) {
