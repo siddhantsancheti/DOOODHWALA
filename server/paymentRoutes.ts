@@ -7,6 +7,7 @@ import Stripe from "stripe";
 import crypto from "crypto";
 import { BillingService } from "./services/billingService";
 import { type AuthRequest } from "./middleware/auth";
+import { callerIdentities, isSelfMilkman } from "./services/access";
 import { broadcast } from "./websocket";
 import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
@@ -115,10 +116,14 @@ const calculatePendingTotal = async (milkmanId: number) => {
 };
 
 // GET /api/bills/milkman
-router.get("/milkman", async (req, res) => {
+router.get("/milkman", async (req: AuthRequest, res) => {
     try {
-        const milkmanId = req.query.milkmanId ? parseInt(req.query.milkmanId as string) : null;
-        if (!milkmanId) return res.status(400).json({ message: "Milkman ID required" });
+        // Derived from the token, not the query string: a milkman's bill history
+        // is their whole revenue book plus every customer's name and amount.
+        // The query param is still accepted from older clients but ignored.
+        const me = await callerIdentities(req);
+        const milkmanId = me.milkmanId;
+        if (!milkmanId) return res.status(403).json({ message: "Not a milkman account" });
 
         const milkmanBills = await db
             .select()
@@ -134,12 +139,15 @@ router.get("/milkman", async (req, res) => {
 });
 
 // POST /api/bills/generate
-router.post("/generate", async (req, res) => {
+router.post("/generate", async (req: AuthRequest, res) => {
     try {
-        const { milkmanId, customerId } = req.body;
-        if (!milkmanId || !customerId) return res.status(400).json({ message: "Milkman ID and Customer ID required" });
+        // Billing is a write that posts a bill message into every customer's
+        // chat, so the milkman comes from the token. Taking it from the body
+        // let anyone raise bills in someone else's name.
+        const me = await callerIdentities(req);
+        const milkmanId = me.milkmanId;
+        if (!milkmanId) return res.status(403).json({ message: "Not a milkman account" });
 
-        // We'll reuse the consolidate logic but scoped or simply trigger billing service
         await BillingService.generateBillsForMilkman(milkmanId);
         
         res.json({ success: true, message: "Bills generated successfully" });
@@ -233,9 +241,16 @@ router.post("/cod/verify-otp", async (req, res) => {
 // --- Consolidated Bill Routes ---
 
 // GET /api/bills/consolidated/:milkmanId
-router.get("/consolidated/:milkmanId", async (req, res) => {
+router.get("/consolidated/:milkmanId", async (req: AuthRequest, res) => {
     try {
         const milkmanId = parseInt(req.params.milkmanId);
+        if (isNaN(milkmanId)) {
+            return res.status(400).json({ message: "Invalid milkman ID" });
+        }
+
+        if (!(await isSelfMilkman(req, milkmanId))) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
 
         // Get all pending bills for this milkman
         const results = await db

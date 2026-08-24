@@ -12,6 +12,7 @@ import { partyUserIds } from "./services/wsParties";
 import { type AuthRequest } from "./middleware/auth";
 import { ensureHouseholdChat } from "./services/households";
 import { notifyUser, notifyUsers, describeMessage } from "./services/notify";
+import { isPartyToChat, isSelfMilkman } from "./services/access";
 
 const router = Router();
 
@@ -47,9 +48,18 @@ router.post("/upload", memUpload.single("file"), async (req: AuthRequest, res) =
 });
 
 // GET /api/chat/group/:milkmanId
-router.get("/group/:milkmanId", async (req, res) => {
+router.get("/group/:milkmanId", async (req: AuthRequest, res) => {
     try {
         const milkmanId = parseInt(req.params.milkmanId);
+        if (isNaN(milkmanId)) {
+            return res.status(400).json({ message: "Invalid milkman ID" });
+        }
+
+        // This returns every message the milkman has exchanged with every
+        // customer — the entire book. Only they may read it.
+        if (!(await isSelfMilkman(req, milkmanId))) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
 
         const messages = await db
             .select()
@@ -65,7 +75,7 @@ router.get("/group/:milkmanId", async (req, res) => {
 });
 
 // GET /api/chat/messages
-router.get("/messages", async (req, res) => {
+router.get("/messages", async (req: AuthRequest, res) => {
     try {
         const { milkmanId, customerId } = req.query;
 
@@ -73,13 +83,26 @@ router.get("/messages", async (req, res) => {
             return res.status(400).json({ message: "Milkman ID and Customer ID required" });
         }
 
+        const mId = parseInt(milkmanId as string);
+        const cId = parseInt(customerId as string);
+        if (Number.isNaN(mId) || Number.isNaN(cId)) {
+            return res.status(400).json({ message: "Milkman ID and Customer ID must be numbers" });
+        }
+
+        // A valid token is not permission to read this conversation. Without
+        // this check, changing the ids in the URL returns anyone's chat —
+        // which carries their orders, address and bills.
+        if (!(await isPartyToChat(req, mId, cId))) {
+            return res.status(403).json({ message: "Not your conversation" });
+        }
+
         const messages = await db
             .select()
             .from(chatMessages)
             .where(
                 and(
-                    eq(chatMessages.milkmanId, parseInt(milkmanId as string)),
-                    eq(chatMessages.customerId, parseInt(customerId as string))
+                    eq(chatMessages.milkmanId, mId),
+                    eq(chatMessages.customerId, cId)
                 )
             )
             .orderBy(asc(chatMessages.createdAt));

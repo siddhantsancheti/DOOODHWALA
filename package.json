@@ -12,6 +12,8 @@
     "check:terms": "node scripts/check-terms.mjs",
     "check:households": "node scripts/check-household-callsites.mjs",
     "check:i18n": "node scripts/check-i18n.mjs --max 18",
+    "check:idor": "node scripts/check-idor.mjs",
+    "check:all": "npm run check && npm run check:terms && npm run check:households && npm run check:i18n && npm run check:idor",
     "backfill:households": "tsx scripts/backfill-households.ts"
   },
   "dependencies": {

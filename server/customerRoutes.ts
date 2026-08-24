@@ -5,6 +5,7 @@ import { eq, and, desc, or } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import { BillingService } from "./services/billingService";
 import { ensureHouseholdChat } from "./services/households";
+import { canAccessCustomer, isSelfMilkman } from "./services/access";
 
 const router = Router();
 
@@ -186,6 +187,12 @@ router.get("/group/:milkmanId", async (req: AuthRequest, res) => {
             return res.status(400).json({ message: "Invalid milkman ID" });
         }
 
+        // The milkman's whole customer roster, with phone and address on every
+        // row — a mass-disclosure endpoint if left open.
+        if (!(await isSelfMilkman(req, milkmanId))) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
+
         const members = await db
             .select()
             .from(customers)
@@ -204,6 +211,12 @@ router.get("/:id", async (req: AuthRequest, res) => {
         const customerId = parseInt(req.params.id);
         if (isNaN(customerId)) {
             return res.status(400).json({ message: "Invalid customer ID" });
+        }
+
+        // Name, phone and home address live on this row. Only the customer,
+        // their assigned milkman, or an admin may read it.
+        if (!(await canAccessCustomer(req, customerId))) {
+            return res.status(403).json({ message: "Not authorized" });
         }
 
         const [customer] = await db
