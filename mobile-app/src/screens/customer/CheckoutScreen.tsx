@@ -147,12 +147,22 @@ export default function CheckoutScreen({ route, navigation }: any) {
       });
       const resp: any = await codRes.json();
       if (resp.success) {
-        if (resp.codOTP && resp.otpSent) {
-           Alert.alert('Payment OTP Generated', `Your COD OTP is: ${resp.codOTP}. This has been sent to you via SMS and YD Chat. Present this to your milkman when paying cash.`);
+        if (resp.codOTP) {
+          // Show the code and hold the screen until they acknowledge it — the
+          // old version auto-navigated after 2 seconds, which was long enough
+          // to lose a code the customer had not written down yet.
+          Alert.alert(
+            `Your code is ${resp.codOTP}`,
+            `Tell this code to your milkman when you pay ₹${amount} in cash. It is also saved in your notifications.`,
+            [{ text: 'Got it', onPress: () => navigation.navigate('CustomerHome') }],
+          );
         } else {
-           Alert.alert('COD Order Created Successfully!', `Your order for ₹${amount} has been confirmed. Pay ₹${amount} in cash upon delivery.`);
+          Alert.alert(
+            'Cash payment ready',
+            `Pay ₹${amount} in cash. Your payment code is in your notifications — show it to your milkman.`,
+            [{ text: 'OK', onPress: () => navigation.navigate('CustomerHome') }],
+          );
         }
-        setTimeout(() => navigation.navigate('CustomerHome'), 2000);
       } else throw new Error(resp.message || 'Failed to place COD order');
     } catch (e: any) {
       Alert.alert('Order Failed', e.message || "Failed to place order. Please try again.");

@@ -785,12 +785,17 @@ router.post("/cod/create-order", async (req, res) => {
             });
         }
 
-        // Deliver the OTP by push, to the customer only.
+        // Who is asking? This endpoint is called by the customer from Checkout
+        // when they choose cash, and the answer decides who may see the code.
+        const me = await callerIdentities(req);
+        const callerIsPayer =
+            me.customerId != null && billCustomerId != null && me.customerId === billCustomerId;
+
+        // Deliver the OTP by push as well, to the customer only.
         //
         // It used to go by SMS alone, through an Android gateway phone that
         // stopped running in June — so every code queued and none arrived, and
-        // no COD payment could ever be completed. Push works today and the
-        // customer already has the app.
+        // no COD payment could ever be completed.
         //
         // Deliberately NOT posted into the chat: the milkman can read the chat,
         // and an OTP the collector can see proves nothing about the customer
@@ -809,6 +814,22 @@ router.post("/cod/create-order", async (req, res) => {
             { type: "cod_otp" },
         );
 
+        // Tell the milkman cash is coming, so he knows to collect and can open
+        // Accept Payments. Nothing told him at all before this — the customer
+        // chose cash and the milkman never found out.
+        if (billMilkmanId != null) {
+            const mk = await db.query.milkmen.findFirst({ where: eq(milkmen.id, billMilkmanId) });
+            const payerName = billCustomerId != null
+                ? (await db.query.customers.findFirst({ where: eq(customers.id, billCustomerId) }))?.name
+                : null;
+            await notifyUsers(
+                [mk?.userId],
+                "Cash payment pending",
+                `${payerName || "A customer"} will pay ₹${amount} in cash. Ask for their 6-digit code to confirm.`,
+                { type: "cod_pending", data: { orderId: String(orderId) } },
+            );
+        }
+
         // SMS stays queued as a second channel for whenever the gateway runs
         // again. It is no longer the only way the code can arrive.
         if (customerPhone) {
@@ -820,16 +841,23 @@ router.post("/cod/create-order", async (req, res) => {
             });
         }
 
-        // Never return the OTP itself — the milkman is the one calling this.
+        // Return the code to the payer, and only to the payer.
+        //
+        // The customer is standing in the app when they choose cash, so handing
+        // it back in the response is the one delivery that cannot fail — no
+        // push token, no SMS gateway, no network round trip to go wrong. If the
+        // milkman ever calls this endpoint he gets everything except the code,
+        // because the whole point is that he has to be told it by the customer.
         res.json({
             success: true,
             otpSent: true,
+            codOTP: callerIsPayer ? otp : undefined,
             pushOtpSent: otpRecipients.length > 0,
             smsOtpSent: !!customerPhone,
             reused: !!stillValid,
-            message: otpRecipients.length > 0
-                ? "Code sent to the customer's phone."
-                : "Code generated, but the customer has no app login to notify.",
+            message: callerIsPayer
+                ? "Show this code to your milkman when you pay."
+                : "The customer has been sent their payment code.",
         });
 
     } catch (error) {
