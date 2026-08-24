@@ -743,26 +743,74 @@ router.post("/cod/create-order", async (req, res) => {
             }
         }
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Reuse the OTP already outstanding for this bill rather than minting a
+        // new one. Verification only ever checks the newest pending row, so a
+        // second tap used to silently invalidate the code the customer was
+        // holding — they would read out a perfectly good OTP and be told it was
+        // wrong, with no way to recover.
+        const [outstanding] = await db
+            .select()
+            .from(payments)
+            .where(and(
+                eq(payments.orderId, orderId),
+                eq(payments.paymentMethod, "cod"),
+                eq(payments.status, "pending"),
+            ))
+            .orderBy(desc(payments.createdAt))
+            .limit(1);
 
-        // Persist a PENDING COD payment carrying the hashed-free OTP + expiry so
-        // /cod/verify-otp can actually validate the code the customer received
-        // (previously verify accepted ANY code — a money-integrity hole).
-        await db.insert(payments).values({
-            userId: requesterId,
-            orderId,
-            amount: String(amount ?? "0"),
-            status: "pending",
-            paymentMethod: "cod",
-            customerId: billCustomerId,
-            milkmanId: billMilkmanId,
-            paymentDetails: {
-                codOtp: otp,
-                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            },
-        });
+        const existingDetails: any = outstanding?.paymentDetails || {};
+        const stillValid =
+            existingDetails.codOtp &&
+            existingDetails.expiresAt &&
+            new Date(existingDetails.expiresAt) > new Date();
 
-        // Queue SMS
+        const otp = stillValid
+            ? String(existingDetails.codOtp)
+            : Math.floor(100000 + Math.random() * 900000).toString();
+
+        if (!stillValid) {
+            await db.insert(payments).values({
+                userId: requesterId,
+                orderId,
+                amount: String(amount ?? "0"),
+                status: "pending",
+                paymentMethod: "cod",
+                customerId: billCustomerId,
+                milkmanId: billMilkmanId,
+                paymentDetails: {
+                    codOtp: otp,
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                },
+            });
+        }
+
+        // Deliver the OTP by push, to the customer only.
+        //
+        // It used to go by SMS alone, through an Android gateway phone that
+        // stopped running in June — so every code queued and none arrived, and
+        // no COD payment could ever be completed. Push works today and the
+        // customer already has the app.
+        //
+        // Deliberately NOT posted into the chat: the milkman can read the chat,
+        // and an OTP the collector can see proves nothing about the customer
+        // being present to approve the payment.
+        const otpRecipients: (string | null | undefined)[] = [];
+        if (billCustomerId != null) {
+            const cust = await db.query.customers.findFirst({
+                where: eq(customers.id, billCustomerId),
+            });
+            if (cust?.userId) otpRecipients.push(cust.userId);
+        }
+        await notifyUsers(
+            otpRecipients,
+            "Payment code",
+            `Share code ${otp} with your milkman to confirm ₹${amount}.`,
+            { type: "cod_otp" },
+        );
+
+        // SMS stays queued as a second channel for whenever the gateway runs
+        // again. It is no longer the only way the code can arrive.
         if (customerPhone) {
             await db.insert(smsQueue).values({
                 phone: customerPhone,
@@ -772,12 +820,16 @@ router.post("/cod/create-order", async (req, res) => {
             });
         }
 
-        // Never return OTP in response — it's sent via SMS only
+        // Never return the OTP itself — the milkman is the one calling this.
         res.json({
             success: true,
             otpSent: true,
+            pushOtpSent: otpRecipients.length > 0,
             smsOtpSent: !!customerPhone,
-            message: "Order placed successfully. OTP sent via SMS."
+            reused: !!stillValid,
+            message: otpRecipients.length > 0
+                ? "Code sent to the customer's phone."
+                : "Code generated, but the customer has no app login to notify.",
         });
 
     } catch (error) {

@@ -18,6 +18,7 @@ import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, s
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { Language } from '../../lib/translations';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -161,16 +162,37 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
       } else if (data.type === 'service_request_update') {
         setHasNewActivity(true);
         queryClient.invalidateQueries({ queryKey: ['/api/service-requests/milkman'] });
+      } else if (data.type === 'order_delivered') {
+        // The delivery run marks a chat message delivered, which flips the
+        // matching order to "delivered" on the server. Without this branch the
+        // event arrived and was ignored, so the hero card sat at 0/1 all
+        // morning while the milkman was actually finishing his round.
+        queryClient.invalidateQueries({ queryKey: ['/api/orders/milkman'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/bills/milkman'] });
       } else if (data.type === 'bill_paid') {
         // A customer just paid a bill — refresh earnings and order/customer views live.
         setHasNewActivity(true);
         queryClient.invalidateQueries({ queryKey: ['/api/orders/milkman'] });
         queryClient.invalidateQueries({ queryKey: ['/api/milkmen/profile'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/bills/milkman'] });
       }
     };
     addMessageHandler('milkman-dashboard', handler);
     return () => removeMessageHandler('milkman-dashboard');
   }, [addMessageHandler, removeMessageHandler]);
+
+  // Refetch whenever the dashboard comes back into view.
+  //
+  // The websocket handler above only fires while the socket is actually up, and
+  // at 5am on a patchy connection it often is not. Coming back from the
+  // delivery run is the moment the milkman most expects the numbers to be
+  // right, so re-ask the server rather than trusting a cached answer.
+  useFocusEffect(
+    React.useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/milkman'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bills/milkman'] });
+    }, []),
+  );
 
   const { data: milkmanProfileData, isLoading: isProfileLoading } = useQuery<any>({
     queryKey: ['/api/milkmen/profile'], enabled: !!user,

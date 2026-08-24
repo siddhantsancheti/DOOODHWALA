@@ -233,26 +233,50 @@ router.get("/hisaab", async (req: AuthRequest, res) => {
         const billRows = await db
             .select({
                 customerId: bills.customerId,
+                familyChatId: bills.familyChatId,
                 customerName: customers.name,
+                householdName: familyChats.chatName,
                 totalAmount: bills.totalAmount,
                 status: bills.status,
             })
             .from(bills)
             .leftJoin(customers, eq(bills.customerId, customers.id))
+            .leftJoin(familyChats, eq(bills.familyChatId, familyChats.id))
             .where(eq(bills.milkmanId, milkman.id));
 
-        const byCustomer = new Map<number, { customerId: number; customerName: string; pending: number; paid: number }>();
+        // Group by household where there is one, by customer otherwise.
+        //
+        // Since the household model, a bill for a family carries familyChatId
+        // with customerId NULL. Skipping those rows silently dropped every
+        // household bill from Hisaab — the milkman was shown less money owed
+        // than he was actually owed, which is the worst direction for this
+        // number to be wrong in.
+        type Row = { key: string; customerId: number | null; familyChatId: number | null; customerName: string; pending: number; paid: number };
+        const byPayer = new Map<string, Row>();
+
         for (const row of billRows) {
-            if (row.customerId == null) continue;
-            const entry = byCustomer.get(row.customerId)
-                ?? { customerId: row.customerId, customerName: row.customerName || "Customer", pending: 0, paid: 0 };
+            const key = row.familyChatId != null
+                ? `chat:${row.familyChatId}`
+                : row.customerId != null
+                    ? `cust:${row.customerId}`
+                    : null;
+            if (key == null) continue;
+
+            const entry = byPayer.get(key) ?? {
+                key,
+                customerId: row.customerId ?? null,
+                familyChatId: row.familyChatId ?? null,
+                customerName: row.householdName || row.customerName || "Customer",
+                pending: 0,
+                paid: 0,
+            };
             const amount = parseFloat(row.totalAmount || "0") || 0;
             if (row.status === "paid") entry.paid += amount;
             else entry.pending += amount;
-            byCustomer.set(row.customerId, entry);
+            byPayer.set(key, entry);
         }
 
-        const customerBills = [...byCustomer.values()].sort((a, b) => b.pending - a.pending);
+        const customerBills = [...byPayer.values()].sort((a, b) => b.pending - a.pending);
 
         res.json({
             grossRevenue,
