@@ -157,13 +157,47 @@ router.post("/generate", async (req: AuthRequest, res) => {
     }
 });
 
-// GET /api/payments/cod/pending
-router.get("/cod/pending", async (req, res) => {
+// GET /api/payments/cod/pending — cash the signed-in milkman is waiting to collect.
+//
+// This returned a hardcoded empty array, left in as a stub "to stop the UI from
+// breaking". It stopped the UI breaking by making the feature do nothing: the
+// milkman's Accept Payments tile read 0 while real COD payments sat pending, so
+// there was no way to collect the money a customer had chosen to pay in cash.
+router.get("/cod/pending", async (req: AuthRequest, res) => {
     try {
-        // Find pending COD orders (in this mock, we can just look up smsQueue or pending payments)
-        // Since we didn't strictly save COD to payments, let's return [] for now to stop the UI from breaking.
-        // A true implementation would query the payments table for 'cod' and 'pending' mapped to milkmanId.
-        res.json([]);
+        const me = await callerIdentities(req);
+        if (me.milkmanId == null) return res.json([]);
+
+        const rows = await db
+            .select({
+                id: payments.id,
+                orderId: payments.orderId,
+                amount: payments.amount,
+                customerId: payments.customerId,
+                customerName: customers.name,
+                customerPhone: customers.phone,
+                createdAt: payments.createdAt,
+            })
+            .from(payments)
+            .leftJoin(customers, eq(payments.customerId, customers.id))
+            .where(and(
+                eq(payments.milkmanId, me.milkmanId),
+                eq(payments.paymentMethod, "cod"),
+                eq(payments.status, "pending"),
+            ))
+            .orderBy(desc(payments.createdAt));
+
+        // One entry per bill. A customer who tapped "pay by cash" more than once
+        // has several pending rows carrying the same debt, and showing each of
+        // them would read as several separate amounts owed.
+        const seen = new Set<string>();
+        const unique = rows.filter((r) => {
+            if (seen.has(r.orderId)) return false;
+            seen.add(r.orderId);
+            return true;
+        });
+
+        res.json(unique);
     } catch (error) {
         console.error("Get COD pending error:", error);
         res.status(500).json({ message: "Server error" });
