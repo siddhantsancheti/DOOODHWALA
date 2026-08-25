@@ -3,7 +3,7 @@ import multer from "multer";
 import { getStorage } from "firebase-admin/storage";
 import { db } from "./db";
 import { chatMessages, users, orders, milkmen, products, notifications, customers, familyChats, familyChatMembers } from "@shared/schema";
-import { eq, or, and, asc, desc, gt, isNotNull } from "drizzle-orm";
+import { eq, or, and, asc, desc, gt, isNotNull, inArray } from "drizzle-orm";
 import { broadcast } from "./websocket";
 import { sendPushNotification } from "./services/fcmService";
 import "./services/fcmService"; // ensure firebase-admin is initialized for Storage
@@ -12,7 +12,7 @@ import { partyUserIds } from "./services/wsParties";
 import { type AuthRequest } from "./middleware/auth";
 import { ensureHouseholdChat } from "./services/households";
 import { notifyUser, notifyUsers, describeMessage } from "./services/notify";
-import { isPartyToChat, isSelfMilkman } from "./services/access";
+import { isPartyToChat, isSelfMilkman, callerIdentities } from "./services/access";
 
 const router = Router();
 
@@ -55,16 +55,45 @@ router.get("/group/:milkmanId", async (req: AuthRequest, res) => {
             return res.status(400).json({ message: "Invalid milkman ID" });
         }
 
-        // This returns every message the milkman has exchanged with every
-        // customer — the entire book. Only they may read it.
-        if (!(await isSelfMilkman(req, milkmanId))) {
-            return res.status(403).json({ message: "Not authorized" });
+        // The milkman sees his whole book. A customer sees this same endpoint —
+        // it is what renders their chat — but must only get their own thread,
+        // not every household's.
+        //
+        // Locking it to the milkman alone was too blunt and broke customer chat
+        // outright; opening it to any customer would hand them everyone else's
+        // orders, addresses and bills. So scope the rows instead of the access.
+        const me = await callerIdentities(req);
+        const isTheMilkman = me.isAdmin || me.milkmanId === milkmanId;
+
+        let where = eq(chatMessages.milkmanId, milkmanId);
+
+        if (!isTheMilkman) {
+            if (me.customerId == null) {
+                return res.status(403).json({ message: "Not authorized" });
+            }
+
+            // Their own messages, plus anything addressed to their household.
+            const memberships = await db
+                .select({ chatId: familyChatMembers.chatId })
+                .from(familyChatMembers)
+                .where(eq(familyChatMembers.userId, req.user!.id));
+            const chatIds = memberships.map((m) => m.chatId);
+
+            where = and(
+                eq(chatMessages.milkmanId, milkmanId),
+                chatIds.length > 0
+                    ? or(
+                        eq(chatMessages.customerId, me.customerId),
+                        inArray(chatMessages.familyChatId, chatIds),
+                    )!
+                    : eq(chatMessages.customerId, me.customerId),
+            )!;
         }
 
         const messages = await db
             .select()
             .from(chatMessages)
-            .where(eq(chatMessages.milkmanId, milkmanId))
+            .where(where)
             .orderBy(asc(chatMessages.createdAt));
 
         res.json(messages);

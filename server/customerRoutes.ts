@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { db } from "./db";
-import { customers, users, bills } from "@shared/schema";
-import { eq, and, desc, or } from "drizzle-orm";
+import { customers, users, bills, familyChatMembers } from "@shared/schema";
+import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import { BillingService } from "./services/billingService";
 import { ensureHouseholdChat } from "./services/households";
-import { canAccessCustomer, isSelfMilkman } from "./services/access";
+import { canAccessCustomer, isSelfMilkman, callerIdentities } from "./services/access";
 
 const router = Router();
 
@@ -187,16 +187,48 @@ router.get("/group/:milkmanId", async (req: AuthRequest, res) => {
             return res.status(400).json({ message: "Invalid milkman ID" });
         }
 
-        // The milkman's whole customer roster, with phone and address on every
-        // row — a mass-disclosure endpoint if left open.
-        if (!(await isSelfMilkman(req, milkmanId))) {
+        // The milkman gets his whole roster. A customer calls this too — it
+        // renders the member list in their own chat — so they get their own
+        // household only, never every family this milkman serves.
+        const me = await callerIdentities(req);
+        const isTheMilkman = me.isAdmin || me.milkmanId === milkmanId;
+
+        if (isTheMilkman) {
+            const members = await db
+                .select()
+                .from(customers)
+                .where(eq(customers.assignedMilkmanId, milkmanId));
+            return res.json(members);
+        }
+
+        if (me.customerId == null) {
             return res.status(403).json({ message: "Not authorized" });
         }
+
+        const memberships = await db
+            .select({ chatId: familyChatMembers.chatId })
+            .from(familyChatMembers)
+            .where(eq(familyChatMembers.userId, req.user!.id));
+        const chatIds = memberships.map((m) => m.chatId);
+
+        if (chatIds.length === 0) {
+            // Not in a household yet — they are their own household of one.
+            const solo = await db
+                .select()
+                .from(customers)
+                .where(eq(customers.id, me.customerId));
+            return res.json(solo);
+        }
+
+        const householdUserIds = await db
+            .select({ userId: familyChatMembers.userId })
+            .from(familyChatMembers)
+            .where(inArray(familyChatMembers.chatId, chatIds));
 
         const members = await db
             .select()
             .from(customers)
-            .where(eq(customers.assignedMilkmanId, milkmanId));
+            .where(inArray(customers.userId, householdUserIds.map((u) => u.userId)));
 
         res.json(members);
     } catch (error) {
