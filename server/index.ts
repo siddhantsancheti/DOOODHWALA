@@ -150,15 +150,30 @@ app.use((req, res, next) => {
         serveStatic(app);
     }
 
-    // Schedule Monthly Billing Job (Midnight on 1st of every month)
-    cron.schedule("0 0 1 * *", async () => {
+    // Every schedule below is pinned to IST explicitly.
+    //
+    // They used to be plain expressions that assumed the process ran in UTC —
+    // "30 23" was written to mean 5:00 AM IST. Moving to a box whose clock is
+    // Asia/Kolkata silently turned that into 11:30 PM IST, so subscription
+    // orders were being raised late at night and stamped with the wrong
+    // delivery date, which hid them from the milkman the morning he was
+    // supposed to deliver them. Naming the timezone means the times stay right
+    // wherever this runs next.
+    const IST = { timezone: "Asia/Kolkata" };
+
+    // Monthly billing — 00:30 IST on the 1st.
+    //
+    // Half an hour after settlement (below) deliberately: settlement closes
+    // subscriptions that ended, and billing must see that already done, or a
+    // final month gets billed as though the subscription were still running.
+    cron.schedule("30 0 1 * *", async () => {
         console.log("Running monthly billing cron job...");
         try {
             await BillingService.generateAllMonthlyBills();
         } catch (error) {
             console.error("Error in monthly billing cron job:", error);
         }
-    });
+    }, IST);
 
     // Schedule SMS Retry Job (Every 15 minutes)
     cron.schedule("*/15 * * * *", async () => {
@@ -170,9 +185,10 @@ app.use((req, res, next) => {
         } catch (error) {
             console.error("Error in SMS retry job:", error);
         }
-    });
+    }, IST);
 
-    // Schedule Daily Order Processing (Every hour)
+    // Daily preset orders — on the hour, matched against the customer's chosen
+    // send time. getHours() below is read in IST because the schedule is.
     cron.schedule("0 * * * *", async () => {
         const hour = new Date().getHours();
         const timeString = `${hour.toString().padStart(2, '0')}:00`;
@@ -262,10 +278,11 @@ app.use((req, res, next) => {
         } catch (error) {
             console.error("Error in Daily Order job:", error);
         }
-    });
+    }, IST);
 
     // Schedule Subscription Order Processing (Daily at 5:00 AM IST = 23:30 UTC previous day)
-    cron.schedule("30 23 * * *", async () => {
+    // Subscription orders — 5:00 AM IST, before the round starts.
+    cron.schedule("0 5 * * *", async () => {
         console.log("Running Subscription Order Processing...");
         try {
             const { subscriptions, customers, orders, chatMessages, milkmen } = await import("../shared/schema");
@@ -274,7 +291,10 @@ app.use((req, res, next) => {
 
             const now = new Date();
             // IST is UTC+5:30, so at 23:30 UTC it's 5:00 AM IST next day
-            const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+            // The schedule is pinned to IST, so the clock here is already IST.
+            // Adding 5.5 hours on top pushed "today" into tomorrow for any run
+            // after 18:30, which broke weekly and monthly subscription matching.
+            const istNow = now;
             const today = istNow.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
             const todayDate = istNow.getDate();
 
@@ -372,7 +392,7 @@ app.use((req, res, next) => {
         } catch (error) {
             console.error("Error in Subscription Order Processing:", error);
         }
-    });
+    }, IST);
 
     // Schedule Subscription Settlement (Midnight IST = 18:30 UTC)
     //
@@ -381,7 +401,8 @@ app.use((req, res, next) => {
     // 31st that is midnight on the 1st — the same moment the monthly cron
     // fires — but a subscription ending mid-month is now settled the same
     // night instead of the customer waiting weeks for a bill.
-    cron.schedule("30 18 * * *", async () => {
+    // Subscription settlement — midnight IST, ahead of billing.
+    cron.schedule("0 0 * * *", async () => {
         console.log("Running Subscription Settlement...");
         try {
             const { subscriptions, customers } = await import("../shared/schema");
@@ -389,7 +410,7 @@ app.use((req, res, next) => {
             const { eq, and, lte, isNotNull } = await import("drizzle-orm");
 
             // IST midnight: anything whose end date has now passed.
-            const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+            const istNow = new Date(); // already IST — see note above
             const todayStart = new Date(istNow);
             todayStart.setHours(0, 0, 0, 0);
 
@@ -431,7 +452,7 @@ app.use((req, res, next) => {
         } catch (error) {
             console.error("Error in Subscription Settlement:", error);
         }
-    });
+    }, IST);
 
 
     const PORT = process.env.PORT || 5001;
