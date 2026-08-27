@@ -33,6 +33,34 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+
+/**
+ * The admin device key for this browser.
+ *
+ * Admin access needs two things: the admin phone number, and a machine that was
+ * deliberately registered. Register one by opening the dashboard once with the
+ * key in the URL — /admin-dashboard?device=THEKEY — after which it is kept in
+ * this browser and sent on every admin call. The URL is cleaned up immediately
+ * so the key does not sit in history or get pasted to someone else.
+ */
+export function adminDeviceKey(): string | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("device");
+    if (fromUrl) {
+      localStorage.setItem("adminDeviceKey", fromUrl);
+      params.delete("device");
+      const clean = window.location.pathname + (params.toString() ? `?${params}` : "");
+      window.history.replaceState({}, "", clean);
+      return fromUrl;
+    }
+    return localStorage.getItem("adminDeviceKey");
+  } catch {
+    // Private mode or storage disabled — admin simply will not unlock here.
+    return null;
+  }
+}
+
 export async function apiRequest(
   url: string,
   method: string,
@@ -77,9 +105,12 @@ export async function apiRequest(
     console.log('apiRequest - no token found in localStorage');
   }
 
+  const deviceKey = url.includes("/api/admin") ? adminDeviceKey() : null;
+
   const headers: Record<string, string> = {
     ...(body ? { "Content-Type": "application/json" } : {}),
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    ...(deviceKey ? { "x-admin-device": deviceKey } : {}),
   };
 
   // Prepend API_BASE_URL if the URL doesn't start with http
@@ -106,12 +137,15 @@ export const getQueryFn: <T>(options: {
       // Get JWT token from localStorage - try both token keys for compatibility
       const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
 
-      const headers: Record<string, string> = {
-        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-      };
-
       // Prepend API_BASE_URL if the URL doesn't start with http
       const url = queryKey[0] as string;
+      const deviceKey = url.includes("/api/admin") ? adminDeviceKey() : null;
+
+      const headers: Record<string, string> = {
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        ...(deviceKey ? { "x-admin-device": deviceKey } : {}),
+      };
+
       const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
 
       const res = await fetch(fullUrl, {

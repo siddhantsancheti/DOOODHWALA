@@ -19,6 +19,7 @@ import groupRoutes from "./groupRoutes";
 import legalRoutes from "./legalPages";
 
 import { authenticateToken, authorizeRole } from "./middleware/auth";
+import { requireAdminDevice } from "./middleware/adminDevice";
 import userRoutes from "./userRoutes";
 import adminRoutes from "./adminRoutes";
 
@@ -53,7 +54,10 @@ export function registerRoutes(app: Express): Server {
     app.use("/api/groups", authenticateToken, groupRoutes);
 
     // Admin Routes
-    app.use("/api/admin", authenticateToken, authorizeRole(['admin']), adminRoutes);
+    // Admin needs both factors: the right phone (authorizeRole) and a machine
+    // that was deliberately registered (requireAdminDevice). Phone alone is one
+    // SIM swap away from every customer's address.
+    app.use("/api/admin", authenticateToken, authorizeRole(['admin']), requireAdminDevice, adminRoutes);
 
     // Products — require authentication
     app.use("/api/products", authenticateToken, productRoutes);
