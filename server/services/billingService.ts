@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { bills, chatMessages, milkmen, familyChats, familyChatMembers, customers } from "@shared/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
+import { customerFeePercent, splitBill } from "./platformFees";
 
 // Canonical "YYYY-MM" month key so the bills list (paymentRoutes) can split on "-"
 // to render the month name. Used for every bill row this service creates.
@@ -91,10 +92,29 @@ export class BillingService {
             const ex = existing[0];
             const prevItems = Array.isArray(ex.items) ? (ex.items as any[]) : [];
             const newItems = [...prevItems, ...items];
-            const newTotal = (parseFloat(ex.totalAmount) || 0) + total;
+            // Recompute the whole split on the new subtotal rather than adding to
+            // the old total — the previous total already had a fee inside it, so
+            // adding to it would charge the fee on the fee.
+            const newSubtotal = (parseFloat(ex.subtotal ?? ex.totalAmount) || 0) + total;
+            const split = splitBill(
+                newSubtotal,
+                // The rates this bill was raised under, not today's. A bill the
+                // customer has already been shown must not change amount because
+                // a rate moved after it was issued.
+                parseFloat(ex.customerFeePercent ?? "0") || 0,
+                parseFloat(ex.vendorCommissionPercent ?? "0") || 0,
+            );
             const [updated] = await db
                 .update(bills)
-                .set({ totalAmount: newTotal.toString(), totalOrders: newItems.length, items: newItems, updatedAt: new Date() })
+                .set({
+                    subtotal: split.subtotal,
+                    customerFeeAmount: split.customerFeeAmount,
+                    vendorCommissionAmount: split.vendorCommissionAmount,
+                    totalAmount: split.totalAmount,
+                    totalOrders: newItems.length,
+                    items: newItems,
+                    updatedAt: new Date(),
+                })
                 .where(eq(bills.id, ex.id))
                 .returning();
             if (billedMsgIds.length > 0) {
@@ -105,13 +125,30 @@ export class BillingService {
 
         if (total <= 0 || items.length === 0) return null;
 
+        // Snapshot both rates onto the bill. A rate changed next month must not
+        // silently restate a bill the customer has already been shown, and a
+        // milkman's past earnings must stay as he saw them.
+        const feePercent = await customerFeePercent();
+        const [milkmanForRates] = await db
+            .select({ commission: milkmen.commissionPercentage })
+            .from(milkmen)
+            .where(eq(milkmen.id, milkmanId))
+            .limit(1);
+        const commissionPercent = parseFloat(milkmanForRates?.commission ?? "0") || 0;
+        const split = splitBill(total, feePercent, commissionPercent);
+
         const [newBill] = await db
             .insert(bills)
             .values({
                 familyChatId,
                 milkmanId,
                 billMonth: currentMonth,
-                totalAmount: total.toString(),
+                subtotal: split.subtotal,
+                customerFeePercent: split.customerFeePercent,
+                customerFeeAmount: split.customerFeeAmount,
+                vendorCommissionPercent: split.vendorCommissionPercent,
+                vendorCommissionAmount: split.vendorCommissionAmount,
+                totalAmount: split.totalAmount,
                 totalOrders: items.length,
                 items,
                 status: "pending",
@@ -140,9 +177,21 @@ export class BillingService {
                 familyChatId,
                 senderId: milkmanData?.userId || "system",
                 senderType: "milkman",
-                message: `📄 Bill Generated for ${currentMonth}\nTotal Amount: ₹${total.toFixed(2)}\nDue Date: ${dueDate.toLocaleDateString()}`,
+                // The platform fee is shown on its own line, and only when one
+                // was actually charged. Clause 8.7 of the customer terms is a
+                // promise that it appears separately before payment — a bill
+                // that folded it into the total would put us in breach of our
+                // own terms.
+                message:
+                    `📄 Bill Generated for ${currentMonth}\n` +
+                    `Milk & products: ₹${split.subtotal}\n` +
+                    (parseFloat(split.customerFeeAmount) > 0
+                        ? `Platform fee (${split.customerFeePercent}%): ₹${split.customerFeeAmount}\n`
+                        : "") +
+                    `Total Amount: ₹${split.totalAmount}\n` +
+                    `Due Date: ${dueDate.toLocaleDateString()}`,
                 messageType: "bill",
-                orderTotal: total.toString(),
+                orderTotal: split.totalAmount,
                 billId: newBill.id,
             });
         }

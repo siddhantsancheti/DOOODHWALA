@@ -201,6 +201,26 @@ export const bills = pgTable("bills", {
   customerId: integer("customer_id").references(() => customers.id), // Keep for individual bills
   milkmanId: integer("milkman_id").notNull().references(() => milkmen.id),
   billMonth: varchar("bill_month").notNull(), // YYYY-MM format for easier querying
+
+  // What the deliveries themselves came to, before any platform charge.
+  // Nullable because bills raised before the fee existed have no separate
+  // subtotal — for those, subtotal and totalAmount are the same number.
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }),
+
+  // The customer-side platform fee, added on top of the subtotal. Clause 8.7 of
+  // the customer terms requires it to appear as its own line before payment, so
+  // it is stored separately rather than folded into the total.
+  customerFeePercent: decimal("customer_fee_percent", { precision: 5, scale: 2 }),
+  customerFeeAmount: decimal("customer_fee_amount", { precision: 10, scale: 2 }),
+
+  // What the platform takes from the milkman, calculated on the subtotal — not
+  // on the customer's total, which would mean charging him commission on our
+  // own fee.
+  vendorCommissionPercent: decimal("vendor_commission_percent", { precision: 5, scale: 2 }),
+  vendorCommissionAmount: decimal("vendor_commission_amount", { precision: 10, scale: 2 }),
+
+  // What the customer actually owes: subtotal + customerFeeAmount. Kept as the
+  // amount payable so every existing payment path stays correct.
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   totalOrders: integer("total_orders").notNull().default(0), // Number of orders in the bill
   items: jsonb("items").default([]), // Detailed line items with date, product, quantity, price
@@ -599,3 +619,14 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+
+// Platform-wide settings, editable without a deploy.
+//
+// This table already existed — it is how every installed phone finds the
+// server (`api_url`) — but was never declared here, so it could only be read
+// with raw SQL. Declaring it lets the fee rate live in the same place.
+export const appConfig = pgTable("app_config", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});

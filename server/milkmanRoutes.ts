@@ -227,7 +227,19 @@ router.get("/hisaab", async (req: AuthRequest, res) => {
         const grossRevenue = deliveredOrders.reduce(
             (sum, o) => sum + (parseFloat(o.totalAmount || "0") || 0), 0,
         );
-        const commissionAmount = (grossRevenue * commissionPercent) / 100;
+
+        // Commission actually charged, taken from the bills themselves rather
+        // than recomputed at today's rate. Each bill carries the rate it was
+        // raised under, so a rate change next month cannot restate what he
+        // earned last month. Bills raised before commission was recorded
+        // contribute nothing, which is correct — nothing was charged on them.
+        const commissionRows = await db
+            .select({ amount: bills.vendorCommissionAmount })
+            .from(bills)
+            .where(eq(bills.milkmanId, milkman.id));
+        const commissionAmount = commissionRows.reduce(
+            (sum, r) => sum + (parseFloat(r.amount || "0") || 0), 0,
+        );
 
         // Outstanding bills per customer.
         const billRows = await db
