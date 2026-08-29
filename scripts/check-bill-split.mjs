@@ -36,4 +36,15 @@ const odd = splitBill(333.33, 1, 5);
 assert.equal(odd.totalAmount, "336.66");
 assert.equal(odd.customerFeeAmount, "3.33");
 
+// The rates actually agreed: 1% from the customer, 0.5% from the milkman.
+const agreed = splitBill(1000, 1, 0.5);
+assert.equal(agreed.totalAmount, "1010.00", "customer pays 1% on top");
+assert.equal(agreed.milkmanPayout, "995.00", "milkman keeps all but 0.5%");
+assert.equal(agreed.vendorCommissionAmount, "5.00");
+assert.equal(
+  money(Number(agreed.customerFeeAmount) + Number(agreed.vendorCommissionAmount)),
+  "15.00",
+  "platform earns 1.5% of the subtotal in total",
+);
+
 console.log("splitBill: all assertions passed");

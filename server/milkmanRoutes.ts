@@ -4,6 +4,7 @@ import { milkmen, users, products, customers, orders, bills, chatMessages, famil
 import { eq, asc, and, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { type AuthRequest } from "./middleware/auth";
+import { vendorCommissionPercent } from "./services/platformFees";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
@@ -215,9 +216,14 @@ router.get("/hisaab", async (req: AuthRequest, res) => {
         const milkman = await currentMilkman(req);
         if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
 
-        // Commission is set per milkman by an admin. Until one is set we show
-        // 0% rather than guessing a rate and misstating someone's income.
-        const commissionPercent = parseFloat(milkman.commissionPercentage || "0") || 0;
+        // The flat platform service charge, unless this milkman has a
+        // negotiated rate of his own. Reported so the app can show him what he
+        // is actually charged rather than leaving him to work it out.
+        const override = milkman.commissionPercentage;
+        const commissionPercent =
+            override != null && override !== ""
+                ? parseFloat(override) || 0
+                : await vendorCommissionPercent();
 
         const deliveredOrders = await db
             .select({ totalAmount: orders.totalAmount })

@@ -29,9 +29,12 @@ UPDATE "bills"
        "customer_fee_amount" = 0
  WHERE "subtotal" IS NULL;
 
--- The platform fee rate, editable without a deploy. One rate for everyone.
+-- The two agreed rates, editable without a deploy. Flat for everyone.
+--   customer_fee_percent     1%    charged to the customer on top of the bill
+--   vendor_commission_percent 0.5% service charge taken from the milkman
 INSERT INTO "app_config" ("key", "value")
-VALUES ('customer_fee_percent', '1')
+VALUES ('customer_fee_percent', '1'),
+       ('vendor_commission_percent', '0.5')
 ON CONFLICT ("key") DO NOTHING;
 
 -- What should exist afterwards.
@@ -40,5 +43,6 @@ SELECT
       WHERE table_name = 'bills'
         AND column_name IN ('subtotal','customer_fee_percent','customer_fee_amount',
                             'vendor_commission_percent','vendor_commission_amount')) AS new_bill_columns,
-    (SELECT value FROM app_config WHERE key = 'customer_fee_percent')                AS fee_percent,
+    (SELECT value FROM app_config WHERE key = 'customer_fee_percent')                AS customer_fee,
+    (SELECT value FROM app_config WHERE key = 'vendor_commission_percent')           AS vendor_commission,
     (SELECT value FROM app_config WHERE key = 'api_url')                             AS api_url_still_here;

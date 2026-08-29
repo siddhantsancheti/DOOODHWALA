@@ -5,12 +5,42 @@ import { eq } from "drizzle-orm";
 const FEE_KEY = "customer_fee_percent";
 const DEFAULT_FEE_PERCENT = 1;
 
+const COMMISSION_KEY = "vendor_commission_percent";
+const DEFAULT_COMMISSION_PERCENT = 0.5;
+
 // Cached briefly: billing loops over every household in one run and the rate
 // cannot change mid-run, so re-reading it per bill is pure round trips to
 // Singapore. Short enough that a change through the admin screen takes effect
 // within a minute.
-let cached: { percent: number; readAt: number } | null = null;
+const cache = new Map<string, { percent: number; readAt: number }>();
 const CACHE_MS = 60_000;
+
+/** Read a percentage rate from app_config, falling back to a documented default. */
+async function rate(key: string, fallback: number): Promise<number> {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.readAt < CACHE_MS) return hit.percent;
+
+    let percent = fallback;
+    try {
+        const [row] = await db
+            .select({ value: appConfig.value })
+            .from(appConfig)
+            .where(eq(appConfig.key, key))
+            .limit(1);
+
+        const parsed = parseFloat(row?.value ?? "");
+        if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 100) {
+            percent = parsed;
+        } else if (row) {
+            console.warn(`[Fees] ${key} is "${row.value}" — not a usable rate, using ${fallback}%`);
+        }
+    } catch (err) {
+        console.error(`[Fees] Could not read ${key}, using default:`, err);
+    }
+
+    cache.set(key, { percent, readAt: Date.now() });
+    return percent;
+}
 
 /**
  * The platform fee charged to customers, as a percentage of the bill subtotal.
@@ -23,28 +53,18 @@ const CACHE_MS = 60_000;
  * a bill that fails to generate is worse than one carrying the documented rate.
  */
 export async function customerFeePercent(): Promise<number> {
-    if (cached && Date.now() - cached.readAt < CACHE_MS) return cached.percent;
+    return rate(FEE_KEY, DEFAULT_FEE_PERCENT);
+}
 
-    let percent = DEFAULT_FEE_PERCENT;
-    try {
-        const [row] = await db
-            .select({ value: appConfig.value })
-            .from(appConfig)
-            .where(eq(appConfig.key, FEE_KEY))
-            .limit(1);
-
-        const parsed = parseFloat(row?.value ?? "");
-        if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 100) {
-            percent = parsed;
-        } else if (row) {
-            console.warn(`[Fees] ${FEE_KEY} is "${row.value}" — not a usable rate, using ${DEFAULT_FEE_PERCENT}%`);
-        }
-    } catch (err) {
-        console.error("[Fees] Could not read fee rate, using default:", err);
-    }
-
-    cached = { percent, readAt: Date.now() };
-    return percent;
+/**
+ * The service charge taken from the milkman, as a percentage of his revenue.
+ *
+ * A flat rate for every milkman, agreed at 0.5%. A per-milkman value on the
+ * milkmen row still wins if one is set, so a negotiated deal can be honoured
+ * without changing the rate everyone else pays — but nothing sets one today.
+ */
+export async function vendorCommissionPercent(): Promise<number> {
+    return rate(COMMISSION_KEY, DEFAULT_COMMISSION_PERCENT);
 }
 
 /** Money, to paise, as a string — the form every decimal column here takes. */

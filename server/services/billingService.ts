@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { bills, chatMessages, milkmen, familyChats, familyChatMembers, customers } from "@shared/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
-import { customerFeePercent, splitBill } from "./platformFees";
+import { customerFeePercent, vendorCommissionPercent, splitBill } from "./platformFees";
 
 // Canonical "YYYY-MM" month key so the bills list (paymentRoutes) can split on "-"
 // to render the month name. Used for every bill row this service creates.
@@ -134,7 +134,16 @@ export class BillingService {
             .from(milkmen)
             .where(eq(milkmen.id, milkmanId))
             .limit(1);
-        const commissionPercent = parseFloat(milkmanForRates?.commission ?? "0") || 0;
+
+        // Flat 0.5% service charge for every milkman. A value on his own row
+        // still wins, so a negotiated deal can be honoured later without moving
+        // the rate everyone else pays — but nothing sets one today, and an
+        // unset rate must mean the standard rate, not zero.
+        const override = milkmanForRates?.commission;
+        const commissionPercent =
+            override != null && override !== ""
+                ? parseFloat(override) || 0
+                : await vendorCommissionPercent();
         const split = splitBill(total, feePercent, commissionPercent);
 
         const [newBill] = await db
