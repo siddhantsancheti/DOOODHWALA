@@ -38,7 +38,7 @@ Operated by: Sambhavshri Agro Processing LLP LLPIN: ACB - 4950, registered offic
 4.4 You must comply with the sanitary and hygienic requirements in Schedule 4 of the Food Safety and Standards (Licensing and Registration) Regulations, 2011, including requirements relating to premises, equipment, personal hygiene, water quality, cold chain and transport.
 4.5 You must comply with the Food Safety and Standards (Packaging) Regulations, 2018 and the Food Safety and Standards (Labelling and Display) Regulations, 2020, and with the Legal Metrology Act, 2009 and the Legal Metrology (Packaged Commodities) Rules, 2011 in respect of weights, measures and declarations. Weighing and measuring instruments must be verified and stamped as required.
 4.6 You must not supply milk that is adulterated, sub-standard, misbranded or unsafe. You acknowledge that adulteration attracts penalties under Sections 50 to 59 of the Food Safety and Standards Act, 2006, and criminal liability under Sections 274 and 275 of the Bharatiya Nyaya Sanhita, 2023 (adulteration of food or drink intended for sale, and sale of noxious food or drink).
-4.7 You must cooperate fully with any inspection, sampling or audit by a Food Safety Officer or Designated Officer, and must inform DOOODHWALA within [24] hours of any notice, sample failure, improvement notice, prosecution or licence suspension.
+4.7 You must cooperate fully with any inspection, sampling or audit by a Food Safety Officer or Designated Officer, and must inform DOOODHWALA within 24 hours of any notice, sample failure, improvement notice, prosecution or licence suspension.
 4.8 DOOODHWALA may, at its discretion, arrange independent quality testing, and may suspend your listing pending the outcome where a credible safety concern arises.
 4.9 You are responsible for product liability as a product seller and, where applicable, product manufacturer under Chapter VI (Sections 82 to 87) of the Consumer Protection Act, 2019.
 ## 5. Pricing and consumer fairness
@@ -67,7 +67,7 @@ Operated by: Sambhavshri Agro Processing LLP LLPIN: ACB - 4950, registered offic
 8.4 You indemnify DOOODHWALA against any tax, interest or penalty arising from your misstatement of tax status, non-registration, or failure to file returns.
 ## 9. Payments and settlement
 9.1 Where a Customer pays you directly in cash or otherwise offline, collection is your responsibility. DOOODHWALA is not a party to and bears no liability for unpaid Customer dues, bad debts or recovery.
-9.2 Where online payment through the Platform is enabled, amounts collected from Customers will be settled to your registered bank account within [T+2] business days of realisation, net of Platform fees, applicable taxes, refunds, chargebacks and any adjustments under Clause 9.4.
+9.2 Where online payment through the Platform is enabled, amounts collected from Customers will be settled to your registered bank account within T+2 business days of realisation, net of Platform fees, applicable taxes, refunds, chargebacks and any adjustments under Clause 9.4.
 9.3 Payments are routed through payment aggregators authorised by the Reserve Bank of India under the Payment and Settlement Systems Act, 2007, and are subject to those aggregators' settlement cycles and nodal account arrangements.
 9.4 DOOODHWALA may set off, withhold or recover from amounts due to you: verified Customer refunds, chargebacks, penalties for confirmed adulteration or false billing, and amounts paid to you in error. We will notify you with reasons before any deduction.
 9.5 Platform fees, commission and any subscription charges are as published in the app and may be revised on 30 days' prior notice.
@@ -79,7 +79,7 @@ Operated by: Sambhavshri Agro Processing LLP LLPIN: ACB - 4950, registered offic
 - process such data only on our documented instructions and for the stated purpose;
 - implement reasonable security safeguards;
 - not retain data longer than necessary, and delete or return it on termination;
-- notify DOOODHWALA immediately and in any event within [6] hours of becoming aware of any personal data breach, so that we can meet reporting timelines to the Data Protection Board and to CERT-In under Section 70B(6) of the Information Technology Act, 2000 and the CERT-In Directions of 28 April 2022;
+- notify DOOODHWALA immediately and in any event within 6 hours of becoming aware of any personal data breach, so that we can meet reporting timelines to the Data Protection Board and to CERT-In under Section 70B(6) of the Information Technology Act, 2000 and the CERT-In Directions of 28 April 2022;
 - cooperate with any Data Principal request for access, correction or erasure.
 10.4 You acknowledge that a Data Processor's breach may expose DOOODHWALA to financial penalties under the Schedule to the Digital Personal Data Protection Act, 2023, and you indemnify us for penalties attributable to your breach.
 10.5 Misuse of Customer data may also attract liability under Sections 43A, 66 and 72A of the Information Technology Act, 2000.
@@ -102,7 +102,7 @@ You shall not:
 12.3 In all other cases, we will give you written reasons and a reasonable opportunity of at least 7 days to respond before termination, and will consider your response in good faith.
 12.4 You may terminate this agreement at any time on 30 days' written notice, provided you complete or properly hand over all active subscriptions and clear all dues.
 12.5 On termination: your listing is removed; undisputed settlement amounts are released after 30 days net of adjustments; you must delete all Customer data obtained through the Platform; and Clauses 8, 10, 13, 14, 15 and 16 survive.
-12.6 You may appeal a suspension or termination to the Grievance Redressal Officer under Clause 16, who will decide within [15] days.
+12.6 You may appeal a suspension or termination to the Grievance Redressal Officer under Clause 16, who will decide within 15 days.
 ## 13. Warranties and indemnity
 13.1 You represent and warrant that: you have full legal capacity and authority to enter into this agreement; all information provided is true; you hold all licences required by law; the products you supply comply with the Food Safety and Standards Act, 2006 and rules thereunder; and you are not disqualified from contracting or debarred by any authority.
 13.2 You shall indemnify, defend and hold harmless DOOODHWALA, its directors, officers and employees against all claims, demands, proceedings, penalties, fines, losses and reasonable legal costs arising from: the quality, safety or legality of your products; food-borne illness or adulteration; your breach of these Terms or of any law; product liability claims under the Consumer Protection Act, 2019; misuse of Customer data; tax defaults; and any claim by a person engaged by you relating to employment, wages or welfare.
@@ -123,14 +123,14 @@ Neither party shall be liable for failure or delay caused by events beyond reaso
 - Phone: 8308804099
 - Hours: Mon–Sat, 9:00–18:00 IST
 16.1 Complaints will be acknowledged within 24 hours and disposed of within 15 days, in accordance with Rule 3(2) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021.
-16.2 You must also appoint and disclose a customer care contact for Customer complaints relating to your products, as required by Rule 6(5) of the Consumer Protection (E-Commerce) Rules, 2020, and respond to Customer complaints within [48] hours.
+16.2 You must also appoint and disclose a customer care contact for Customer complaints relating to your products, as required by Rule 6(5) of the Consumer Protection (E-Commerce) Rules, 2020, and respond to Customer complaints within 48 hours.
 ## 17. Governing law, dispute resolution and jurisdiction
 17.1 These Terms are governed by the laws of India.
 17.2 The parties shall first attempt amicable resolution through the Grievance Redressal Officer within 30 days.
-17.3 Failing resolution, disputes shall be referred to arbitration by a sole arbitrator appointed [by mutual consent / as set out here], under the Arbitration and Conciliation Act, 1996. The seat and venue shall be [City], [State]; the language shall be English; the award shall be final and binding.
+17.3 Failing resolution, disputes shall be referred to arbitration by a sole arbitrator appointed by mutual consent, under the Arbitration and Conciliation Act, 1996. The seat and venue shall be Chhatrapati Sambhaji Nagar, Maharashtra; the language shall be English; the award shall be final and binding.
 17.4 Subject to the above, the courts at Chharapati Sambhaji Nagar, Maharashtra shall have exclusive jurisdiction.
 ## 18. General
-18.1 We may amend these Terms on [15] days' notice through the app, SMS or email. Continued use after the effective date constitutes acceptance.
+18.1 We may amend these Terms on 15 days' notice through the app, SMS or email. Continued use after the effective date constitutes acceptance.
 18.2 You may not assign or transfer your rights or obligations. We may assign to an affiliate or successor on notice.
 18.3 If any provision is held invalid or unenforceable, the remainder continues in full force.
 18.4 Failure to enforce any right is not a waiver of that right.

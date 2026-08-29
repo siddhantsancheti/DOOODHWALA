@@ -50,7 +50,7 @@ Operated by: Sambhavshri Agro Processing LLP LLPIN: ACB - 4950, registered offic
 7.1 Milk and dairy products supplied through the Platform are required to comply with the Food Safety and Standards Act, 2006, the Food Safety and Standards (Food Products Standards and Food Additives) Regulations, 2011, and the Food Safety and Standards (Licensing and Registration of Food Businesses) Regulations, 2011.
 7.2 Every Supplier onboarded on the Platform is required to hold and maintain a valid FSSAI licence or registration. Responsibility for food safety, hygiene, adulteration, cold chain, standards of quality and statutory labelling rests solely with the Supplier as the Food Business Operator.
 7.3 Report any quality complaint within 24 hours of delivery through the app, with the order details and, where possible, photographs and retention of the product/packaging. Complaints raised after 24 hours may not be capable of verification.
-7.4 On a verified complaint, the Supplier will provide replacement or credit/refund in accordance with the Refund & Cancellation Policy. Refunds, where payable, will be processed to the original payment method within [7] business days of approval.
+7.4 On a verified complaint, the Supplier will provide replacement or credit/refund in accordance with the Refund & Cancellation Policy. Refunds, where payable, will be processed to the original payment method within 7 business days of approval.
 7.5 Nothing in these Terms restricts your statutory rights against the Supplier under the Consumer Protection Act, 2019, or the powers of authorities under the Food Safety and Standards Act, 2006.
 ## 8. Payments and billing
 8.1 You agree to pay all amounts due on or before the due date shown in the app.
@@ -58,7 +58,16 @@ Operated by: Sambhavshri Agro Processing LLP LLPIN: ACB - 4950, registered offic
 8.3 Payment gateway failures, network errors, refund timelines and chargebacks are governed by the policies of the relevant bank, aggregator and card network. Amounts debited without a successful order will be reversed as per those policies.
 8.4 Any advance or wallet balance held is a prepaid deposit against future deliveries only. It is non-transferable, cannot be withdrawn as cash, and is not a deposit under the Banking Regulation Act, 1949.
 8.5 Late payment may attract suspension of service after 3 days and late fee may charge @ 2% per month on overdue amounts, subject to applicable law.
+
 8.6 GST-compliant invoices will be issued by the Supplier or by the Platform on the Supplier's behalf, as applicable.
+
+8.7 Platform fee. In addition to the price of the products supplied by the Supplier, DOOODHWALA charges a platform fee of 1% (one per cent) of the order value for the use of the Platform. This fee is charged by DOOODHWALA, is not payable to or received by the Supplier, and is shown as a separate line on your bill before you make payment.
+
+8.8 Applicable GST on the platform fee will be charged and invoiced in accordance with the Central Goods and Services Tax Act, 2017.
+
+8.9 Where an order is cancelled or refunded in full, the platform fee charged on that order is refunded with it. Where a partial refund is made, the platform fee is reduced proportionately.
+
+8.10 We may revise the platform fee. Any revision will be notified through the app at least 7 days before it takes effect, and will apply only to orders placed on or after the effective date.
 ## 9. Pause, cancellation and account closure
 9.1 You may pause deliveries through the app before the daily cutoff time.
 9.2 You may discontinue the service at any time by cancelling the subscription in the app and informing the Milkman.
@@ -106,11 +115,11 @@ You agree to indemnify and hold harmless DOOODHWALA, its directors, officers and
 ## 17. Governing law, dispute resolution and jurisdiction
 17.1 These Terms are governed by and construed in accordance with the laws of India.
 17.2 The parties shall first attempt to resolve any dispute amicably through the Grievance Redressal Officer within 30 days.
-17.3 Failing amicable resolution, the dispute shall be referred to arbitration by a sole arbitrator appointed by [mutual consent / the manner set out here], under the Arbitration and Conciliation Act, 1996. The seat and venue of arbitration shall be Chharapati Sambhaji Nagar, Maharashtra, and the language shall be English. The award shall be final and binding.
-17.4 Subject to the above, the courts at be Chhatrapati Sambhaji Nagar, Maharashtra shall have exclusive jurisdiction.
+17.3 Failing amicable resolution, the dispute shall be referred to arbitration by a sole arbitrator appointed by mutual consent, under the Arbitration and Conciliation Act, 1996. The seat and venue of arbitration shall be Chhatrapati Sambhaji Nagar, Maharashtra, and the language shall be English. The award shall be final and binding.
+17.4 Subject to the above, the courts at Chhatrapati Sambhaji Nagar, Maharashtra shall have exclusive jurisdiction.
 17.5 **Consumer rights preserved: ** Nothing in Clauses 17.3 and 17.4 restricts your right as a consumer to approach the District, State or National Consumer Disputes Redressal Commission having jurisdiction, including the Commission where you ordinarily reside or work, under Section 34(2)(d) of the Consumer Protection Act, 2019.
 ## 18. Amendments, notices and general:
-18.1 We may amend these Terms at any time. Material changes will be notified through the app, email or SMS at least [7] days in advance. Continued use after the effective date constitutes acceptance.
+18.1 We may amend these Terms at any time. Material changes will be notified through the app, email or SMS at least 7 days in advance. Continued use after the effective date constitutes acceptance.
 18.2 Notices to you may be sent by in-app notification, SMS or email to your registered details.
 18.3 If any provision is held invalid or unenforceable, the remaining provisions continue in full force.
 18.4 Our failure to enforce any right is not a waiver of that right.
