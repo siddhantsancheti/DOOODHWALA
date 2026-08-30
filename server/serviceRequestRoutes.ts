@@ -7,6 +7,7 @@ import { broadcast } from "./websocket";
 import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
 import { ensureHouseholdChat } from "./services/households";
+import { addDairyman } from "./services/dairymen";
 
 const router = Router();
 
@@ -280,16 +281,11 @@ router.post("/:id/approve", async (req, res) => {
             .where(eq(serviceRequests.id, requestId))
             .returning();
 
-        // Accepting a request also assigns the customer to this milkman (YD link).
-        await db
-            .update(customers)
-            .set({
-                assignedMilkmanId: request.milkmanId,
-                updatedAt: new Date()
-            })
-            .where(eq(customers.id, request.customerId));
-
-        await ensureHouseholdChat(request.customerId, request.milkmanId);
+        // Accepting a request adds this milkman to the customer's dairymen.
+        // Routed through addDairyman so the list and the primary column stay in
+        // step, and so the household chat this relationship orders through is
+        // created — a dairyman without a chat cannot be ordered from.
+        await addDairyman(request.customerId, request.milkmanId);
 
         res.json(updatedRequest);
 
@@ -383,12 +379,7 @@ router.patch("/:id/status", async (req, res) => {
 
         // If the customer accepted the quote, link them to this milkman.
         if (status === "accepted") {
-            await db
-                .update(customers)
-                .set({ assignedMilkmanId: updatedRequest.milkmanId, updatedAt: new Date() })
-                .where(eq(customers.id, updatedRequest.customerId));
-
-            await ensureHouseholdChat(updatedRequest.customerId, updatedRequest.milkmanId);
+            await addDairyman(updatedRequest.customerId, updatedRequest.milkmanId);
         }
 
         res.json(updatedRequest);

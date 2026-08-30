@@ -6,6 +6,7 @@ import { type AuthRequest } from "./middleware/auth";
 import { BillingService } from "./services/billingService";
 import { ensureHouseholdChat } from "./services/households";
 import { canAccessCustomer, isSelfMilkman, callerIdentities } from "./services/access";
+import { listDairymen, addDairyman, removeDairyman } from "./services/dairymen";
 
 const router = Router();
 
@@ -177,6 +178,59 @@ router.post("/", async (req: AuthRequest, res) => {
     }
 });
 
+// GET /api/customers/dairymen — every dairyman this customer buys from.
+//
+// A customer may have several. The primary comes first: it is the one legacy
+// screens fall back to when they can only show one.
+router.get("/dairymen", async (req: AuthRequest, res) => {
+    try {
+        const me = await callerIdentities(req);
+        if (me.customerId == null) return res.json([]);
+        res.json(await listDairymen(me.customerId));
+    } catch (error) {
+        console.error("List dairymen error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// POST /api/customers/dairymen — start buying from another dairyman.
+router.post("/dairymen", async (req: AuthRequest, res) => {
+    try {
+        const me = await callerIdentities(req);
+        if (me.customerId == null) {
+            return res.status(400).json({ message: "Complete your profile first" });
+        }
+
+        const milkmanId = parseInt(req.body?.milkmanId);
+        if (isNaN(milkmanId)) return res.status(400).json({ message: "milkmanId is required" });
+
+        await addDairyman(me.customerId, milkmanId);
+        res.json({ success: true, dairymen: await listDairymen(me.customerId) });
+    } catch (error) {
+        console.error("Add dairyman error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// DELETE /api/customers/dairymen/:milkmanId — stop buying from one of them.
+router.delete("/dairymen/:milkmanId", async (req: AuthRequest, res) => {
+    try {
+        const me = await callerIdentities(req);
+        if (me.customerId == null) return res.status(400).json({ message: "No customer profile" });
+
+        const milkmanId = parseInt(req.params.milkmanId);
+        if (isNaN(milkmanId)) return res.status(400).json({ message: "Invalid dairyman id" });
+
+        const refusal = await removeDairyman(me.customerId, milkmanId);
+        if (refusal) return res.status(409).json({ message: refusal });
+
+        res.json({ success: true, dairymen: await listDairymen(me.customerId) });
+    } catch (error) {
+        console.error("Remove dairyman error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // GET /api/customers/group/:milkmanId — customers assigned to a milkman
 // (used to render the milkman group-chat member list). Declared before the
 // "/:id" route so the literal "group" segment is matched first.
@@ -288,19 +342,19 @@ const assignYdHandler = async (req: AuthRequest, res: any) => {
             return res.status(404).json({ message: "Customer profile not found" });
         }
 
+        // Additive: selecting a dairyman adds to the customer's list rather
+        // than replacing whoever was there. addDairyman also creates the
+        // household chat this relationship orders through, and mirrors the
+        // first one onto assignedMilkmanId for screens that read that column.
+        await addDairyman(customer.id, milkmanId);
+
         const [updatedCustomer] = await db
-            .update(customers)
-            .set({
-                assignedMilkmanId: milkmanId,
-                updatedAt: new Date()
-            })
+            .select()
+            .from(customers)
             .where(eq(customers.id, customer.id))
-            .returning();
+            .limit(1);
 
-        // Every customer is a household of one until family joins them.
-        await ensureHouseholdChat(customer.id, milkmanId);
-
-        res.json(updatedCustomer);
+        res.json({ ...updatedCustomer, dairymen: await listDairymen(customer.id) });
     } catch (error) {
         console.error("Assign milkman error:", error);
         res.status(500).json({ message: "Server error" });
@@ -407,16 +461,19 @@ router.post("/unassign-yd", async (req: AuthRequest, res) => {
             });
         }
 
-        const [updatedCustomer] = await db
-            .update(customers)
-            .set({
-                assignedMilkmanId: null,
-                updatedAt: new Date()
-            })
-            .where(eq(customers.id, customer.id))
-            .returning();
+        // Delegated so the list and the primary column move together, and so a
+        // remaining dairyman is promoted rather than leaving the customer with
+        // dairymen but no primary.
+        const refusal = await removeDairyman(customer.id, customer.assignedMilkmanId);
+        if (refusal) return res.status(400).json({ message: refusal });
 
-        res.json(updatedCustomer);
+        const [updatedCustomer] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.id, customer.id))
+            .limit(1);
+
+        res.json({ ...updatedCustomer, dairymen: await listDairymen(customer.id) });
     } catch (error) {
         console.error("Unassign milkman error:", error);
         res.status(500).json({ message: "Server error" });

@@ -620,6 +620,24 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
+// A customer's dairymen. One row per relationship.
+//
+// A customer used to have exactly one, held in customers.assignedMilkmanId.
+// That column stays as the *primary* — the one a legacy screen falls back to,
+// and the default when only one exists — while this table is the full list.
+// Keeping both means the twenty-odd existing call sites go on working while
+// multi-dairyman screens read from here.
+export const customerMilkmen = pgTable("customer_milkmen", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull().references(() => customers.id),
+  milkmanId: integer("milkman_id").notNull().references(() => milkmen.id),
+  isPrimary: boolean("is_primary").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_customer_milkmen").on(table.customerId, table.milkmanId),
+]);
+
 // Platform-wide settings, editable without a deploy.
 //
 // This table already existed — it is how every installed phone finds the
