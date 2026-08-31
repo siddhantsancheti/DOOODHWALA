@@ -6,6 +6,7 @@ import { type AuthRequest } from "./middleware/auth";
 import { BillingService } from "./services/billingService";
 import { broadcast } from "./websocket";
 import { retireOtherSoloHouseholds } from "./services/households";
+import { addDairyman, removeDairyman } from "./services/dairymen";
 
 const router = Router();
 
@@ -56,9 +57,11 @@ router.post("/", async (req: AuthRequest, res) => {
 
         await db.insert(familyChatMembers).values({ chatId: group.id, userId: req.user!.id, isAdmin: true });
 
-        // Creating a group also assigns the creator to this milkman.
+        // Creating a group also links the creator to this milkman — added to
+        // their dairymen rather than replacing them, since a customer may buy
+        // from several.
         const customer = await getOrCreateCustomer(req);
-        await db.update(customers).set({ assignedMilkmanId: milkmanId, updatedAt: new Date() }).where(eq(customers.id, customer.id));
+        await addDairyman(customer.id, milkmanId);
 
         // They already had a household of one from being assigned; this group
         // replaces it, so close the old one rather than counting them twice.
@@ -93,8 +96,12 @@ router.post("/join", async (req: AuthRequest, res) => {
             await db.insert(familyChatMembers).values({ chatId: group.id, userId: req.user!.id, isAdmin: false });
         }
 
+        // Joining a household links this member to that household's dairyman.
+        // Added, not assigned: overwriting would silently drop every other
+        // dairyman the member already buys from — one person starts the chat
+        // and the rest join by code, so this path runs for most members.
         const customer = await getOrCreateCustomer(req);
-        await db.update(customers).set({ assignedMilkmanId: group.milkmanId, updatedAt: new Date() }).where(eq(customers.id, customer.id));
+        await addDairyman(customer.id, group.milkmanId);
 
         await retireOtherSoloHouseholds(req.user!.id, group.milkmanId, group.id);
 
@@ -178,14 +185,19 @@ router.post("/:id/discontinue", async (req: AuthRequest, res) => {
             });
         }
 
-        // Members → customers → unassign all.
+        // Members lose this dairyman, not every dairyman. Clearing the column
+        // outright used to unassign people from suppliers who had nothing to do
+        // with the household being closed.
         const members = await db.select().from(familyChatMembers).where(eq(familyChatMembers.chatId, groupId));
         const memberUserIds = members.map((m) => m.userId);
         if (memberUserIds.length > 0) {
-            await db
-                .update(customers)
-                .set({ assignedMilkmanId: null, updatedAt: new Date() })
+            const memberCustomers = await db
+                .select({ id: customers.id })
+                .from(customers)
                 .where(inArray(customers.userId, memberUserIds));
+            for (const c of memberCustomers) {
+                await removeDairyman(c.id, group.milkmanId);
+            }
         }
 
         await db.delete(familyChatMembers).where(eq(familyChatMembers.chatId, groupId));
