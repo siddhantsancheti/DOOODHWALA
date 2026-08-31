@@ -35,6 +35,8 @@ export default function TermsScreen({ route, navigation }: any) {
 
   const [agreed, setAgreed] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -53,12 +55,41 @@ export default function TermsScreen({ route, navigation }: any) {
 
   // "Read to the end" is the honest bar for informed consent, and it is what
   // makes the acceptance defensible later. 24px of slop so it fires reliably.
+  // The checkbox unlocks once the terms have actually been seen — that is the
+  // point of the gate, and it is what makes the consent record meaningful.
+  //
+  // Two ways it used to lock people out permanently:
+  //
+  //   * A 24px threshold. Between bottom padding, the end spacer and the
+  //     device's own inset, the last scroll event can land a few pixels short
+  //     and never fire again, leaving the box disabled with nothing left to
+  //     scroll.
+  //   * Content that fits on screen. No scroll means no scroll event, so
+  //     reachedEnd stayed false forever and the terms could never be accepted
+  //     at all — which is what a short document, a big screen or a failed
+  //     render produces.
+  const markSeen = useCallback(() => setReachedEnd(true), []);
+
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 24) {
+    // 64px of slack, and treat "nearly all of it" as read rather than demanding
+    // the exact final pixel.
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 64) {
       setReachedEnd(true);
     }
   }, []);
+
+  // If everything already fits, there is nothing to scroll and it has been seen.
+  const onContentSizeChange = useCallback((_w: number, h: number) => {
+    setContentHeight(h);
+    if (viewportHeight > 0 && h <= viewportHeight + 8) setReachedEnd(true);
+  }, [viewportHeight]);
+
+  const onLayout = useCallback((e: any) => {
+    const h = e.nativeEvent.layout.height;
+    setViewportHeight(h);
+    if (contentHeight > 0 && contentHeight <= h + 8) setReachedEnd(true);
+  }, [contentHeight]);
 
   const handleAccept = async () => {
     if (!doc || !agreed || submitting) return;
@@ -140,7 +171,13 @@ export default function TermsScreen({ route, navigation }: any) {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         onScroll={onScroll}
-        scrollEventThrottle={64}
+        // A fling can end without a final onScroll close enough to the bottom,
+        // so settle it on the events that fire when scrolling actually stops.
+        onMomentumScrollEnd={onScroll}
+        onScrollEndDrag={onScroll}
+        onContentSizeChange={onContentSizeChange}
+        onLayout={onLayout}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator
       >
         <Markdown markdown={doc.markdown} styles={styles} />
