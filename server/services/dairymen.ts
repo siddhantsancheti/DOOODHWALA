@@ -33,7 +33,16 @@ export async function listDairymen(customerId: number) {
         .innerJoin(milkmen, eq(customerMilkmen.milkmanId, milkmen.id))
         .where(and(eq(customerMilkmen.customerId, customerId), eq(customerMilkmen.isActive, true)));
 
-    return rows.sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+    // Oldest first, so the order is stable and implies no ranking. There is no
+    // primary or secondary dairyman as far as a customer is concerned — they
+    // are all simply people she buys from. `isPrimary` below is plumbing for
+    // the screens that still read customers.assignedMilkmanId, and must not
+    // reach the UI.
+    return rows.sort((a, b) => {
+        const ta = a.since ? new Date(a.since).getTime() : 0;
+        const tb = b.since ? new Date(b.since).getTime() : 0;
+        return ta - tb;
+    });
 }
 
 /**
