@@ -9,8 +9,8 @@
 // included here: it is internal guidance addressed to the operator, and the
 // draft instructs that it be deleted before publishing.
 
-export const CUSTOMER_TERMS_VERSION = "customer-2026-08-29";
-export const CUSTOMER_TERMS_LAST_UPDATED = "29 August 2026";
+export const CUSTOMER_TERMS_VERSION = "customer-2026-09-04";
+export const CUSTOMER_TERMS_LAST_UPDATED = "4 September 2026";
 
 export const CUSTOMER_TERMS_MARKDOWN = `
 # DOOODHWALA — Terms and Conditions (Customer)
@@ -28,7 +28,7 @@ Operated by: Sambhavshri Agro Processing LLP LLPIN: ACB - 4950, registered offic
 3.1 DOOODHWALA is a technology platform that connects Customers with independent milk suppliers, dairies, distributors and delivery persons ("Milkman" / "Supplier"). We do not own, produce, process, pack, store or sell milk or dairy products.
 3.2 DOOODHWALA is an "intermediary" under Section 2(1)(w) of the Information Technology Act, 2000 and a "marketplace e-commerce entity" under the Consumer Protection (E-Commerce) Rules, 2020. We claim the exemption from liability available under Section 79 of the Information Technology Act, 2000.
 3.3 The contract for sale and supply of milk and dairy products is directly between you and the Supplier. DOOODHWALA is not a party to that contract and does not give any warranty, express or implied, regarding the goods.
-3.4 In compliance with Rule 5 of the Consumer Protection (E-Commerce) Rules, 2020, the Platform will make available to you, on request or through the app, the Supplier's legal name, principal geographic address, contact details and FSSAI licence/registration number.
+3.4 In compliance with Rule 5 of the Consumer Protection (E-Commerce) Rules, 2020, the Platform will make available to you, on request or through the app, the Supplier's legal name, principal geographic address and contact details. The Platform does not hold or verify Supplier food-safety licences; where you require a Supplier's FSSAI licence or registration number, you may request it from that Supplier directly, and they are obliged under Clause 7.2 to hold one.
 3.5 We do not adopt any unfair trade practice, do not manipulate prices to gain unreasonable profit, and do not discriminate between Customers of the same class.
 ## 4. Registration and account security
 4.1 You must provide information that is true, accurate, current and complete, and keep it updated.
