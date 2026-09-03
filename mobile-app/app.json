@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.dooodhwala.app",
-      "versionCode": 29,
+      "versionCode": 30,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1B67B0",
