@@ -33,6 +33,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
     pincode: '',
     bankAccountHolderName: '',
     bankAccountNumber: '',
+    panNumber: '',
     bankIfscCode: '',
     bankName: '',
     upiId: '',
@@ -110,6 +111,27 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
       return;
     }
 
+    // Bank details and PAN are how a milkman gets paid and who we are paying.
+    // Collected before he is listed rather than chased afterwards, when he has
+    // customers waiting and no way to receive their money.
+    if (!formData.bankAccountNumber || !formData.bankIfscCode || !formData.panNumber) {
+      Alert.alert(t('requiredFields'), t('bankAndPanRequired'));
+      return;
+    }
+
+    // Ten characters, five letters, four digits, one letter. Catching a typo
+    // here is far cheaper than a failed payout weeks later.
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.panNumber.trim().toUpperCase())) {
+      Alert.alert(t('requiredFields'), t('panInvalid'));
+      return;
+    }
+
+    // IFSC is four letters, a zero, then six characters.
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.bankIfscCode.trim().toUpperCase())) {
+      Alert.alert(t('requiredFields'), t('ifscInvalid'));
+      return;
+    }
+
     // Concatenate address
     const addressParts = [
       formData.address,
@@ -146,6 +168,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
         bankIfscCode: formData.bankIfscCode || undefined,
         bankName: formData.bankName || undefined,
         upiId: formData.upiId || undefined,
+        panNumber: formData.panNumber.trim().toUpperCase(),
         pricePerLiter: basePricePerLiter,
         deliveryTimeStart: activeSlots[0].startTime,
         deliveryTimeEnd: activeSlots[0].endTime,
@@ -166,7 +189,8 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
   };
 
   const update = (key: string, val: string) => setFormData({ ...formData, [key]: val });
-  const isValid = formData.contactName && formData.businessName && formData.address && formData.city;
+  const isValid = formData.contactName && formData.businessName && formData.address && formData.city
+    && formData.bankAccountNumber && formData.bankIfscCode && formData.panNumber;
 
   const errorColor = '#A8382F';
   const errorBorder = '#C0453B';
@@ -444,7 +468,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
               <CreditCard size={20} color="#22406E" />
-              <Text style={styles.sectionTitle}>{t('bankDetailsOptional')}</Text>
+              <Text style={styles.sectionTitle}>{t('bankAndVerification')}</Text>
             </View>
             <View style={styles.fieldGroup}>
               {renderInput('bankAccountHolderName', t('accountHolder'))}
@@ -458,6 +482,10 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
             <View style={styles.fieldGroup}>
               {renderInput('upiId', t('upiId'), { autoCapitalize: 'none' })}
             </View>
+            <View style={styles.fieldGroup}>
+              {renderInput('panNumber', t('panNumber'), { autoCapitalize: 'characters', maxLength: 10 })}
+            </View>
+            <Text style={styles.verifyNote}>{t('verificationNote')}</Text>
           </View>
 
           {/* Submit */}
@@ -522,6 +550,10 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     flexDirection: 'row', alignItems: 'center',
     marginBottom: 16, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  verifyNote: {
+    fontSize: 12, color: colors.mutedForeground, fontFamily,
+    marginTop: 4, lineHeight: 17,
   },
   sectionTitle: {
     fontSize: 18, fontWeight: '700',

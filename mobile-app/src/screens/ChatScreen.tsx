@@ -533,16 +533,32 @@ export default function ChatScreen({ route, navigation }: any) {
                             out the platform fee, which clause 8.7 of the terms
                             requires be visible before payment. */}
                         {!!msg.billId && (
-                          <TouchableOpacity
-                            onPress={() => downloadBillPdf(msg.billId)}
-                            style={styles.billDownload}
-                            activeOpacity={0.7}
-                            accessibilityRole="button"
-                            accessibilityLabel={t('downloadBill')}
-                          >
-                            <Download size={14} color="#2F7D5B" />
-                            <Text style={styles.billDownloadText}>{t('downloadBill')}</Text>
-                          </TouchableOpacity>
+                          <View style={styles.billDownloadRow}>
+                            <TouchableOpacity
+                              onPress={() => downloadBillPdf(msg.billId)}
+                              style={styles.billDownload}
+                              activeOpacity={0.7}
+                              accessibilityRole="button"
+                              accessibilityLabel={t('downloadBill')}
+                            >
+                              <Download size={14} color="#2F7D5B" />
+                              <Text style={styles.billDownloadText}>{t('downloadBill')}</Text>
+                            </TouchableOpacity>
+                            {/* The bill says what is owed; this says what was
+                                delivered, day by day. That is the question a
+                                customer actually asks when an amount surprises
+                                them. */}
+                            <TouchableOpacity
+                              onPress={() => downloadBillPdf(msg.billId, { kind: 'history' })}
+                              style={styles.billDownload}
+                              activeOpacity={0.7}
+                              accessibilityRole="button"
+                              accessibilityLabel={t('orderHistory')}
+                            >
+                              <Download size={14} color="#2F7D5B" />
+                              <Text style={styles.billDownloadText}>{t('orderHistory')}</Text>
+                            </TouchableOpacity>
+                          </View>
                         )}
                       </View>
                     )}
@@ -1056,10 +1072,13 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   billCard: { padding: 12, borderRadius: 8, marginBottom: 8 },
   billCardHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   billCardTitle: { fontSize: 14, fontWeight: 'bold', color: colors.success, fontFamily: fontFamilyBold },
-  billDownload: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+  billDownloadRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 14,
     marginTop: 8, paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(47,125,91,0.3)',
+  },
+  billDownload: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
   },
   billDownloadText: { fontSize: 12, color: '#2F7D5B', fontFamily: fontFamilyBold },
   

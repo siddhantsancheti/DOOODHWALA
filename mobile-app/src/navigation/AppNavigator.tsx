@@ -39,8 +39,17 @@ const Stack = createNativeStackNavigator();
 const isCustomerProfileComplete = (profile: any) =>
     !!profile && !!profile.name && !!profile.address;
 
+// A milkman is not set up until he can be paid and identified. Bank details are
+// how the money reaches him; PAN is required because we are the ones paying it.
+// Without this the setup screen could be skipped and he would appear to
+// customers as a supplier nobody had verified.
 const isMilkmanProfileComplete = (profile: any) =>
-    !!profile && !!profile.contactName && !!profile.businessName;
+    !!profile
+    && !!profile.contactName
+    && !!profile.businessName
+    && !!profile.bankAccountNumber
+    && !!profile.bankIfscCode
+    && !!profile.panNumber;
 
 export default function AppNavigator() {
     const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
