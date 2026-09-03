@@ -20,6 +20,7 @@ import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, s
 import { useTranslation } from '../contexts/LanguageContext';
 import { Language } from '../lib/translations';
 import { uploadChatMedia, pickFromCamera, pickFromGallery, pickDocument, getLocationLink } from '../lib/chatMedia';
+import { downloadBillPdf } from '../lib/billPdf';
 
 const { width, height } = Dimensions.get('window');
 
@@ -408,8 +409,14 @@ export default function ChatScreen({ route, navigation }: any) {
         </ScrollView>
       </View>
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+      {/* Android needs "padding" too since SDK 55.
+          Android 15 enforces edge-to-edge, which stops adjustResize from
+          resizing the window — so leaving behavior undefined meant the
+          composer stayed put under the keyboard and you could not see what
+          you were typing. */}
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={0}
         style={{ flex: 1 }}
       >
         {/* MESSAGES LIST */}
@@ -464,6 +471,23 @@ export default function ChatScreen({ route, navigation }: any) {
                         </View>
                         <Text style={{ fontSize: 14, color: textColor, marginVertical: 4 }}>{t('amount')}: ₹{msg.orderTotal}</Text>
                         <Text style={{ fontSize: 12, color: textMuted }}>For latest unbilled orders.</Text>
+
+                        {/* The full bill, as a PDF the customer keeps. The card
+                            shows a single figure; the document behind it breaks
+                            out the platform fee, which clause 8.7 of the terms
+                            requires be visible before payment. */}
+                        {!!msg.billId && (
+                          <TouchableOpacity
+                            onPress={() => downloadBillPdf(msg.billId)}
+                            style={styles.billDownload}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('downloadBill')}
+                          >
+                            <Download size={14} color="#2F7D5B" />
+                            <Text style={styles.billDownloadText}>{t('downloadBill')}</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     )}
 
@@ -898,6 +922,12 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   billCard: { padding: 12, borderRadius: 8, marginBottom: 8 },
   billCardHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   billCardTitle: { fontSize: 14, fontWeight: 'bold', color: colors.success, fontFamily: fontFamilyBold },
+  billDownload: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 8, paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(47,125,91,0.3)',
+  },
+  billDownloadText: { fontSize: 12, color: '#2F7D5B', fontFamily: fontFamilyBold },
   
   msgFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
   msgTime: { fontSize: 10, fontFamily },
