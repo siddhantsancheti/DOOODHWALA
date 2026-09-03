@@ -99,6 +99,15 @@ export const milkmen = pgTable("milkmen", {
   bankBranch: varchar("bank_branch"),
   upiId: varchar("upi_id"),
   commissionPercentage: decimal("commission_percentage", { precision: 5, scale: 2 }),
+
+  // Verification. A milkman is paid real money, so the account and the PAN are
+  // collected before he can be listed. The PAN image sits behind a signed URL,
+  // never a public bucket, and only he and an admin can fetch it.
+  panNumber: varchar("pan_number"),
+  panImageUrl: text("pan_image_url"),
+  verificationStatus: varchar("verification_status").default("pending"), // pending | verified | rejected
+  verifiedAt: timestamp("verified_at"),
+  verificationNote: text("verification_note"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -284,6 +293,16 @@ export const chatMessages = pgTable("chat_messages", {
   orderItems: jsonb("order_items"), // Full order details for multi-product orders
   messageType: varchar("message_type").notNull().default("text"), // "text" | "order" | "notification" | "bill" | "voice" | "join"
   billId: integer("bill_id"), // Reference to bill for bill messages
+
+  // A problem reported against a delivered order. The report lives in the
+  // conversation rather than in a ticket system, because the conversation is
+  // where the two of them already talk — a complaint filed somewhere else is a
+  // complaint nobody answers. Clause 7.3 of the customer terms requires this
+  // route to exist ("within 24 hours of delivery, through the app").
+  reportedMessageId: integer("reported_message_id"),
+  reportReason: varchar("report_reason"),   // didnt_arrive | quantity | quality | wrong_item | other
+  reportPhotoUrl: text("report_photo_url"),
+  reportResolvedAt: timestamp("report_resolved_at"),
   voiceUrl: text("voice_url"), // URL for voice message files
   voiceDuration: integer("voice_duration"), // Duration in seconds
   senderType: varchar("sender_type").notNull(), // "customer" | "milkman" | "system"

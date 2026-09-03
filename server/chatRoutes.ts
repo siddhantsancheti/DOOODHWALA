@@ -143,6 +143,95 @@ router.get("/messages", async (req: AuthRequest, res) => {
     }
 });
 
+// POST /api/chat/messages/:id/report — the customer reports a problem with a
+// delivered order.
+//
+// The report is posted into the same conversation rather than into a separate
+// ticket system: that is where the two of them already talk, and a complaint
+// filed somewhere else is a complaint nobody answers. Clause 7.3 of the
+// customer terms requires this route to exist at all — it promises quality
+// complaints can be raised "within 24 hours of delivery, through the app".
+router.post("/messages/:id/report", async (req: AuthRequest, res) => {
+    try {
+        const messageId = parseInt(req.params.id);
+        if (isNaN(messageId)) return res.status(400).json({ message: "Invalid message id" });
+
+        const { reason, note, photoUrl } = req.body || {};
+        const allowed = ["didnt_arrive", "quantity", "quality", "wrong_item", "other"];
+        if (!allowed.includes(reason)) {
+            return res.status(400).json({ message: "Pick a reason for the report" });
+        }
+
+        const [order] = await db
+            .select()
+            .from(chatMessages)
+            .where(eq(chatMessages.id, messageId))
+            .limit(1);
+        if (!order) return res.status(404).json({ message: "Order not found" });
+
+        // Only a party to the conversation may report on it.
+        if (!(await isPartyToChat(req, order.milkmanId, order.customerId ?? -1))) {
+            return res.status(403).json({ message: "Not your order" });
+        }
+
+        // Before delivery, "where is it?" is an ordinary message, not a report.
+        if (!order.isDelivered) {
+            return res.status(400).json({ message: "This order has not been delivered yet." });
+        }
+
+        const label: Record<string, string> = {
+            didnt_arrive: "Did not arrive",
+            quantity: "Wrong quantity",
+            quality: "Quality problem",
+            wrong_item: "Wrong item",
+            other: "Problem reported",
+        };
+
+        const what = order.orderProduct || "the order";
+        const body = `⚑ ${label[reason]} — ${what}${note ? `
+${String(note).trim()}` : ""}`;
+
+        const [reportMsg] = await db.insert(chatMessages).values({
+            milkmanId: order.milkmanId,
+            customerId: order.customerId,
+            familyChatId: order.familyChatId,
+            senderId: req.user!.id,
+            senderType: "customer",
+            message: body,
+            messageType: "report",
+            reportedMessageId: order.id,
+            reportReason: reason,
+            reportPhotoUrl: photoUrl || null,
+        }).returning();
+
+        res.json(reportMsg);
+
+        // Tell the dairyman at once — a complaint that waits for him to open the
+        // app is a complaint that festers.
+        const targets = await partyUserIds({
+            customerId: order.customerId,
+            milkmanId: order.milkmanId,
+            familyChatId: order.familyChatId,
+        });
+        broadcast({ type: "new_message", message: reportMsg }, targets);
+
+        const [mk] = await db
+            .select({ userId: milkmen.userId })
+            .from(milkmen)
+            .where(eq(milkmen.id, order.milkmanId))
+            .limit(1);
+        await notifyUser(
+            mk?.userId,
+            "Problem reported",
+            `${label[reason]} — ${what}. Open the chat to sort it out.`,
+            { type: "order_report", relatedId: order.id },
+        );
+    } catch (error) {
+        console.error("Report order error:", error);
+        res.status(500).json({ message: "Could not send the report" });
+    }
+});
+
 // GET /api/chat/orders — today's order messages for the signed-in milkman,
 // across every customer, for the delivery-run screen.
 //

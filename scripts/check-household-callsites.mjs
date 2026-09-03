@@ -44,7 +44,24 @@ for (const file of readdirSync(serverDir).filter((f) => f.endsWith('.ts'))) {
   }
 }
 
-assert.ok(checked > 0, 'found no assignment sites at all — did the field get renamed?');
 assert.deepEqual(failures, [], '\n' + failures.join('\n'));
 
-console.log(`\nAll ${checked} assignment site(s) create a household.`);
+// Zero sites is now the healthy state, not a broken check.
+//
+// Every route used to write assignedMilkmanId itself, and each had to remember
+// to create the household chat too - which is what this check enforced. They
+// all go through services/dairymen.ts now, so the column is written in exactly
+// one place and the household comes with it. What matters today is that nobody
+// reintroduces a direct write outside that service.
+if (checked === 0) {
+  const service = readFileSync(join(serverDir, 'services/dairymen.ts'), 'utf8');
+  assert.ok(
+    /ensureHouseholdChat/.test(service),
+    'services/dairymen.ts no longer creates a household - a customer assigned a ' +
+    'dairyman would have no chat to order in.',
+  );
+  console.log('ok  services/dairymen.ts is the only writer, and it creates the household');
+  console.log('\nNo direct assignment sites outside the service. That is the healthy state.');
+} else {
+  console.log(`\nAll ${checked} assignment site(s) create a household.`);
+}

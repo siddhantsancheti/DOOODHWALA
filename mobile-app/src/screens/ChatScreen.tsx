@@ -14,7 +14,7 @@ import {
   Clock, Check, User, Truck, X, Plus, Minus,
   MoreVertical, Phone, ShoppingCart, Users,
   IndianRupee, Receipt, Share, Camera, File, MapPin, BarChart3, Settings, CheckCheck, Mic, FileText,
-  Image as ImageIcon, Download
+  Image as ImageIcon, Download, Flag
 , Edit3 as Edit} from 'lucide-react-native';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
 import { useTranslation } from '../contexts/LanguageContext';
@@ -23,6 +23,16 @@ import { uploadChatMedia, pickFromCamera, pickFromGallery, pickDocument, getLoca
 import { downloadBillPdf } from '../lib/billPdf';
 
 const { width, height } = Dimensions.get('window');
+
+// Reasons a delivered order can be reported. Short and concrete — a free-text
+// box alone gets "problem" and nothing actionable.
+const REPORT_REASONS: { key: string; label: string }[] = [
+  { key: 'didnt_arrive', label: 'reasonDidntArrive' },
+  { key: 'quantity',     label: 'reasonQuantity' },
+  { key: 'quality',      label: 'reasonQuality' },
+  { key: 'wrong_item',   label: 'reasonWrongItem' },
+  { key: 'other',        label: 'reasonOther' },
+];
 
 // Format date helper
 const getDateLabel = (date: Date, t: any) => {
@@ -54,6 +64,11 @@ export default function ChatScreen({ route, navigation }: any) {
   const [editingService, setEditingService] = useState<string | null>(null);
   const [priceDraft, setPriceDraft] = useState('');
   const isMilkman = user?.userType === 'milkman';
+  // The delivered order a problem is being reported against, or null.
+  const [reportFor, setReportFor] = useState<any | null>(null);
+  const [reportReason, setReportReason] = useState<string | null>(null);
+  const [reportNote, setReportNote] = useState('');
+  const [reportSending, setReportSending] = useState(false);
 
   // Services this customer orders, with the price that applies to them. Only
   // loaded for the milkman — the endpoint is scoped to their own customers.
@@ -308,6 +323,28 @@ export default function ChatScreen({ route, navigation }: any) {
     }
   };
 
+  const submitReport = async () => {
+    if (!reportFor || !reportReason || reportSending) return;
+    setReportSending(true);
+    try {
+      await apiRequest({
+        url: `/api/chat/messages/${reportFor.id}/report`,
+        method: 'POST',
+        body: { reason: reportReason, note: reportNote.trim() || undefined },
+      });
+      // The report lands in this same conversation, so refreshing it is enough
+      // to show what was sent — the customer sees exactly what the dairyman got.
+      queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+      setReportFor(null);
+      setReportReason(null);
+      setReportNote('');
+    } catch (e: any) {
+      Alert.alert(t('reportProblem'), e?.message || 'Could not send the report. Please try again.');
+    } finally {
+      setReportSending(false);
+    }
+  };
+
   const handleSendText = () => {
     if (!message.trim()) return;
     sendMessageMutation.mutate({
@@ -461,6 +498,25 @@ export default function ChatScreen({ route, navigation }: any) {
                         <Package size={14} color={isMe ? '#FFFFFF' : '#EA580C'} />
                         <Text style={[styles.requestBannerText, { color: isMe ? '#FFFFFF' : '#EA580C' }]}>{t('orderRequest')}</Text>
                       </View>
+                    )}
+
+                    {/* A delivered order can be reported on. Only after
+                        delivery — before that, "where is it?" is an ordinary
+                        message — and only by the customer, since the dairyman
+                        reporting his own delivery makes no sense. Clause 7.3 of
+                        the terms promises this route exists. */}
+                    {isOrder && msg.isDelivered && !isMilkman && (
+                      <TouchableOpacity
+                        onPress={() => setReportFor(msg)}
+                        style={styles.reportLink}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                      >
+                        <Flag size={12} color={isMe ? 'rgba(255,255,255,0.85)' : '#A8322D'} />
+                        <Text style={[styles.reportLinkText, { color: isMe ? 'rgba(255,255,255,0.85)' : '#A8322D' }]}>
+                          {t('reportProblem')}
+                        </Text>
+                      </TouchableOpacity>
                     )}
 
                     {isBill && (
@@ -688,6 +744,65 @@ export default function ChatScreen({ route, navigation }: any) {
             </View>
           )}
         </View>
+
+      {/* Report a problem — a short sheet, not a form. Someone whose milk did
+          not arrive is annoyed already; five taps is the whole budget. */}
+      <Modal visible={!!reportFor} transparent animationType="slide" onRequestClose={() => setReportFor(null)}>
+        <View style={styles.sheetBackdrop}>
+          <View style={[styles.sheet, { backgroundColor: surfaceColor }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={[styles.sheetTitle, { color: textColor }]}>{t('reportProblem')}</Text>
+            <Text style={[styles.sheetSub, { color: textMuted }]} numberOfLines={2}>
+              {reportFor?.orderProduct || t('order')}
+              {reportFor?.orderQuantity ? ` · ${reportFor.orderQuantity}` : ''}
+            </Text>
+
+            {REPORT_REASONS.map((r) => (
+              <TouchableOpacity
+                key={r.key}
+                style={[
+                  styles.reasonRow,
+                  { borderColor },
+                  reportReason === r.key && { borderColor: colors.primary, backgroundColor: isDark ? '#1B2634' : '#E7EDF6' },
+                ]}
+                onPress={() => setReportReason(r.key)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.radio, { borderColor: reportReason === r.key ? colors.primary : borderColor }]}>
+                  {reportReason === r.key && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
+                </View>
+                <Text style={[styles.reasonText, { color: textColor }]}>{t(r.label)}</Text>
+              </TouchableOpacity>
+            ))}
+
+            <TextInput
+              style={[styles.reportNote, { color: textColor, borderColor, backgroundColor: isDark ? '#1A1714' : '#F7F3EC' }]}
+              placeholder={t('addDetailsOptional')}
+              placeholderTextColor={textMuted}
+              value={reportNote}
+              onChangeText={setReportNote}
+              multiline
+              maxLength={300}
+            />
+
+            <TouchableOpacity
+              style={[styles.reportSend, { backgroundColor: colors.primary }, (!reportReason || reportSending) && { opacity: 0.5 }]}
+              onPress={submitReport}
+              disabled={!reportReason || reportSending}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.reportSendText}>
+                {reportSending ? t('sending') : t('sendReport')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setReportFor(null)} style={{ paddingVertical: 10 }} activeOpacity={0.7}>
+              <Text style={[styles.sheetCancel, { color: textMuted }]}>{t('cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       </KeyboardAvoidingView>
 
       {/* MODALS */}
@@ -916,6 +1031,25 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
   orderActions: { marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.1)', paddingTop: 12 },
   orderActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 8, gap: 6 },
   orderActionBtnText: { color: '#FFF', fontSize: 13, fontWeight: 'bold', fontFamily: fontFamilyBold },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, paddingBottom: 26 },
+  sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.4)', alignSelf: 'center', marginBottom: 12 },
+  sheetTitle: { fontSize: 17, fontFamily: fontFamilyBold, marginBottom: 2 },
+  sheetSub: { fontSize: 12, fontFamily, marginBottom: 14 },
+  reasonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 8 },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  radioDot: { width: 8, height: 8, borderRadius: 4 },
+  reasonText: { fontSize: 14, fontFamily, flex: 1 },
+  reportNote: { borderWidth: 1, borderRadius: 10, padding: 12, minHeight: 64, textAlignVertical: 'top', fontSize: 14, fontFamily, marginTop: 4, marginBottom: 12 },
+  reportSend: { borderRadius: 12, padding: 14, alignItems: 'center' },
+  reportSendText: { color: '#FFF', fontSize: 15, fontFamily: fontFamilyBold },
+  sheetCancel: { textAlign: 'center', fontSize: 14, fontFamily },
+  reportLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 6, paddingTop: 6,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(128,128,128,0.35)',
+  },
+  reportLinkText: { fontSize: 11, fontFamily: fontFamilyBold },
   deliveredBadge: { backgroundColor: 'rgba(22,163,74,0.1)', padding: 8, borderRadius: 8, alignItems: 'center' },
   deliveredBadgeText: { color: colors.success, fontWeight: 'bold', fontSize: 13, fontFamily: fontFamilyBold },
   

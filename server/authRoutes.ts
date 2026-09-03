@@ -206,6 +206,51 @@ router.post("/verify-otp", otpRateLimiter, verifyOtpLimiter, async (req, res) =>
 });
 
 // PUT /api/auth/user-type
+// GET /api/auth/terms-status — has this user already accepted the current
+// terms for their role?
+//
+// The terms step is meant to appear exactly once, between choosing a role and
+// setting up a profile. It was showing twice, because the navigator rebuilds
+// when the user record changes on acceptance and drops the person back at the
+// start of onboarding. Rather than chase that, the step now asks this and
+// skips itself — so it cannot repeat however navigation behaves, while a
+// genuine amendment still prompts, because the version changed.
+router.get("/terms-status", async (req: any, res) => {
+    try {
+        const authHeader = req.headers["authorization"];
+        const token = authHeader && authHeader.split(" ")[1];
+        if (!token) return res.status(401).json({ message: "No token provided" });
+
+        let decoded: any;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch {
+            return res.status(403).json({ message: "Invalid or expired token" });
+        }
+
+        const role = String(req.query.role || "");
+        if (!isTermsRole(role)) {
+            return res.status(400).json({ message: "role must be customer or milkman" });
+        }
+
+        const version = currentTermsVersion(role);
+        const [row] = await db
+            .select({ id: termsAcceptances.id, acceptedAt: termsAcceptances.acceptedAt })
+            .from(termsAcceptances)
+            .where(and(
+                eq(termsAcceptances.userId, decoded.id),
+                eq(termsAcceptances.role, role),
+                eq(termsAcceptances.version, version),
+            ))
+            .limit(1);
+
+        res.json({ accepted: !!row, version, acceptedAt: row?.acceptedAt ?? null });
+    } catch (error) {
+        console.error("Terms status error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 router.put("/user-type", async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
