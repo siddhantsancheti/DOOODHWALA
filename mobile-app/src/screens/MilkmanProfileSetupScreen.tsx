@@ -7,7 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import { MapPin, Truck, Clock, CreditCard, Plus, X } from 'lucide-react-native';
+import { MapPin, Truck, Clock, CreditCard, Plus, X, Camera, Check } from 'lucide-react-native';
+import { pickAndUploadPan } from '../lib/panUpload';
 import { useTranslation } from '../contexts/LanguageContext';
 import SelectField from '../components/SelectField';
 import { INDIA_STATES } from '../lib/indiaStates';
@@ -22,6 +23,9 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
   const [locationAutoCapture, setLocationAutoCapture] = useState<'idle' | 'capturing' | 'captured' | 'failed'>('idle');
   const [focusedField, setFocusedField] = useState('');
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  // Whether a PAN photo has been uploaded in this session or already exists.
+  const [panUploaded, setPanUploaded] = useState(false);
+  const [panUploading, setPanUploading] = useState(false);
   const isMounted = useRef(true);
 
   const [formData, setFormData] = useState({
@@ -119,6 +123,11 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
       return;
     }
 
+    if (!panUploaded) {
+      Alert.alert(t('requiredFields'), t('panPhotoRequired'));
+      return;
+    }
+
     // Ten characters, five letters, four digits, one letter. Catching a typo
     // here is far cheaper than a failed payout weeks later.
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.panNumber.trim().toUpperCase())) {
@@ -190,7 +199,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
 
   const update = (key: string, val: string) => setFormData({ ...formData, [key]: val });
   const isValid = formData.contactName && formData.businessName && formData.address && formData.city
-    && formData.bankAccountNumber && formData.bankIfscCode && formData.panNumber;
+    && formData.bankAccountNumber && formData.bankIfscCode && formData.panNumber && panUploaded;
 
   const errorColor = '#A8382F';
   const errorBorder = '#C0453B';
@@ -485,6 +494,48 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
             <View style={styles.fieldGroup}>
               {renderInput('panNumber', t('panNumber'), { autoCapitalize: 'characters', maxLength: 10 })}
             </View>
+            <TouchableOpacity
+              style={[styles.panUpload, panUploaded && styles.panUploadDone]}
+              onPress={() => {
+                Alert.alert(t('panPhoto'), t('panPhotoHow'), [
+                  { text: t('camera'), onPress: async () => {
+                      setPanUploading(true);
+                      const ok = await pickAndUploadPan('camera');
+                      setPanUploading(false);
+                      if (ok) setPanUploaded(true);
+                    } },
+                  { text: t('gallery'), onPress: async () => {
+                      setPanUploading(true);
+                      const ok = await pickAndUploadPan('library');
+                      setPanUploading(false);
+                      if (ok) setPanUploaded(true);
+                    } },
+                  { text: t('cancel'), style: 'cancel' },
+                ]);
+              }}
+              disabled={panUploading}
+              activeOpacity={0.75}
+            >
+              {panUploading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <Camera size={18} color={panUploaded ? '#2F6B45' : colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.panUploadTitle, { color: colors.foreground }]}>
+                      {t('panPhoto')}
+                    </Text>
+                    <Text style={[styles.panUploadSub, { color: colors.mutedForeground }]}>
+                      {panUploaded ? t('panPhotoUploaded') : t('panPhotoTapToAdd')}
+                    </Text>
+                  </View>
+                  {panUploaded
+                    ? <Check size={18} color="#2F6B45" />
+                    : <Text style={styles.panRequiredTag}>{t('required')}</Text>}
+                </>
+              )}
+            </TouchableOpacity>
+
             <Text style={styles.verifyNote}>{t('verificationNote')}</Text>
           </View>
 
@@ -550,6 +601,18 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     flexDirection: 'row', alignItems: 'center',
     marginBottom: 16, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  panUpload: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border,
+    borderRadius: 12, padding: 14, marginTop: 4,
+  },
+  panUploadDone: { borderStyle: 'solid', borderColor: '#2F6B45' },
+  panUploadTitle: { fontSize: 14, fontFamily: fontFamilyBold },
+  panUploadSub: { fontSize: 12, fontFamily, marginTop: 1 },
+  panRequiredTag: {
+    fontSize: 11, color: '#A8322D', fontFamily: fontFamilyBold,
+    backgroundColor: 'rgba(168,50,45,0.1)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5,
   },
   verifyNote: {
     fontSize: 12, color: colors.mutedForeground, fontFamily,

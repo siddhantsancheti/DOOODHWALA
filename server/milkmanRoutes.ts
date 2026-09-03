@@ -5,6 +5,10 @@ import { eq, asc, and, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { type AuthRequest } from "./middleware/auth";
 import { vendorCommissionPercent } from "./services/platformFees";
+import multer from "multer";
+import { getStorage } from "firebase-admin/storage";
+import "./services/fcmService"; // initialises firebase-admin, which Storage needs
+import { callerIdentities } from "./services/access";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
@@ -93,6 +97,82 @@ async function currentMilkman(req: AuthRequest) {
         .limit(1);
     return milkman ?? null;
 }
+
+// ── PAN card image ───────────────────────────────────────────────────────────
+//
+// An identity document is not chat media. Chat attachments are written to a
+// public path with a signed URL that never expires, which is right for a photo
+// of a milk crate and wrong for a PAN card. These go to a separate prefix, only
+// the storage path is recorded, and a link is minted on demand — short-lived,
+// and only for the milkman himself or an admin.
+const KYC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || "dooodhwala-7dce6.firebasestorage.app";
+const kycUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 8 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+        // Photographs only. A PDF or a document here is either a mistake or
+        // someone probing what the endpoint will accept.
+        cb(null, /^image\/(jpe?g|png|heic|heif|webp)$/i.test(file.mimetype));
+    },
+});
+
+// POST /api/milkmen/pan-image
+router.post("/pan-image", kycUpload.single("file"), async (req: AuthRequest, res) => {
+    try {
+        const milkman = await currentMilkman(req);
+        if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
+        if (!req.file) return res.status(400).json({ message: "Attach a photo of your PAN card" });
+
+        const ext = (req.file.mimetype.split("/")[1] || "jpg").replace("jpeg", "jpg");
+        const path = `kyc/milkmen/${milkman.id}/pan-${Date.now()}.${ext}`;
+
+        await getStorage().bucket(KYC_BUCKET).file(path).save(req.file.buffer, {
+            contentType: req.file.mimetype,
+            resumable: false,
+            metadata: { contentType: req.file.mimetype, cacheControl: "private, max-age=0" },
+        });
+
+        // The path, not a URL. Anything holding a permanent link to someone's
+        // PAN card is a leak waiting for a copy-paste.
+        await db.update(milkmen)
+            .set({ panImageUrl: path, verificationStatus: "pending", updatedAt: new Date() })
+            .where(eq(milkmen.id, milkman.id));
+
+        res.json({ success: true, uploaded: true });
+    } catch (error) {
+        console.error("PAN upload error:", error);
+        res.status(500).json({ message: "Could not upload the photo. Please try again." });
+    }
+});
+
+// GET /api/milkmen/pan-image — a link that works for fifteen minutes.
+router.get("/pan-image", async (req: AuthRequest, res) => {
+    try {
+        const me = await callerIdentities(req);
+        const requested = req.query.milkmanId ? parseInt(req.query.milkmanId as string) : null;
+
+        // A milkman may see his own. An admin may see anyone's, because someone
+        // has to check them. Nobody else, ever.
+        const targetId = me.isAdmin && requested ? requested : me.milkmanId;
+        if (targetId == null) return res.status(403).json({ message: "Not authorized" });
+        if (!me.isAdmin && requested != null && requested !== me.milkmanId) {
+            return res.status(403).json({ message: "Not authorized" });
+        }
+
+        const [milkman] = await db.select().from(milkmen).where(eq(milkmen.id, targetId)).limit(1);
+        if (!milkman?.panImageUrl) return res.status(404).json({ message: "No PAN photo on file" });
+
+        const [url] = await getStorage()
+            .bucket(KYC_BUCKET)
+            .file(milkman.panImageUrl)
+            .getSignedUrl({ action: "read", expires: Date.now() + 15 * 60 * 1000 });
+
+        res.json({ url, expiresInMinutes: 15 });
+    } catch (error) {
+        console.error("PAN fetch error:", error);
+        res.status(500).json({ message: "Could not open the photo" });
+    }
+});
 
 // GET /api/milkmen/households — the milkman's customers as doors, not people.
 //
