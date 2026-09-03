@@ -28,6 +28,12 @@ window.addEventListener('error', (event) => {
 
 // Initialize Firebase services after DOM is ready
 async function initializeApp() {
+  // Claim the admin device key from the URL before anything navigates away.
+  try {
+    const { captureAdminDeviceKey } = await import('./lib/queryClient');
+    captureAdminDeviceKey();
+  } catch { /* not fatal — admin simply will not unlock on this machine */ }
+
   const analytics = await initializeFirebase();
   
   if (analytics) {

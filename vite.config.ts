@@ -23,6 +23,18 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  // Load .env from the repository root, not from `root` above.
+  //
+  // Without this Vite looks for client/.env, finds nothing, and every
+  // VITE_FIREBASE_* value builds as undefined — so firebase-config hands
+  // initializeApp an undefined apiKey, it throws auth/invalid-api-key during
+  // startup, and the React app never mounts. The whole web client renders a
+  // blank page, which is exactly what it was doing.
+  //
+  // It worked on Render because the values were real environment variables
+  // there, which Vite reads directly. Here they live in a file that only the
+  // server was loading at runtime.
+  envDir: path.resolve(import.meta.dirname),
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),

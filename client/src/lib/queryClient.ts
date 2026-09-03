@@ -43,6 +43,18 @@ async function throwIfResNotOk(res: Response) {
  * this browser and sent on every admin call. The URL is cleaned up immediately
  * so the key does not sit in history or get pasted to someone else.
  */
+/**
+ * Claim the admin device key from the URL at startup.
+ *
+ * Reading it lazily on the first admin request was circular: the parameter was
+ * only consumed when an admin call happened, but an admin call cannot succeed
+ * without the key — and by then the app had navigated and the parameter was
+ * gone. Registering a laptop was impossible.
+ */
+export function captureAdminDeviceKey(): void {
+  adminDeviceKey();
+}
+
 export function adminDeviceKey(): string | null {
   try {
     const params = new URLSearchParams(window.location.search);
