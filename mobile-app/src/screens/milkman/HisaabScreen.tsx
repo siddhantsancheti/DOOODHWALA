@@ -99,7 +99,7 @@ export default function HisaabScreen({ navigation, route }: any) {
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel} numberOfLines={1}>
-                    {t('platformFee')} ({data.commissionPercent}%)
+                    {t('serviceCharge')} ({data.commissionPercent}%)
                   </Text>
                   <Text style={styles.breakdownValue}>− {money(data.commissionAmount)}</Text>
                 </View>
@@ -110,15 +110,6 @@ export default function HisaabScreen({ navigation, route }: any) {
                 </View>
               </View>
             </LinearGradient>
-
-            {/* An unset rate means the numbers above are gross, not take-home.
-                Say so rather than letting a 0% deduction read as "no fee". */}
-            {!data.commissionSet && (
-              <View style={styles.notice}>
-                <Info size={15} color="#A8730F" />
-                <Text style={styles.noticeText}>{t('commissionNotSet')}</Text>
-              </View>
-            )}
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle} numberOfLines={1}>{t('customerBills')}</Text>

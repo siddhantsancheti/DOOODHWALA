@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, NativeSyntheticEvent, NativeScrollEvent,
@@ -35,6 +35,10 @@ export default function TermsScreen({ route, navigation }: any) {
 
   const [agreed, setAgreed] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
+  // Whether this person has already accepted the current version for this role.
+  // Undefined until the check returns, so the screen does not flash before it
+  // knows whether it should be here at all.
+  const [alreadyAccepted, setAlreadyAccepted] = useState<boolean | undefined>(undefined);
   const [contentHeight, setContentHeight] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -69,6 +73,34 @@ export default function TermsScreen({ route, navigation }: any) {
   //     at all — which is what a short document, a big screen or a failed
   //     render produces.
   const markSeen = useCallback(() => setReachedEnd(true), []);
+
+  // The terms are meant to appear exactly once, between choosing a role and
+  // setting up a profile. They were showing twice, because the navigator
+  // rebuilds when the user record changes on acceptance and drops the person
+  // back at the start of onboarding. Asking the server settles it: if this
+  // version is already accepted, pass straight through. A genuine amendment
+  // still prompts, because the version changes.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest({ url: `/api/auth/terms-status?role=${role}`, method: 'GET' });
+        const body = await res.json();
+        if (cancelled) return;
+        if (body?.accepted) {
+          setAlreadyAccepted(true);
+          navigation.replace(role === 'customer' ? 'CustomerProfileSetup' : 'MilkmanProfileSetup');
+        } else {
+          setAlreadyAccepted(false);
+        }
+      } catch {
+        // If the check fails, show the terms. Asking twice is a small
+        // annoyance; skipping consent that was never given is not.
+        if (!cancelled) setAlreadyAccepted(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [role, navigation]);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
