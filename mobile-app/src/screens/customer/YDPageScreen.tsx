@@ -32,6 +32,11 @@ export default function YDPageScreen({ navigation }: any) {
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
   const [showChat, setShowChat] = useState(false);
+  // Which dairyman's chat is open. A customer may have several, so the chat is
+  // no longer implied by "the" assigned one.
+  const [activeDairymanId, setActiveDairymanId] = useState<number | null>(null);
+  // Browsing to add another, even though one is already assigned.
+  const [showBrowse, setShowBrowse] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [showMediaGallery, setShowMediaGallery] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -57,6 +62,12 @@ export default function YDPageScreen({ navigation }: any) {
     queryKey: ['/api/customers/profile'], enabled: !!user,
   });
 
+  // Every dairyman this customer buys from. A customer may have several, and
+  // none outranks another — they are ordered by when they were added.
+  const { data: myDairymen = [] } = useQuery<any[]>({
+    queryKey: ['/api/customers/dairymen'], enabled: !!user,
+  });
+
   const { data: milkmen } = useQuery<any>({
     queryKey: ['/api/milkmen'], enabled: !!user,
   });
@@ -68,7 +79,7 @@ export default function YDPageScreen({ navigation }: any) {
 
   // Chat history (for the shared-media gallery in Chat Info). Only fetched once
   // the customer is assigned a dairyman.
-  const assignedId = customerProfile?.assignedMilkmanId;
+  const assignedId = activeDairymanId ?? customerProfile?.assignedMilkmanId;
   const { data: chatHistory = [] } = useQuery<any[]>({
     queryKey: [`/api/chat/group/${assignedId}`], enabled: !!assignedId,
   });
@@ -346,32 +357,72 @@ export default function YDPageScreen({ navigation }: any) {
 
       {yourDairyman ? (
         <View style={styles.mainContainer}>
-          {/* Assigned dairyman — single button that opens the chat to place orders */}
-          <TouchableOpacity
-            style={[styles.premiumCard]}
-            activeOpacity={0.9}
-            onPress={() => setShowChat(true)}
-          >
-            <View style={styles.cardHeader}>
-              <View style={[styles.avatarContainer, { backgroundColor: isDark ? '#22304A40' : '#E4EAF3' }]}>
-                <Text style={[styles.avatarText, { color: colors.primary }]}>
-                  {yourDairyman.contactName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.headerInfo}>
-                <Text style={[styles.dairymanName, { color: isDark ? '#F5EFE5' : '#1E3A8A' }]}>
-                  {yourDairyman.contactName}
-                </Text>
-                <Text style={[styles.businessName, { color: isDark ? '#A6C2E8' : '#162C4D' }]}>
-                  {yourDairyman.businessName}
-                </Text>
-                <Text style={styles.tapToChatHint}>
-                  {t('clickToChatAndOrders') || "Tap to chat & place daily orders"}
-                </Text>
-              </View>
-              <MessageCircle size={28} color={colors.primary} />
+          {/* One card per dairyman. Tapping a card opens that dairyman's chat,
+              which is where orders are placed — pick a dairyman, then order.
+              Nothing here ranks them; they are simply people you buy from, in
+              the order they were added. */}
+          {myDairymen.length > 1 && (
+            <View style={styles.listHeaderRow}>
+              <Text style={[styles.listHeaderText, { color: textColor }]}>{t('yourDairymen')}</Text>
+              <Text style={[styles.listHeaderCount, { color: textMuted }]}>{myDairymen.length}</Text>
             </View>
-          </TouchableOpacity>
+          )}
+
+          {(myDairymen.length > 0
+            ? myDairymen
+            : [{ milkmanId: yourDairyman.id, contactName: yourDairyman.contactName, businessName: yourDairyman.businessName }]
+          ).map((d: any) => (
+            <TouchableOpacity
+              key={d.milkmanId}
+              style={[styles.premiumCard]}
+              activeOpacity={0.9}
+              onPress={() => { setActiveDairymanId(d.milkmanId); setShowChat(true); }}
+            >
+              <View style={styles.cardHeader}>
+                <View style={[styles.avatarContainer, { backgroundColor: isDark ? '#22304A40' : '#E4EAF3' }]}>
+                  <Text style={[styles.avatarText, { color: colors.primary }]}>
+                    {(d.contactName || d.businessName || '?').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.headerInfo}>
+                  <Text style={[styles.dairymanName, { color: isDark ? '#F5EFE5' : '#1E3A8A' }]}>
+                    {d.contactName}
+                  </Text>
+                  <Text style={[styles.businessName, { color: isDark ? '#A6C2E8' : '#162C4D' }]}>
+                    {d.businessName}
+                  </Text>
+                  <Text style={styles.tapToChatHint}>
+                    {myGroup?.chatName
+                      ? `${myGroup.chatName} · ${myGroup.memberCount || myGroup.members?.length || 1}`
+                      : t('clickToChatAndOrders') || 'Tap to chat & place daily orders'}
+                  </Text>
+                </View>
+                <MessageCircle size={28} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
+          ))}
+
+          {/* Both entries stay reachable. One person requests a dairyman and the
+              chat that appears is the household; everyone else joins by code —
+              so there is no "create household" step, only join. */}
+          <View style={styles.addRow}>
+            <TouchableOpacity
+              style={[styles.addBtn, { borderColor: colors.primary }]}
+              onPress={() => setShowBrowse(true)}
+              activeOpacity={0.7}
+            >
+              <Plus size={16} color={colors.primary} />
+              <Text style={[styles.addBtnText, { color: colors.primary }]}>{t('addDairyman')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.addBtn, { borderColor: colors.primary }]}
+              onPress={() => { setGroupMode('join'); setShowGroupModal(true); }}
+              activeOpacity={0.7}
+            >
+              <Users size={16} color={colors.primary} />
+              <Text style={[styles.addBtnText, { color: colors.primary }]}>{t('joinHousehold')}</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Settings + Pay Bills */}
           <View style={styles.assignedActionsRow}>
@@ -426,7 +477,12 @@ export default function YDPageScreen({ navigation }: any) {
             <Text style={[styles.bigActionText, { color: textColor }]}>{t('callDairyman') || "Call Dairyman"}</Text>
           </TouchableOpacity>
         </View>
-      ) : (
+      ) : null}
+
+      {/* The picker stays reachable once a dairyman is assigned, so adding
+          another is one tap. It used to vanish the moment you had one, which is
+          what made a second dairyman impossible to reach. */}
+      {(!yourDairyman || showBrowse) && (
         <>
           <View style={styles.emptyState}>
             <Heart size={48} color={colors.primary} style={{ marginBottom: 16 }} />
@@ -877,6 +933,18 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
 
   tabContent: { flex: 1, padding: 16 },
   mainContainer: { flex: 1 },
+  listHeaderRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    marginBottom: 8, paddingHorizontal: 2,
+  },
+  listHeaderText: { fontSize: 15, fontFamily: fontFamilyBold },
+  listHeaderCount: { fontSize: 13, fontFamily },
+  addRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  addBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, borderWidth: 1, borderStyle: 'dashed', borderRadius: 12, paddingVertical: 12,
+  },
+  addBtnText: { fontSize: 13, fontFamily: fontFamilyBold },
   premiumCard: {
     backgroundColor: isDark ? '#1E3A8A20' : '#F2F5FA',
     borderColor: isDark ? '#22304A' : '#BFDBFE',
