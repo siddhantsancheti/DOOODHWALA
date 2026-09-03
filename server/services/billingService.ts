@@ -63,13 +63,38 @@ export class BillingService {
             const oi = Array.isArray(msg.orderItems) ? (msg.orderItems as any[]) : [];
             const qty = parseFloat(msg.orderQuantity?.toString() || "0")
                 || oi.reduce((s, it) => s + (parseFloat(it.quantity) || 0), 0);
-            items.push({
-                product: msg.orderProduct || oi.map((i) => i.product).join(", ") || "Order",
-                quantity: qty,
-                price: qty > 0 ? amount / qty : amount,
-                amount,
-                customerId: msg.customerId,
-            });
+            // One row per product, each carrying the day it was ordered.
+            //
+            // A multi-product order used to collapse into a single row reading
+            // "Cow Milk, Buffalo Milk" with the quantities added together,
+            // which is unreadable on a bill and useless on an order history.
+            // The date is stored so the history can group by day without
+            // re-deriving it from the messages.
+            const orderedOn = msg.createdAt ?? new Date();
+            if (oi.length > 0) {
+                for (const line of oi) {
+                    const lineQty = parseFloat(String(line.quantity ?? "0")) || 0;
+                    const linePrice = parseFloat(String(line.price ?? "0")) || 0;
+                    const lineAmount = linePrice > 0 ? lineQty * linePrice : 0;
+                    items.push({
+                        date: orderedOn,
+                        product: line.product || line.name || "Order",
+                        quantity: lineQty,
+                        price: linePrice || (lineQty > 0 ? amount / qty : amount),
+                        amount: lineAmount || (qty > 0 ? (amount * lineQty) / qty : amount),
+                        customerId: msg.customerId,
+                    });
+                }
+            } else {
+                items.push({
+                    date: orderedOn,
+                    product: msg.orderProduct || "Order",
+                    quantity: qty,
+                    price: qty > 0 ? amount / qty : amount,
+                    amount,
+                    customerId: msg.customerId,
+                });
+            }
         }
 
         const currentMonth = currentMonthKey();

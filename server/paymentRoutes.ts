@@ -12,6 +12,7 @@ import { broadcast } from "./websocket";
 import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
 import { notifyUsers } from "./services/notify";
+import { renderInvoiceHtml, renderOrderHistoryHtml } from "./services/invoiceHtml";
 
 const router = Router();
 
@@ -156,6 +157,84 @@ router.post("/generate", async (req: AuthRequest, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+
+// GET /api/bills/:id/invoice — the customer's downloadable bill.
+//
+// Returns a complete HTML document. The app prints it to PDF and offers it to
+// share or save; the web client can print the same markup. Rendering it here
+// rather than in each client means one definition of what a bill looks like,
+// and one place where the platform fee is shown as its own line — which
+// clause 8.7 of the customer terms requires.
+router.get("/:id/history", async (req: AuthRequest, res) => {
+    return renderBillDocument(req, res, "history");
+});
+
+router.get("/:id/invoice", async (req: AuthRequest, res) => {
+    return renderBillDocument(req, res, "invoice");
+});
+
+async function renderBillDocument(req: AuthRequest, res: any, kind: "invoice" | "history") {
+    try {
+        const billId = parseInt(req.params.id);
+        if (isNaN(billId)) return res.status(400).json({ message: "Invalid bill id" });
+
+        const [bill] = await db.select().from(bills).where(eq(bills.id, billId)).limit(1);
+        if (!bill) return res.status(404).json({ message: "Bill not found" });
+
+        // Only the people on this bill may read it — the household that owes it
+        // and the milkman owed. A bill carries a home address and a month of
+        // buying habits.
+        const parties = await partyUserIds({
+            customerId: bill.customerId,
+            milkmanId: bill.milkmanId,
+            familyChatId: bill.familyChatId,
+        });
+        const me = await callerIdentities(req);
+        if (!me.isAdmin && !(req.user?.id && parties.includes(req.user.id))) {
+            return res.status(403).json({ message: "Not your bill" });
+        }
+
+        // Whose bill it is: the named customer, or the household's primary.
+        let customer: any = null;
+        if (bill.customerId != null) {
+            customer = await db.query.customers.findFirst({ where: eq(customers.id, bill.customerId) });
+        } else if (bill.familyChatId != null) {
+            const [member] = await db
+                .select({ userId: familyChatMembers.userId })
+                .from(familyChatMembers)
+                .where(eq(familyChatMembers.chatId, bill.familyChatId))
+                .limit(1);
+            if (member?.userId) {
+                customer = await db.query.customers.findFirst({ where: eq(customers.userId, member.userId) });
+            }
+        }
+
+        const supplier = await db.query.milkmen.findFirst({ where: eq(milkmen.id, bill.milkmanId) });
+
+        const html = kind === "history"
+            ? renderOrderHistoryHtml({
+                bill,
+                customerName: customer?.name,
+                customerAddress: customer?.address,
+                supplierName: supplier?.businessName,
+            })
+            : renderInvoiceHtml({
+                bill,
+                customerName: customer?.name,
+                customerAddress: customer?.address,
+                customerPhone: customer?.phone,
+                supplierName: supplier?.businessName,
+                supplierAddress: supplier?.address,
+                supplierPhone: supplier?.phone,
+            });
+
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.send(html);
+    } catch (error) {
+        console.error(`Bill ${kind} render error:`, error);
+        res.status(500).json({ message: "Could not build the document" });
+    }
+}
 
 // GET /api/payments/cod/pending — cash the signed-in milkman is waiting to collect.
 //
