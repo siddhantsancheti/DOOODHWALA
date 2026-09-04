@@ -4,6 +4,8 @@ import {
   ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import OnboardingHeader from '../components/OnboardingHeader';
+import { useAuth } from '../hooks/useAuth';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
@@ -14,6 +16,7 @@ import SelectField from '../components/SelectField';
 import { INDIA_STATES } from '../lib/indiaStates';
 
 export default function MilkmanProfileSetupScreen({ navigation }: any) {
+  const { logout } = useAuth();
   const queryClient = useQueryClient();
   const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
@@ -225,6 +228,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <OnboardingHeader onBack={() => navigation.canGoBack() ? navigation.goBack() : logout()} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}

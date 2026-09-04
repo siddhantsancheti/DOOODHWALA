@@ -4,6 +4,8 @@ import {
   Image, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import OnboardingHeader from '../components/OnboardingHeader';
+import { useAuth } from '../hooks/useAuth';
 import { Users, Truck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing } from '../theme';
@@ -13,6 +15,7 @@ const logo = require('../../assets/logo.png');
 const { width } = Dimensions.get('window');
 
 export default function UserTypeSelectionScreen({ navigation }: any) {
+  const { logout } = useAuth();
   const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
@@ -42,6 +45,10 @@ export default function UserTypeSelectionScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* No stack to pop to here — this is the first step after signing in.
+          Back therefore means "I signed in as the wrong person", which is a
+          real mistake when someone else's phone was used to register. */}
+      <OnboardingHeader onBack={() => logout()} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

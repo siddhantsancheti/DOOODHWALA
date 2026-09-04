@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import OnboardingHeader from '../components/OnboardingHeader';
 import {
   View,
   Text,
@@ -36,7 +37,6 @@ export default function LoginScreen({ navigation }: any) {
   const [resendTimer, setResendTimer] = useState(0);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [otpFocused, setOtpFocused] = useState(false);
-  const [showLangMenu, setShowLangMenu] = useState(false);
 
   const styles = React.useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
@@ -177,34 +177,16 @@ export default function LoginScreen({ navigation }: any) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Back only once an OTP has been sent — at the phone step there is
+              nothing behind this screen to return to. */}
+          <OnboardingHeader
+            showBack={step === 'otp'}
+            onBack={() => { setStep('phone'); setOtp(''); }}
+          />
+
           <View style={styles.card}>
             {/* Logo */}
             <View style={styles.logoContainer}>
-              <View style={styles.headerTopActions}>
-                <TouchableOpacity 
-                   style={[styles.langBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
-                   onPress={() => setShowLangMenu(!showLangMenu)}
-                >
-                  <Globe size={16} color={colors.foreground} />
-                  <Text style={[styles.langBtnText, { color: colors.foreground }]}>{language}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {showLangMenu && (
-                <View style={[styles.langMenu, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {(['English', 'Hindi', 'Marathi'] as Language[]).map((lang) => (
-                    <TouchableOpacity 
-                      key={lang} 
-                      style={styles.langItem} 
-                      onPress={() => { setLanguage(lang); setShowLangMenu(false); }}
-                    >
-                      <Text style={[styles.langText, { color: colors.foreground }, language === lang && { color: colors.primary, fontWeight: '700' }]}>{lang}</Text>
-                      {language === lang && <Check size={14} color={colors.primary} />}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
               <Image source={logo} style={styles.logo} resizeMode="contain" />
             </View>
 
@@ -370,46 +352,6 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
     alignItems: 'center',
     marginBottom: spacing['2xl'],
     position: 'relative',
-  },
-  headerTopActions: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    zIndex: 10,
-  },
-  langBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
-  },
-  langBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  langMenu: {
-    position: 'absolute',
-    top: 30,
-    right: -10,
-    width: 120,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 4,
-    ...shadows.lg,
-    zIndex: 1000,
-  },
-  langItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  langText: {
-    fontSize: 14,
-    fontFamily,
   },
   logo: {
     width: 128,

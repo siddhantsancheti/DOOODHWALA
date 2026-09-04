@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import OnboardingHeader from '../components/OnboardingHeader';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ArrowDown, ShieldCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -185,6 +186,9 @@ export default function TermsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Language matters most here: this is the longest text in the app, and
+          someone who cannot read it cannot give meaningful consent. */}
+      <OnboardingHeader onBack={() => navigation.goBack()} />
       <LinearGradient
         colors={ROLE_GRADIENT[role]}
         start={{ x: 0, y: 0 }}

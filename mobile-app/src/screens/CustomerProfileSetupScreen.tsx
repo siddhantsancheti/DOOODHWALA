@@ -5,6 +5,8 @@ import {
   useColorScheme
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import OnboardingHeader from '../components/OnboardingHeader';
+import { useAuth } from '../hooks/useAuth';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
@@ -16,6 +18,7 @@ import { useTranslation } from '../contexts/LanguageContext';
 const logo = require('../../assets/logo.png');
 
 export default function CustomerProfileSetupScreen({ navigation }: any) {
+  const { logout } = useAuth();
   const queryClient = useQueryClient();
   const { t, language, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   
@@ -211,6 +214,7 @@ export default function CustomerProfileSetupScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <OnboardingHeader onBack={() => navigation.canGoBack() ? navigation.goBack() : logout()} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
