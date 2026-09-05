@@ -517,7 +517,17 @@ router.post("/", async (req: AuthRequest, res) => {
             deliveryTimeStart,
             deliveryTimeEnd,
             dairyItems,
-            deliverySlots
+            deliverySlots,
+            // Bank and PAN. These were sent by the setup screen and silently
+            // dropped here, so a milkman could fill the whole form, save it,
+            // and be bounced straight back — the navigator gates on these being
+            // present, and they never were.
+            bankAccountHolderName,
+            bankAccountNumber,
+            bankIfscCode,
+            bankName,
+            upiId,
+            panNumber,
         } = req.body;
 
         // Check if milkman profile already exists
@@ -541,6 +551,14 @@ router.post("/", async (req: AuthRequest, res) => {
                     deliveryTimeEnd,
                     dairyItems,
                     deliverySlots,
+                    // Only overwrite when a value was sent, so a later edit that
+                    // omits these does not wipe details he has already given.
+                    ...(bankAccountHolderName !== undefined ? { bankAccountHolderName } : {}),
+                    ...(bankAccountNumber !== undefined ? { bankAccountNumber } : {}),
+                    ...(bankIfscCode !== undefined ? { bankIfscCode } : {}),
+                    ...(bankName !== undefined ? { bankName } : {}),
+                    ...(upiId !== undefined ? { upiId } : {}),
+                    ...(panNumber !== undefined ? { panNumber } : {}),
                     updatedAt: new Date(),
                 })
                 .where(eq(milkmen.id, existingMilkman.id))
@@ -581,6 +599,12 @@ router.post("/", async (req: AuthRequest, res) => {
                 deliveryTimeStart: deliveryTimeStart || "06:00",
                 deliveryTimeEnd: deliveryTimeEnd || "09:00",
                 dairyItems: dairyItems || [],
+                bankAccountHolderName,
+                bankAccountNumber,
+                bankIfscCode,
+                bankName,
+                upiId,
+                panNumber,
                 deliverySlots: deliverySlots || [
                     { id: 1, name: "Morning", startTime: "06:00", endTime: "09:00", isActive: true },
                     { id: 2, name: "Evening", startTime: "17:00", endTime: "20:00", isActive: true }
