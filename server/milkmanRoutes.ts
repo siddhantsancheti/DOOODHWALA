@@ -117,14 +117,21 @@ const kycUpload = multer({
 });
 
 // POST /api/milkmen/pan-image
+//
+// Keyed to the user, not the milkman row.
+//
+// A new milkman has no milkmen row until he taps Complete Setup — but the form
+// will not submit without the photo, and this endpoint used to require the row.
+// That was a deadlock: nobody could sign up. The file is stored under the
+// user's own prefix, which exists the moment he logs in, and the path travels
+// back to the client so it can be saved with the profile.
 router.post("/pan-image", kycUpload.single("file"), async (req: AuthRequest, res) => {
     try {
-        const milkman = await currentMilkman(req);
-        if (!milkman) return res.status(404).json({ message: "Milkman profile not found" });
         if (!req.file) return res.status(400).json({ message: "Attach a photo of your PAN card" });
 
+        const userId = req.user!.id;
         const ext = (req.file.mimetype.split("/")[1] || "jpg").replace("jpeg", "jpg");
-        const path = `kyc/milkmen/${milkman.id}/pan-${Date.now()}.${ext}`;
+        const path = `kyc/milkmen/user-${userId}/pan-${Date.now()}.${ext}`;
 
         await getStorage().bucket(KYC_BUCKET).file(path).save(req.file.buffer, {
             contentType: req.file.mimetype,
@@ -132,18 +139,30 @@ router.post("/pan-image", kycUpload.single("file"), async (req: AuthRequest, res
             metadata: { contentType: req.file.mimetype, cacheControl: "private, max-age=0" },
         });
 
-        // The path, not a URL. Anything holding a permanent link to someone's
-        // PAN card is a leak waiting for a copy-paste.
-        await db.update(milkmen)
-            .set({ panImageUrl: path, verificationStatus: "pending", updatedAt: new Date() })
-            .where(eq(milkmen.id, milkman.id));
+        // If he already has a profile, record it now. If he does not, the path
+        // goes back with the response and is saved when the profile is created.
+        const milkman = await currentMilkman(req);
+        if (milkman) {
+            await db.update(milkmen)
+                .set({ panImageUrl: path, verificationStatus: "pending", updatedAt: new Date() })
+                .where(eq(milkmen.id, milkman.id));
+        }
 
-        res.json({ success: true, uploaded: true });
+        res.json({ success: true, uploaded: true, path });
     } catch (error) {
         console.error("PAN upload error:", error);
         res.status(500).json({ message: "Could not upload the photo. Please try again." });
     }
 });
+
+/**
+ * A PAN path is only acceptable if it sits under this user's own prefix.
+ * Without the check, a client could name someone else's file and attach it to
+ * their profile.
+ */
+function ownsPanPath(userId: string, path: unknown): path is string {
+    return typeof path === "string" && path.startsWith(`kyc/milkmen/user-${userId}/`);
+}
 
 // GET /api/milkmen/pan-image — a link that works for fifteen minutes.
 router.get("/pan-image", async (req: AuthRequest, res) => {
@@ -528,6 +547,7 @@ router.post("/", async (req: AuthRequest, res) => {
             bankName,
             upiId,
             panNumber,
+            panImagePath,
         } = req.body;
 
         // Check if milkman profile already exists
@@ -559,6 +579,9 @@ router.post("/", async (req: AuthRequest, res) => {
                     ...(bankName !== undefined ? { bankName } : {}),
                     ...(upiId !== undefined ? { upiId } : {}),
                     ...(panNumber !== undefined ? { panNumber } : {}),
+                    ...(ownsPanPath(userId, panImagePath)
+                        ? { panImageUrl: panImagePath, verificationStatus: "pending" }
+                        : {}),
                     updatedAt: new Date(),
                 })
                 .where(eq(milkmen.id, existingMilkman.id))
@@ -605,6 +628,7 @@ router.post("/", async (req: AuthRequest, res) => {
                 bankName,
                 upiId,
                 panNumber,
+                ...(ownsPanPath(userId, panImagePath) ? { panImageUrl: panImagePath } : {}),
                 deliverySlots: deliverySlots || [
                     { id: 1, name: "Morning", startTime: "06:00", endTime: "09:00", isActive: true },
                     { id: 2, name: "Evening", startTime: "17:00", endTime: "20:00", isActive: true }

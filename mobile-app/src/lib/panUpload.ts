@@ -12,7 +12,7 @@ import * as SecureStore from "./storage";
  * server stores only the path and mints a short-lived link when it is actually
  * needed.
  */
-export async function pickAndUploadPan(source: "camera" | "library"): Promise<boolean> {
+export async function pickAndUploadPan(source: "camera" | "library"): Promise<string | null> {
     try {
         const perm = source === "camera"
             ? await ImagePicker.requestCameraPermissionsAsync()
@@ -25,7 +25,7 @@ export async function pickAndUploadPan(source: "camera" | "library"): Promise<bo
                     ? "Allow camera access to photograph your PAN card."
                     : "Allow photo access to choose your PAN card.",
             );
-            return false;
+            return null;
         }
 
         const result = source === "camera"
@@ -35,7 +35,7 @@ export async function pickAndUploadPan(source: "camera" | "library"): Promise<bo
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
             });
 
-        if (result.canceled || !result.assets?.[0]) return false;
+        if (result.canceled || !result.assets?.[0]) return null;
         const asset = result.assets[0];
 
         await ensureApiBaseUrl();
@@ -54,14 +54,15 @@ export async function pickAndUploadPan(source: "camera" | "library"): Promise<bo
             body: form,
         });
 
-        if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            throw new Error(body?.message || "Upload failed");
-        }
-        return true;
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body?.message || "Upload failed");
+
+        // The storage path comes back so a milkman who has no profile yet can
+        // carry it into the profile he is about to create.
+        return body?.path ?? null;
     } catch (e: any) {
         console.error("PAN upload failed:", e);
         Alert.alert("Could not upload", e?.message || "Please try again.");
-        return false;
+        return null;
     }
 }

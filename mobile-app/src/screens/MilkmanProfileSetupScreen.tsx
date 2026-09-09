@@ -27,7 +27,8 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
   const [focusedField, setFocusedField] = useState('');
   const [submitAttempted, setSubmitAttempted] = useState(false);
   // Whether a PAN photo has been uploaded in this session or already exists.
-  const [panUploaded, setPanUploaded] = useState(false);
+  const [panPath, setPanPath] = useState<string | null>(null);
+  const panUploaded = !!panPath;
   const [panUploading, setPanUploading] = useState(false);
   const isMounted = useRef(true);
 
@@ -181,6 +182,9 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
         bankName: formData.bankName || undefined,
         upiId: formData.upiId || undefined,
         panNumber: formData.panNumber.trim().toUpperCase(),
+        // A new milkman has no profile when he uploads, so the photo's storage
+        // path rides along here and is attached as the profile is created.
+        panImagePath: panPath || undefined,
         pricePerLiter: basePricePerLiter,
         deliveryTimeStart: activeSlots[0].startTime,
         deliveryTimeEnd: activeSlots[0].endTime,
@@ -504,15 +508,15 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
                 Alert.alert(t('panPhoto'), t('panPhotoHow'), [
                   { text: t('camera'), onPress: async () => {
                       setPanUploading(true);
-                      const ok = await pickAndUploadPan('camera');
+                      const path = await pickAndUploadPan('camera');
                       setPanUploading(false);
-                      if (ok) setPanUploaded(true);
+                      if (path) setPanPath(path);
                     } },
                   { text: t('gallery'), onPress: async () => {
                       setPanUploading(true);
-                      const ok = await pickAndUploadPan('library');
+                      const path = await pickAndUploadPan('library');
                       setPanUploading(false);
-                      if (ok) setPanUploaded(true);
+                      if (path) setPanPath(path);
                     } },
                   { text: t('cancel'), style: 'cancel' },
                 ]);
