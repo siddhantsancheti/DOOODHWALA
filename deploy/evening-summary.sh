@@ -29,32 +29,41 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-if [ -z "$ROWS" ]; then
+# ROLLUP always emits its grand-total row, even over nothing — on a day with no
+# payments that row comes back as TOTAL|0||||| and the output is not empty. So
+# count the real rows instead: no dairyman lines means no money moved, and
+# nothing is worth sending.
+if [ "$(grep -c '|f$' <<< "$ROWS")" -eq 0 ]; then
     logger -t dooodhwala "evening summary: no bills paid today, nothing sent"
     exit 0
 fi
 
 TODAY="$(TZ=Asia/Kolkata date '+%d %b')"
 MSG="DOOODHWALA — $TODAY"
-TOTAL_EARNED=0; TOTAL_OWED_TO_YOU=0; TOTAL_YOU_OWE=0; TOTAL_UNMATCHED=0
+TAIL=""
 
-while IFS='|' read -r WHO BILLS EARNED OWES_YOU YOU_OWE UNMATCHED; do
+# No arithmetic here — every figure below is final as Postgres computed it, and
+# "greater than zero" is a string test against a fixed-scale decimal, so the
+# shell never has to add or compare money.
+nonzero() { [ -n "$1" ] && [ "$1" != "0" ] && [ "$1" != "0.00" ]; }
+
+while IFS='|' read -r WHO BILLS EARNED OWES_YOU YOU_OWE UNMATCHED IS_TOTAL; do
     [ -z "$WHO" ] && continue
-    MSG="$MSG"$'\n'$'\n'"$WHO — $BILLS bill(s), you earned Rs $EARNED"
-    [ "$(echo "$OWES_YOU > 0" | bc -l)" = "1" ] && MSG="$MSG"$'\n'"  collects cash, owes you Rs $OWES_YOU"
-    [ "$(echo "$YOU_OWE > 0"  | bc -l)" = "1" ] && MSG="$MSG"$'\n'"  SEND HIM Rs $YOU_OWE"
-    [ "${UNMATCHED:-0}" -gt 0 ] && MSG="$MSG"$'\n'"  $UNMATCHED bill(s) with no matched payment — direction unknown"
 
-    TOTAL_EARNED=$(echo "$TOTAL_EARNED + $EARNED" | bc)
-    TOTAL_OWED_TO_YOU=$(echo "$TOTAL_OWED_TO_YOU + $OWES_YOU" | bc)
-    TOTAL_YOU_OWE=$(echo "$TOTAL_YOU_OWE + $YOU_OWE" | bc)
-    TOTAL_UNMATCHED=$(( TOTAL_UNMATCHED + ${UNMATCHED:-0} ))
+    if [ "$IS_TOTAL" = "t" ]; then
+        TAIL="Today: $BILLS bill(s), revenue Rs $EARNED"
+        nonzero "$OWES_YOU" && TAIL="$TAIL"$'\n'"To collect from dairymen: Rs $OWES_YOU"
+        nonzero "$YOU_OWE"  && TAIL="$TAIL"$'\n'"To send to dairymen: Rs $YOU_OWE"
+        [ "${UNMATCHED:-0}" -gt 0 ] && TAIL="$TAIL"$'\n'"($UNMATCHED bill(s) unmatched — excluded from both figures)"
+        continue
+    fi
+
+    MSG="$MSG"$'\n'$'\n'"$WHO — $BILLS bill(s), you earned Rs $EARNED"
+    nonzero "$OWES_YOU" && MSG="$MSG"$'\n'"  holds the cash, owes you Rs $OWES_YOU"
+    nonzero "$YOU_OWE"  && MSG="$MSG"$'\n'"  SEND HIM Rs $YOU_OWE"
+    [ "${UNMATCHED:-0}" -gt 0 ] && MSG="$MSG"$'\n'"  $UNMATCHED bill(s) with no matched payment — direction unknown"
 done <<< "$ROWS"
 
-MSG="$MSG"$'\n'$'\n'"Today's revenue: Rs $TOTAL_EARNED
-To collect from dairymen: Rs $TOTAL_OWED_TO_YOU
-To send to dairymen: Rs $TOTAL_YOU_OWE"
-
-[ "$TOTAL_UNMATCHED" -gt 0 ] && MSG="$MSG"$'\n'"($TOTAL_UNMATCHED bill(s) unmatched — figures above exclude them)"
+MSG="$MSG"$'\n'$'\n'"$TAIL"
 
 notify "$MSG"

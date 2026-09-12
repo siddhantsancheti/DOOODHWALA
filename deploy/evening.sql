@@ -33,16 +33,22 @@ WITH paid_today AS (
       AND (b.paid_at AT TIME ZONE 'Asia/Kolkata')::date
           = (now() AT TIME ZONE 'Asia/Kolkata')::date
 )
+-- ROLLUP adds a final grand-total row (milkman_id NULL, is_total = t). The
+-- totals are summed here rather than in the shell because these are money
+-- figures: bash cannot add decimals without an external tool, and when that
+-- tool is missing it fails silently and prints an empty total. Postgres does
+-- exact decimal arithmetic and is already doing the grouping.
 SELECT
-    COALESCE(m.business_name, 'dairyman #' || t.milkman_id) AS who,
-    COUNT(*)                                                 AS bills,
-    ROUND(SUM(t.fee + t.commission), 2)                      AS you_earned,
+    COALESCE(m.business_name, 'dairyman #' || t.milkman_id, 'TOTAL')  AS who,
+    COUNT(*)                                                          AS bills,
+    ROUND(SUM(t.fee + t.commission), 2)                               AS you_earned,
     ROUND(SUM(CASE WHEN t.method = 'cod'
-                   THEN t.fee + t.commission ELSE 0 END), 2) AS he_owes_you,
+                   THEN t.fee + t.commission ELSE 0 END), 2)          AS he_owes_you,
     ROUND(SUM(CASE WHEN t.method NOT IN ('cod', 'unknown')
-                   THEN t.subtotal - t.commission ELSE 0 END), 2) AS you_owe_him,
-    SUM(CASE WHEN t.method = 'unknown' THEN 1 ELSE 0 END)    AS unmatched
+                   THEN t.subtotal - t.commission ELSE 0 END), 2)     AS you_owe_him,
+    SUM(CASE WHEN t.method = 'unknown' THEN 1 ELSE 0 END)             AS unmatched,
+    (GROUPING(t.milkman_id) = 1)                                      AS is_total
 FROM paid_today t
 LEFT JOIN milkmen m ON m.id = t.milkman_id
-GROUP BY t.milkman_id, m.business_name
-ORDER BY you_earned DESC;
+GROUP BY ROLLUP ((t.milkman_id, m.business_name))
+ORDER BY is_total, you_earned DESC;
