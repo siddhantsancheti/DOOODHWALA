@@ -17,6 +17,19 @@ import { notifyOps, rs } from "./services/ops";
 
 const router = Router();
 
+/**
+ * Compare two hex signatures without leaking where they first differ.
+ *
+ * `a === b` on strings stops at the first mismatched byte, so how long it takes
+ * depends on how much of the signature was right. That is enough, in principle,
+ * to recover a valid signature a byte at a time — and these two comparisons are
+ * the only thing standing between a forged request and a bill marked paid.
+ */
+function signatureMatches(expected: string, received: string | undefined): boolean {
+    if (!received || expected.length !== received.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+}
+
 // Push a real-time "bill paid" event so the milkman (and the customer's other
 // devices / chat "Pay Now" card) update instantly, and notify the milkman.
 async function notifyBillPaid(bill: any, paidByUserId: string | null) {
@@ -661,7 +674,7 @@ router.post("/razorpay/verify", async (req, res) => {
             .update(body.toString())
             .digest("hex");
 
-        const isValid = expectedSignature === razorpay_signature;
+        const isValid = signatureMatches(expectedSignature, razorpay_signature);
 
         if (isValid) {
             // Idempotency: check if payment already recorded
@@ -771,7 +784,7 @@ router.post("/razorpay/webhook", async (req, res) => {
         // payload — re-stringifying parsed JSON is not reliable).
         const rawBody: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
         const expectedSignature = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
-        if (expectedSignature !== signature) {
+        if (!signatureMatches(expectedSignature, signature)) {
             return res.status(400).send("Invalid webhook signature");
         }
 
