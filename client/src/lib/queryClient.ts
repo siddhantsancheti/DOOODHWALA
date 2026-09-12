@@ -39,7 +39,7 @@ async function throwIfResNotOk(res: Response) {
  *
  * Admin access needs two things: the admin phone number, and a machine that was
  * deliberately registered. Register one by opening the dashboard once with the
- * key in the URL — /admin-dashboard?device=THEKEY — after which it is kept in
+ * key in the URL — /admin?device=THEKEY — after which it is kept in
  * this browser and sent on every admin call. The URL is cleaned up immediately
  * so the key does not sit in history or get pasted to someone else.
  */

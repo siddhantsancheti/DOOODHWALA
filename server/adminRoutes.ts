@@ -341,29 +341,48 @@ router.post("/generate-monthly-bills", async (req, res) => {
 // GET /api/admin/earnings
 router.get("/earnings", async (req, res) => {
     try {
+        // Read what the platform actually earned off the bills themselves.
+        //
+        // This used to filter on `commissionPercentage IS NOT NULL` and derive
+        // the commission from a rate. Under the flat-rate model nobody's row
+        // carries a rate — billing falls back to the standard 0.5% — so the
+        // filter matched no one and the screen was permanently empty. It also
+        // counted only the vendor commission, ignoring the 1% the customer
+        // pays, which is the larger of the two.
+        //
+        // Both amounts are snapshotted onto each bill when it is generated, so
+        // summing them is exact and cannot drift when a rate changes later.
         const earningsData = await db
             .select({
                 milkmanId: milkmen.id,
                 businessName: milkmen.businessName,
                 contactName: milkmen.contactName,
                 commissionPercentage: milkmen.commissionPercentage,
-                totalRevenue: sql<string>`COALESCE(SUM(CASE WHEN ${payments.status} = 'completed' THEN ${payments.amount} ELSE 0 END), 0)`,
+                billedSubtotal: sql<string>`COALESCE(SUM(${bills.subtotal}), 0)`,
+                customerFees: sql<string>`COALESCE(SUM(${bills.customerFeeAmount}), 0)`,
+                vendorCommission: sql<string>`COALESCE(SUM(${bills.vendorCommissionAmount}), 0)`,
+                billCount: sql<number>`COUNT(${bills.id})`,
             })
             .from(milkmen)
-            .leftJoin(payments, eq(milkmen.id, payments.milkmanId))
-            .where(sql`${milkmen.commissionPercentage} IS NOT NULL`)
+            .leftJoin(bills, eq(milkmen.id, bills.milkmanId))
             .groupBy(milkmen.id, milkmen.businessName, milkmen.contactName, milkmen.commissionPercentage);
 
         const formattedEarnings = earningsData.map(item => {
-            const revenue = parseFloat(item.totalRevenue || "0");
-            const sharePercentage = parseFloat(item.commissionPercentage || "0");
-            const adminEarnings = (revenue * sharePercentage) / 100;
-            
+            const billedSubtotal = parseFloat(item.billedSubtotal || "0");
+            const customerFees = parseFloat(item.customerFees || "0");
+            const vendorCommission = parseFloat(item.vendorCommission || "0");
+
             return {
                 ...item,
-                totalRevenue: revenue,
-                sharePercentage,
-                adminEarnings
+                billCount: Number(item.billCount || 0),
+                billedSubtotal,
+                customerFees,
+                vendorCommission,
+                // What this dairyman's business earned the platform, both sides.
+                adminEarnings: Math.round((customerFees + vendorCommission) * 100) / 100,
+                // Kept for the existing screen, which reads totalRevenue.
+                totalRevenue: billedSubtotal,
+                sharePercentage: parseFloat(item.commissionPercentage || "0.5"),
             };
         });
 
