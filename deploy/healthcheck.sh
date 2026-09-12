@@ -17,21 +17,7 @@ APP_DIR="${APP_DIR:-/home/dooodhwala/DOOODHWALA}"
 URL="${HEALTH_URL:-http://127.0.0.1:5001/healthz}"
 STATE="/tmp/dooodhwala-health.state"
 
-ALERT_WEBHOOK="${ALERT_WEBHOOK:-$(grep -E '^ALERT_WEBHOOK=' "$APP_DIR/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')}"
-
-notify() {
-    local msg="$1"
-    logger -t dooodhwala-health "$msg"
-    echo "$msg"
-    [ -z "$ALERT_WEBHOOK" ] && return 0
-    if [[ "$ALERT_WEBHOOK" == *"api.telegram.org"* ]]; then
-        curl -fsS --max-time 10 --get --data-urlencode "text=$msg" "$ALERT_WEBHOOK" >/dev/null || true
-    else
-        curl -fsS --max-time 10 -H 'Content-Type: application/json' \
-             -d "{\"text\":$(printf '%s' "$msg" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))'),\"content\":$(printf '%s' "$msg" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))')}" \
-             "$ALERT_WEBHOOK" >/dev/null || true
-    fi
-}
+source "$APP_DIR/deploy/notify.sh"
 
 if curl -fsS --max-time 10 "$URL" | grep -q '"status"'; then
     # Recovered since the last check? Say so, so an alert always has an

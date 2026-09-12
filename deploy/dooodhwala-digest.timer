@@ -1,0 +1,15 @@
+# 07:30 IST: the round is underway, so yesterday's numbers are final and any
+# dairyman who could not start has already discovered it.
+#
+# Persistent=true means a digest missed because the VM was off still arrives at
+# the next boot — the day you were not told anything is the day you most want
+# to know why.
+[Unit]
+Description=Daily DOOODHWALA digest
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
