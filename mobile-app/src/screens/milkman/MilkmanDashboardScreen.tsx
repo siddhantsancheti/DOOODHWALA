@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import KeyboardAvoider from '../../components/KeyboardAvoider';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '../../lib/queryClient';
@@ -913,7 +914,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
       </ScrollView>
 
       {/* COD Verification Modal */}
-      <Modal visible={showCODModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={showCODModal} animationType="slide" presentationStyle="pageSheet" statusBarTranslucent navigationBarTranslucent>
         <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
             <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('codVerification')}</Text>
@@ -921,7 +922,8 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
               <X size={24} color={textColor} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
+          <KeyboardAvoider>
+          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
             {codPayments.length === 0 ? (
               <View style={styles.emptyList}>
                 <CheckCircle size={48} color="#2F7D5B" />
@@ -963,11 +965,12 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
               ))
             )}
           </ScrollView>
+          </KeyboardAvoider>
         </View>
       </Modal>
 
       {/* Service Requests Modal — accept & set pricing */}
-      <Modal visible={showRequestsModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={showRequestsModal} animationType="slide" presentationStyle="pageSheet" statusBarTranslucent navigationBarTranslucent>
         <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
             <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('acceptServiceRequests') || 'Service Requests'}</Text>
@@ -975,7 +978,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
               <X size={24} color={textColor} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
+          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
             {serviceRequests.filter((r: any) => r.status === 'pending').map((r: any) => {
               // Price only the products the customer requested; fall back to the
               // milkman's full product list if the request didn't carry items.
@@ -1048,7 +1051,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
       </Modal>
 
       {/* Earnings Modal */}
-      <Modal visible={showEarningsModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={showEarningsModal} animationType="slide" presentationStyle="pageSheet" statusBarTranslucent navigationBarTranslucent>
         <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
             <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('earningsOverview')}</Text>
@@ -1056,7 +1059,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
               <X size={24} color={textColor} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
+          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
             <LinearGradient
               colors={['#2F7D5B', '#265F46']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -1105,7 +1108,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
       </Modal>
 
       {/* Inventory Modal */}
-      <Modal visible={showInventoryModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={showInventoryModal} animationType="slide" presentationStyle="pageSheet" statusBarTranslucent navigationBarTranslucent>
         <View style={[styles.modalWrapper, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { backgroundColor: surfaceColor, borderBottomColor: borderColor }]}>
             <Text style={[styles.modalTitle, { color: textColor, fontFamily: fontFamilyBold }]}>{t('manageInventory')}</Text>
@@ -1113,7 +1116,7 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
               <X size={24} color={textColor} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }}>
+          <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
             {/* Add Product Button */}
             {!isAddingProduct && !editingProduct && (
               <TouchableOpacity 

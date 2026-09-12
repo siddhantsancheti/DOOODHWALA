@@ -9,13 +9,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
   ScrollView,
 } from 'react-native';
 import { Phone, ArrowRight, RotateCcw, Loader2, Globe, Check } from 'lucide-react-native';
+import KeyboardAvoider from '../components/KeyboardAvoider';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { useAuth } from '../hooks/useAuth';
 import { lightColors, darkColors, fontSize, fontWeight, borderRadius, spacing, shadows } from '../theme';
@@ -320,12 +320,9 @@ export default function LoginScreen({ navigation }: any) {
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <KeyboardAvoidingView
-                style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            >
+            <KeyboardAvoider style={styles.container}>
                 {content}
-            </KeyboardAvoidingView>
+            </KeyboardAvoider>
         </TouchableWithoutFeedback>
     );
 }

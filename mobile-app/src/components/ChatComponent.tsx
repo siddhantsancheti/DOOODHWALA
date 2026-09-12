@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Dimensions,
+  TextInput, Platform, ActivityIndicator, Alert, Dimensions,
   Modal, FlatList, useColorScheme, Image, Linking
 } from 'react-native';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { apiRequest, queryClient } from '../lib/queryClient';
 import { useWebSocket } from '../hooks/useWebSocket';
+import KeyboardAvoider from './KeyboardAvoider';
 import {
   Send, Package, MessageSquare, Clock, Check, User, Truck, X, Plus, Minus,
   IndianRupee, Receipt, Share, Camera, File, MapPin, BarChart3, Settings, CheckCheck, Mic, ShoppingCart,
@@ -350,11 +351,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
 
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.bottom : 0}
-    >
+    <KeyboardAvoider style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         ref={scrollViewRef}
         style={styles.messagesList}
@@ -596,7 +593,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

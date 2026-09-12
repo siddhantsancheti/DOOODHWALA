@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Dimensions,
+  TextInput, Platform, ActivityIndicator, Alert, Dimensions,
   Modal, FlatList, Linking, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import KeyboardAvoider from '../components/KeyboardAvoider';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { apiRequest, queryClient } from '../lib/queryClient';
@@ -446,16 +447,7 @@ export default function ChatScreen({ route, navigation }: any) {
         </ScrollView>
       </View>
 
-      {/* Android needs "padding" too since SDK 55.
-          Android 15 enforces edge-to-edge, which stops adjustResize from
-          resizing the window — so leaving behavior undefined meant the
-          composer stayed put under the keyboard and you could not see what
-          you were typing. */}
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={0}
-        style={{ flex: 1 }}
-      >
+      <KeyboardAvoider>
         {/* MESSAGES LIST */}
         <ScrollView 
           ref={scrollViewRef}
@@ -763,8 +755,8 @@ export default function ChatScreen({ route, navigation }: any) {
 
       {/* Report a problem — a short sheet, not a form. Someone whose milk did
           not arrive is annoyed already; five taps is the whole budget. */}
-      <Modal visible={!!reportFor} transparent animationType="slide" onRequestClose={() => setReportFor(null)}>
-        <View style={styles.sheetBackdrop}>
+      <Modal visible={!!reportFor} transparent animationType="slide" statusBarTranslucent navigationBarTranslucent onRequestClose={() => setReportFor(null)}>
+        <KeyboardAvoider style={styles.sheetBackdrop}>
           <View style={[styles.sheet, { backgroundColor: surfaceColor }]}>
             <View style={styles.sheetHandle} />
             <Text style={[styles.sheetTitle, { color: textColor }]}>{t('reportProblem')}</Text>
@@ -816,15 +808,15 @@ export default function ChatScreen({ route, navigation }: any) {
               <Text style={[styles.sheetCancel, { color: textMuted }]}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoider>
       </Modal>
 
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
 
       {/* MODALS */}
       {/* Group Info Modal */}
-      <Modal visible={showGroupInfo} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+      <Modal visible={showGroupInfo} animationType="slide" transparent statusBarTranslucent navigationBarTranslucent>
+        <KeyboardAvoider style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: surfaceColor, maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: textColor }]}>{t('groupInfo')}</Text>
@@ -929,7 +921,7 @@ export default function ChatScreen({ route, navigation }: any) {
                )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoider>
       </Modal>
 
       {/* Share Menu Modal */}

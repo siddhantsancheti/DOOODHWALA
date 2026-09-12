@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, StyleSheet, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import OnboardingHeader from '../components/OnboardingHeader';
+import KeyboardAvoider from '../components/KeyboardAvoider';
 import { useAuth } from '../hooks/useAuth';
 import { apiRequest } from '../lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
@@ -233,7 +234,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <OnboardingHeader onBack={() => navigation.canGoBack() ? navigation.goBack() : logout()} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoider style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -561,7 +562,7 @@ export default function MilkmanProfileSetupScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

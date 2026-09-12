@@ -11,6 +11,7 @@ import { lightColors, darkColors, borderRadius, spacing } from '../../theme';
 import { useTranslation } from '../../contexts/LanguageContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import ChatComponent from '../../components/ChatComponent';
+import KeyboardAvoider from '../../components/KeyboardAvoider';
 import AnalyticsComponent from '../../components/AnalyticsComponent';
 
 function extractLocationParts(address: string) {
@@ -713,8 +714,8 @@ export default function YDPageScreen({ navigation }: any) {
       </Modal>
 
       {/* Group Modal (Create / Join) */}
-      <Modal visible={showGroupModal} animationType="slide" transparent={true} onRequestClose={() => setShowGroupModal(false)}>
-        <View style={styles.modalOverlay}>
+      <Modal visible={showGroupModal} animationType="slide" transparent={true} statusBarTranslucent navigationBarTranslucent onRequestClose={() => setShowGroupModal(false)}>
+        <KeyboardAvoider style={styles.modalOverlay}>
           <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor }]}>
             <View style={styles.modalTopRow}>
               <Text style={[styles.modalTitleSmall, { color: textColor }]}>{t('householdGroup')}</Text>
@@ -766,7 +767,7 @@ export default function YDPageScreen({ navigation }: any) {
               </View>
             )}
           </View>
-        </View>
+        </KeyboardAvoider>
       </Modal>
 
       {/* Settings Modal (details + analytics + discontinue) */}
@@ -824,8 +825,8 @@ export default function YDPageScreen({ navigation }: any) {
       </Modal>
 
       {/* Service Request Modal */}
-      <Modal visible={showRequestModal} animationType="slide" transparent={true} onRequestClose={() => setShowRequestModal(false)}>
-        <View style={styles.modalOverlay}>
+      <Modal visible={showRequestModal} animationType="slide" transparent={true} statusBarTranslucent navigationBarTranslucent onRequestClose={() => setShowRequestModal(false)}>
+        <KeyboardAvoider style={styles.modalOverlay}>
           <View style={[styles.modalContentSmall, { backgroundColor: surfaceColor, maxHeight: '88%' }]}>
             <View style={styles.modalTopRow}>
               <Text style={[styles.modalTitleSmall, { color: textColor }]} numberOfLines={1}>
@@ -911,7 +912,7 @@ export default function YDPageScreen({ navigation }: any) {
                 : <Text style={styles.modalSubmitBtnText}>{t('sendRequest')}</Text>}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoider>
       </Modal>
     </SafeAreaView>
   );
