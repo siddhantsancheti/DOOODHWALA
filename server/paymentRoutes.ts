@@ -13,12 +13,19 @@ import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
 import { notifyUsers } from "./services/notify";
 import { renderInvoiceHtml, renderOrderHistoryHtml } from "./services/invoiceHtml";
+import { notifyOps, rs } from "./services/ops";
 
 const router = Router();
 
 // Push a real-time "bill paid" event so the milkman (and the customer's other
 // devices / chat "Pay Now" card) update instantly, and notify the milkman.
 async function notifyBillPaid(bill: any, paidByUserId: string | null) {
+    // Here rather than at each call site: COD verification and the Razorpay
+    // webhook are both real settlement paths, and both route through this.
+    notifyOps(
+        `Bill #${bill.id} paid — ${rs(bill.totalAmount)}`
+        + ` (fee ${rs(bill.customerFeeAmount)}, commission ${rs(bill.vendorCommissionAmount)})`
+    );
     try {
         const targets = await partyUserIds({
             customerId: bill.customerId,

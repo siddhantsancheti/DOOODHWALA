@@ -7,6 +7,7 @@ import { BillingService } from "./services/billingService";
 import { broadcast } from "./websocket";
 import { retireOtherSoloHouseholds } from "./services/households";
 import { addDairyman, removeDairyman } from "./services/dairymen";
+import { notifyOps } from "./services/ops";
 
 const router = Router();
 
@@ -94,6 +95,9 @@ router.post("/join", async (req: AuthRequest, res) => {
             .limit(1);
         if (!existing) {
             await db.insert(familyChatMembers).values({ chatId: group.id, userId: req.user!.id, isAdmin: false });
+            // Only on the first join — re-entering a group you are already in
+            // is not an event worth a message.
+            notifyOps(`Joined household "${group.chatName}" — a new member is now on dairyman #${group.milkmanId}`);
         }
 
         // Joining a household links this member to that household's dairyman.

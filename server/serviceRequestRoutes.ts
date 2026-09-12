@@ -8,6 +8,7 @@ import { partyUserIds } from "./services/wsParties";
 import { sendPushNotification } from "./services/fcmService";
 import { ensureHouseholdChat } from "./services/households";
 import { addDairyman } from "./services/dairymen";
+import { notifyOps } from "./services/ops";
 
 const router = Router();
 
@@ -303,6 +304,7 @@ router.post("/:id/approve", async (req, res) => {
                 requestId
             );
         }
+        notifyOps(`Service accepted — dairyman #${updatedRequest.milkmanId} took on ${customer?.name || `customer #${updatedRequest.customerId}`}`);
     } catch (error) {
         console.error("Approve request error:", error);
         if (!res.headersSent) {
@@ -396,6 +398,7 @@ router.patch("/:id/status", async (req, res) => {
                 requestId
             );
         }
+        notifyOps(`Quote ${status} — customer #${updatedRequest.customerId} / ${milkman?.businessName || `dairyman #${updatedRequest.milkmanId}`}`);
     } catch (error) {
         console.error("Update request status error:", error);
         if (!res.headersSent) {

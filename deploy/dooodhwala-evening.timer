@@ -1,0 +1,13 @@
+# 21:00 IST — the day's collections are in, and it is still early enough to
+# act on a payout before the banks' next working day.
+#
+# No Persistent=true, unlike the backup and the digest: a money summary for a
+# day that has already ended is noise, and tomorrow's will include it anyway.
+[Unit]
+Description=Daily DOOODHWALA evening money summary
+
+[Timer]
+OnCalendar=*-*-* 21:00:00
+
+[Install]
+WantedBy=timers.target

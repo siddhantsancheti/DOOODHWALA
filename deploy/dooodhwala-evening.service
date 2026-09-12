@@ -1,0 +1,11 @@
+# The day's money. Triggered by dooodhwala-evening.timer.
+[Unit]
+Description=DOOODHWALA evening money summary
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dooodhwala
+WorkingDirectory=/home/dooodhwala/DOOODHWALA
+ExecStart=/home/dooodhwala/DOOODHWALA/deploy/evening-summary.sh

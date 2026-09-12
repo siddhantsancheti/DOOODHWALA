@@ -18,6 +18,7 @@ import { deleteUserAndData } from "./adminRoutes";
 import { getApps } from "firebase-admin/app";
 import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import "./services/fcmService";
+import { notifyOps } from "./services/ops";
 
 // Shared: find-or-create a user for a verified phone number and return our JWT.
 // Used by both the legacy OTP flow and Firebase phone-auth login.
@@ -307,6 +308,11 @@ router.put("/user-type", async (req, res) => {
         if (!updatedUser) {
             return res.status(404).json({ message: "User not found" });
         }
+
+        // Registration is only real once a role is picked — a phone-verified
+        // user with no userType cannot do anything, and is exactly what the
+        // daily digest counts as stranded.
+        notifyOps(`New ${userType}: ${updatedUser.username || updatedUser.phone || updatedUser.id}`);
 
         res.json({ success: true, user: updatedUser });
     } catch (error) {
