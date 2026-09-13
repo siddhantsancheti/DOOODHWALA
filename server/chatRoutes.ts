@@ -55,9 +55,8 @@ router.get("/group/:milkmanId", async (req: AuthRequest, res) => {
             return res.status(400).json({ message: "Invalid milkman ID" });
         }
 
-        // The milkman sees his whole book. A customer sees this same endpoint —
-        // it is what renders their chat — but must only get their own thread,
-        // not every household's.
+        // A customer sees this same endpoint — it is what renders their chat —
+        // but must only get their own thread, not every household's.
         //
         // Locking it to the milkman alone was too blunt and broke customer chat
         // outright; opening it to any customer would hand them everyone else's
@@ -87,6 +86,40 @@ router.get("/group/:milkmanId", async (req: AuthRequest, res) => {
                         inArray(chatMessages.familyChatId, chatIds),
                     )!
                     : eq(chatMessages.customerId, me.customerId),
+            )!;
+        } else if (req.query.customerId != null) {
+            // The milkman opened one customer's chat, so give him that thread
+            // and not his whole book. Without this every customer he tapped
+            // rendered the same merged feed — he is a party to all of it, so
+            // nothing leaked, but no conversation was readable.
+            //
+            // Scoped the same way as the customer branch above, because it has
+            // to agree with it: whatever the customer can see in this thread is
+            // exactly what the milkman must see.
+            const forCustomerId = parseInt(String(req.query.customerId));
+            if (isNaN(forCustomerId)) {
+                return res.status(400).json({ message: "Invalid customer ID" });
+            }
+
+            // Read-only: a GET must not create a household. A customer with no
+            // household yet simply has no household rows to match.
+            const householdIds = (
+                await db
+                    .select({ chatId: familyChats.id })
+                    .from(familyChats)
+                    .innerJoin(familyChatMembers, eq(familyChatMembers.chatId, familyChats.id))
+                    .innerJoin(customers, eq(customers.userId, familyChatMembers.userId))
+                    .where(and(eq(familyChats.milkmanId, milkmanId), eq(customers.id, forCustomerId))!)
+            ).map((r) => r.chatId);
+
+            where = and(
+                eq(chatMessages.milkmanId, milkmanId),
+                householdIds.length > 0
+                    ? or(
+                        eq(chatMessages.customerId, forCustomerId),
+                        inArray(chatMessages.familyChatId, householdIds),
+                    )!
+                    : eq(chatMessages.customerId, forCustomerId),
             )!;
         }
 

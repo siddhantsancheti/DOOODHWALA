@@ -53,6 +53,17 @@ export default function ChatScreen({ route, navigation }: any) {
 
   const { customerId, milkmanId, initialMode = 'message' } = route.params;
 
+  // Keyed by customer as well as milkman, and sent as a query param.
+  //
+  // A milkman has one of these screens per customer, but both the cache key and
+  // the request URL were the milkman alone — so every customer he tapped showed
+  // the same merged feed, served from the same cache entry. The customer side
+  // was always scoped server-side and is unaffected; passing it here is
+  // harmless for them and keeps one code path.
+  const chatFeedKey = customerId
+    ? `/api/chat/group/${milkmanId}?customerId=${customerId}`
+    : `/api/chat/group/${milkmanId}`;
+
   const [message, setMessage] = useState("");
   const [orderQuantity, setOrderQuantity] = useState("1");
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
@@ -128,7 +139,7 @@ export default function ChatScreen({ route, navigation }: any) {
   });
 
   const { data: history = [], isLoading: isHistoryLoading } = useQuery<any[]>({
-    queryKey: [`/api/chat/group/${milkmanId}`],
+    queryKey: [chatFeedKey],
     enabled: !!milkmanId,
     // Poll as a fallback so messages still arrive even if the WebSocket drops.
     refetchInterval: 4000,
@@ -141,16 +152,20 @@ export default function ChatScreen({ route, navigation }: any) {
   });
 
   useEffect(() => {
-    if (history.length > 0) {
+    // Guarding on length meant an empty result never cleared the list, so
+    // opening a customer with no messages yet left the previous customer's
+    // conversation on screen — which looked exactly like one shared chat.
+    // Wait for the load to finish instead, so there is no flash of empty.
+    if (!isHistoryLoading) {
       setChatMessages(history);
     }
-  }, [history]);
+  }, [history, isHistoryLoading]);
 
   useEffect(() => {
     const handleNewMessage = (data: any) => {
       // Invalidate query to get rich object with items mapping correctly and DB IDs
       if (['new_message', 'message_sent', 'order_accepted', 'order_delivered'].includes(data.type)) {
-        queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+        queryClient.invalidateQueries({ queryKey: [chatFeedKey] });
         if (data.type === 'order_accepted' || data.type === 'order_delivered') {
           queryClient.invalidateQueries({ queryKey: [`/api/bills/current`] });
         }
@@ -158,7 +173,7 @@ export default function ChatScreen({ route, navigation }: any) {
     };
     addMessageHandler('chat-screen', handleNewMessage);
     return () => removeMessageHandler('chat-screen');
-  }, [customerId, milkmanId, addMessageHandler, removeMessageHandler]);
+  }, [chatFeedKey, addMessageHandler, removeMessageHandler]);
 
   // Mutations
   const sendMessageMutation = useMutation({
@@ -167,7 +182,7 @@ export default function ChatScreen({ route, navigation }: any) {
       return await response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+      queryClient.invalidateQueries({ queryKey: [chatFeedKey] });
       if (data.messageType === 'order') {
         queryClient.invalidateQueries({ queryKey: [`/api/bills/current`] });
       }
@@ -182,7 +197,7 @@ export default function ChatScreen({ route, navigation }: any) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+      queryClient.invalidateQueries({ queryKey: [chatFeedKey] });
     },
   });
 
@@ -192,7 +207,7 @@ export default function ChatScreen({ route, navigation }: any) {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+      queryClient.invalidateQueries({ queryKey: [chatFeedKey] });
     },
   });
 
@@ -335,7 +350,7 @@ export default function ChatScreen({ route, navigation }: any) {
       });
       // The report lands in this same conversation, so refreshing it is enough
       // to show what was sent — the customer sees exactly what the dairyman got.
-      queryClient.invalidateQueries({ queryKey: [`/api/chat/group/${milkmanId}`] });
+      queryClient.invalidateQueries({ queryKey: [chatFeedKey] });
       setReportFor(null);
       setReportReason(null);
       setReportNote('');
