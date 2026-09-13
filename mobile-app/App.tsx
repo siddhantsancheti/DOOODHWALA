@@ -2,6 +2,7 @@ import React from 'react';
 import { StatusBar, Platform, View, ActivityIndicator, Text, ScrollView } from 'react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient, refreshApiBaseUrl } from './src/lib/queryClient';
+import UpdateRequired, { isUpdateRequired } from './src/components/UpdateRequired';
 import AppNavigator from './src/navigation/AppNavigator';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import Constants from 'expo-constants';
@@ -44,7 +45,7 @@ SplashScreen.preventAutoHideAsync();
 
 // Fetch the current server URL from Supabase on startup
 // This means we NEVER need to rebuild when the tunnel URL changes
-refreshApiBaseUrl();
+const configReady = refreshApiBaseUrl();
 
 const isExpoGo = Constants.appOwnership === 'expo';
 const isWeb = Platform.OS === 'web';
@@ -89,6 +90,22 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // The version check waits on the same config fetch the API URL uses, with its
+  // own timeout: a phone on a dead network must still reach the app, so a slow
+  // or failed fetch resolves to "not blocked" rather than holding the splash.
+  const [blocked, setBlocked] = React.useState(false);
+  React.useEffect(() => {
+    let done = false;
+    const settle = () => {
+      if (done) return;
+      done = true;
+      setBlocked(isUpdateRequired());
+    };
+    configReady.then(settle).catch(settle);
+    const timer = setTimeout(settle, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const appReady = fontsLoaded || fontError || fontTimeout;
 
   React.useEffect(() => {
@@ -111,7 +128,7 @@ export default function App() {
         <LanguageProvider>
           <ToastProvider>
             <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-            <AppWrapper />
+            {blocked ? <UpdateRequired /> : <AppWrapper />}
           </ToastProvider>
         </LanguageProvider>
       </QueryClientProvider>

@@ -11,8 +11,11 @@ export async function refreshApiBaseUrl(): Promise<void> {
   try {
     const supabaseUrl = 'https://shwofnrufpfmgptrqexc.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNod29mbnJ1ZnBmbWdwdHJxZXhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDAwMTMsImV4cCI6MjA5MjQ3NjAxM30.GnLyzcR-YzkINqnZioexJ4cv20aChmDWbPvUwlDauH8';
+    // Both keys in one request. app_config is already the channel that lets the
+    // server move without an app release; the minimum version rides along on
+    // the same fetch rather than costing a second round trip at startup.
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/app_config?key=eq.api_url&select=value`,
+      `${supabaseUrl}/rest/v1/app_config?key=in.(api_url,min_version_code)&select=key,value`,
       {
         headers: {
           apikey: supabaseKey,
@@ -21,15 +24,36 @@ export async function refreshApiBaseUrl(): Promise<void> {
       }
     );
     if (res.ok) {
-      const data = await res.json();
-      if (data?.[0]?.value) {
-        API_BASE_URL = data[0].value;
+      const rows: { key: string; value: string }[] = await res.json();
+      const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+
+      if (byKey.api_url) {
+        API_BASE_URL = byKey.api_url;
         console.log('[Config] API URL loaded from Supabase:', API_BASE_URL);
+      }
+
+      const min = parseInt(byKey.min_version_code ?? '', 10);
+      if (Number.isFinite(min) && min > 0) {
+        MIN_VERSION_CODE = min;
+        console.log('[Config] Minimum version code:', MIN_VERSION_CODE);
       }
     }
   } catch (e) {
-    console.warn('[Config] Could not fetch API URL from Supabase, using default:', API_BASE_URL);
+    console.warn('[Config] Could not fetch config from Supabase, using default:', API_BASE_URL);
   }
+}
+
+/**
+ * The oldest build allowed to run, or null if no floor has been published.
+ *
+ * Null is the safe answer and the default: the gate this feeds must fail open.
+ * A phone with no signal, or a Supabase outage, must not be told to go to the
+ * Play Store — that would take the whole user base offline over a network blip,
+ * and a dairyman mid-round cannot stop to update anything.
+ */
+let MIN_VERSION_CODE: number | null = null;
+export function getMinVersionCode(): number | null {
+  return MIN_VERSION_CODE;
 }
 
 // Build a full request URL from an app-relative path.
