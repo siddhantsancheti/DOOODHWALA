@@ -403,6 +403,26 @@ export default function YDPageScreen({ navigation }: any) {
             </TouchableOpacity>
           ))}
 
+          {/* The two things done most often — paying and changing something —
+              come first. Adding a dairyman or joining a household happens once,
+              so it sits below them. */}
+          <View style={styles.assignedActionsRow}>
+            <TouchableOpacity
+              style={[styles.assignedActionBtn, { borderColor, backgroundColor: surfaceColor }]}
+              onPress={() => setShowSettingsModal(true)}
+            >
+              <Settings size={20} color={textColor} />
+              <Text style={[styles.assignedActionText, { color: textColor }]}>Settings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.assignedActionBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+              onPress={() => navigation.navigate('Bills')}
+            >
+              <CreditCard size={20} color="#FFFFFF" />
+              <Text style={[styles.assignedActionText, { color: '#FFFFFF' }]}>{t('payBills')}</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Both entries stay reachable. One person requests a dairyman and the
               chat that appears is the household; everyone else joins by code —
               so there is no "create household" step, only join. */}
@@ -425,41 +445,11 @@ export default function YDPageScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          {/* Settings + Pay Bills */}
-          <View style={styles.assignedActionsRow}>
-            <TouchableOpacity
-              style={[styles.assignedActionBtn, { borderColor, backgroundColor: surfaceColor }]}
-              onPress={() => setShowSettingsModal(true)}
-            >
-              <Settings size={20} color={textColor} />
-              <Text style={[styles.assignedActionText, { color: textColor }]}>Settings</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.assignedActionBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
-              onPress={() => navigation.navigate('Bills')}
-            >
-              <CreditCard size={20} color="#FFFFFF" />
-              <Text style={[styles.assignedActionText, { color: '#FFFFFF' }]}>{t('payBills')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Household group banner / create-join entry */}
-          {myGroup?.id ? (
-            <View style={[styles.groupBanner, { backgroundColor: isDark ? '#064E3B30' : '#ECFDF5', borderColor: isDark ? '#065F46' : '#A7F3D0' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Users size={18} color="#2F7D5B" />
-                <Text style={[styles.groupBannerTitle, { color: textColor }]}>{myGroup.chatName}</Text>
-                <View style={[styles.groupCountPill, { backgroundColor: isDark ? '#065F46' : '#D1FAE5' }]}>
-                  <Text style={styles.groupCountText}>{myGroup.memberCount || myGroup.members?.length || 1} members</Text>
-                </View>
-              </View>
-              {/* Share code intentionally omitted here — it lives in Chat Info to
-                  avoid duplicating it on the dashboard. */}
-              <Text style={[styles.groupCodeLabel, { color: textMuted, marginTop: 8 }]}>
-                Open the chat → tap the header for the group code.
-              </Text>
-            </View>
-          ) : (
+          {/* No banner once a household exists — its name and member count are
+              already on the dairyman card above, and the group code lives in
+              Chat Info. This entry only appears when there is no household to
+              show, which is the one case where it says something new. */}
+          {!myGroup?.id && (
             <TouchableOpacity
               style={[styles.bigActionBtn, { borderColor, marginTop: 16 }]}
               onPress={() => { setGroupMode('create'); setShowGroupModal(true); }}
@@ -1096,9 +1086,6 @@ const createStyles = (colors: any, isDark: boolean, fontFamily: string, fontFami
 
   // Group banner
   groupBanner: { marginTop: 16, padding: 14, borderRadius: 12, borderWidth: 1 },
-  groupBannerTitle: { fontSize: 15, fontWeight: '700', marginLeft: 8, fontFamily: fontFamilyBold },
-  groupCountPill: { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
-  groupCountText: { fontSize: 11, fontWeight: '700', color: '#059669' },
   groupCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   groupCodeLabel: { fontSize: 13, fontFamily },
   groupCodeValue: { fontSize: 15, fontWeight: '800', letterSpacing: 1, fontFamily: fontFamilyBold },
