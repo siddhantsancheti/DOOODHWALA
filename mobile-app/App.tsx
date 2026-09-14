@@ -3,6 +3,7 @@ import { StatusBar, Platform, View, ActivityIndicator, Text, ScrollView } from '
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient, refreshApiBaseUrl } from './src/lib/queryClient';
 import UpdateRequired, { isUpdateRequired } from './src/components/UpdateRequired';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import Constants from 'expo-constants';
@@ -123,15 +124,23 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <ToastProvider>
-            <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-            {blocked ? <UpdateRequired /> : <AppWrapper />}
-          </ToastProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    // SafeAreaProvider was never mounted. useSafeAreaInsets() throws without
+    // it, and the app only survived because React Navigation mounts a compat
+    // provider around its own screens — so insets worked by accident inside
+    // navigators and would have crashed anywhere else. Mounting it here is what
+    // makes the gesture bar measurable everywhere, which is what the bottom
+    // bars below need.
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <ToastProvider>
+              <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+              {blocked ? <UpdateRequired /> : <AppWrapper />}
+            </ToastProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }

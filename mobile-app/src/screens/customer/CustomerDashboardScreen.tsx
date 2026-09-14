@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Image, useColorScheme, Platform, Modal, TextInput, Switch, Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '../../lib/queryClient';
@@ -23,6 +23,7 @@ interface DashboardProps {
 
 export default function CustomerDashboardScreen({ navigation }: DashboardProps) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const { data: profile, isLoading: profileLoading } = useQuery<any>({
     queryKey: ['/api/customers/profile'], enabled: !!user,
@@ -283,7 +284,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
         </TouchableOpacity>
       </Modal>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}>
         
         {/* Quick Actions / New Order */}
         <LinearGradient
@@ -382,7 +383,7 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
       </ScrollView>
 
       {/* Bottom Nav Placeholder aligned to standard */}
-      <View style={[styles.bottomNav, { backgroundColor: surfaceColor, borderTopColor: borderColor }]}>
+      <View style={[styles.bottomNav, { backgroundColor: surfaceColor, borderTopColor: borderColor, paddingBottom: 12 + insets.bottom }]}>
         <TouchableOpacity style={styles.bottomNavItem}>
           <HomeIcon size={24} color="#22406E" />
           <Text style={[styles.bottomNavText, { color: "#22406E", fontFamily: fontFamilyBold }]}>{t('home')}</Text>
@@ -568,6 +569,13 @@ const styles = StyleSheet.create({
   },
 
   // Bottom Nav
+  //
+  // Absolutely positioned, which is why the wrapping SafeAreaView never
+  // protected it: Yoga lays an absolute child out against the parent's padding
+  // box, so bottom: 0 sits flush with the screen edge and ignores the padding
+  // the SafeAreaView added. Under Android's forced edge-to-edge the gesture bar
+  // then draws straight over the tabs. The inset is applied on the bar itself
+  // instead — see paddingBottom at the call site.
   bottomNav: {
     position: 'absolute',
     bottom: 0,
@@ -577,7 +585,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    // Overridden at the call site with the real inset; this is the floor.
+    paddingBottom: 12,
     borderTopWidth: 1,
     elevation: 8,
     shadowColor: '#000',

@@ -4,7 +4,7 @@ import {
   TextInput, Platform, ActivityIndicator, Alert, Dimensions,
   Modal, FlatList, Linking, Image
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import KeyboardAvoider from '../components/KeyboardAvoider';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
@@ -52,6 +52,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const styles = useMemo(() => createStyles(colors, isDark, fontFamily, fontFamilyBold), [colors, isDark, fontFamily, fontFamilyBold]);
 
   const { customerId, milkmanId, initialMode = 'message' } = route.params;
+  const insets = useSafeAreaInsets();
 
   // Keyed by customer as well as milkman, and sent as a query param.
   //
@@ -406,7 +407,7 @@ export default function ChatScreen({ route, navigation }: any) {
   const borderColor = colors.border;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* HEADER */}
       <View style={[styles.header, { backgroundColor: colors.success }]}>
         <View style={styles.headerTop}>
@@ -651,7 +652,7 @@ export default function ChatScreen({ route, navigation }: any) {
         </ScrollView>
 
         {/* BOTTOM AREA */}
-        <View style={[styles.bottomArea, { backgroundColor: surfaceColor, borderTopColor: borderColor }]}>
+        <View style={[styles.bottomArea, { backgroundColor: surfaceColor, borderTopColor: borderColor, paddingBottom: insets.bottom }]}>
           {/* Tabs */}
           <View style={[styles.tabs, { borderBottomColor: borderColor }]}>
             <TouchableOpacity style={[styles.tab, mode === 'message' && styles.activeTab]} onPress={() => setMode('message')}>
