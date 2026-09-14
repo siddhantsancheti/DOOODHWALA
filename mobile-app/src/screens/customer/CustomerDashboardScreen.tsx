@@ -372,11 +372,6 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
             </View>
           </TouchableOpacity>
 
-          {/* Ad Banner Placeholder */}
-          <View style={[styles.adContainer, { backgroundColor: isDark ? '#1A1714' : '#F5EFE5', borderColor }]}>
-             <Text style={{ color: textMuted, fontSize: 12, fontWeight: '600', fontFamily: fontFamilyBold }}>{t('sponsoredAd')}</Text>
-             <Text style={{ color: textColor, fontSize: 14, marginTop: 4, fontFamily }}>{t('organicGheeOffer')}</Text>
-          </View>
         </View>
 
 
@@ -633,17 +628,6 @@ const styles = StyleSheet.create({
     borderColor: '#22406E',
   },
 
-  // Ad Container
-  adContainer: {
-    width: '100%',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    marginTop: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   // Modal Styles
   modalWrapper: {
