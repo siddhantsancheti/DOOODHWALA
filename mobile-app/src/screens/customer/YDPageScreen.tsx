@@ -426,9 +426,17 @@ export default function YDPageScreen({ navigation }: any) {
           {/* Both entries stay reachable. One person requests a dairyman and the
               chat that appears is the household; everyone else joins by code —
               so there is no "create household" step, only join. */}
+          {/* Two different jobs, so two colours: blue is the dairyman you buy
+              from, green is the household you share a bill with — the same
+              green the group already uses in chat. Both stay dashed and tinted
+              rather than filled, so they read as secondary to Pay Bills above
+              and cannot be mistaken for it. */}
           <View style={styles.addRow}>
             <TouchableOpacity
-              style={[styles.addBtn, { borderColor: colors.primary }]}
+              style={[styles.addBtn, {
+                borderColor: colors.primary,
+                backgroundColor: isDark ? 'rgba(127,165,218,0.12)' : '#EDF2FA',
+              }]}
               onPress={() => setShowBrowse(true)}
               activeOpacity={0.7}
             >
@@ -436,12 +444,15 @@ export default function YDPageScreen({ navigation }: any) {
               <Text style={[styles.addBtnText, { color: colors.primary }]}>{t('addDairyman')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.addBtn, { borderColor: colors.primary }]}
+              style={[styles.addBtn, {
+                borderColor: colors.success,
+                backgroundColor: isDark ? 'rgba(95,191,146,0.12)' : '#E9F7F0',
+              }]}
               onPress={() => { setGroupMode('join'); setShowGroupModal(true); }}
               activeOpacity={0.7}
             >
-              <Users size={16} color={colors.primary} />
-              <Text style={[styles.addBtnText, { color: colors.primary }]}>{t('joinHousehold')}</Text>
+              <Users size={16} color={colors.success} />
+              <Text style={[styles.addBtnText, { color: colors.success }]}>{t('joinHousehold')}</Text>
             </TouchableOpacity>
           </View>
 
