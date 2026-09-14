@@ -3,8 +3,12 @@ import { db } from "./db";
 import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications, products, subscriptions, adTracking, termsAcceptances } from "@shared/schema";
 import { count, eq, sql, desc, sum, and, inArray, or } from "drizzle-orm";
 import { BillingService } from "./services/billingService";
+import { adminAdRouter } from "./adRoutes";
 
 const router = Router();
+
+// Inherits the whole admin chain: token, admin role, registered device.
+router.use("/ads", adminAdRouter);
 
 // GET /api/admin/stats
 router.get("/stats", async (req, res) => {

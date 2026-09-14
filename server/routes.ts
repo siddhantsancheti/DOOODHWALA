@@ -22,6 +22,7 @@ import { authenticateToken, authorizeRole } from "./middleware/auth";
 import { requireAdminDevice } from "./middleware/adminDevice";
 import userRoutes from "./userRoutes";
 import adminRoutes from "./adminRoutes";
+import adRoutes from "./adRoutes";
 
 export function registerRoutes(app: Express): Server {
     // Register API routes
@@ -52,6 +53,9 @@ export function registerRoutes(app: Express): Server {
     app.use("/api/customer-pricings", authenticateToken, customerPricingRoutes);
     app.use("/api/notifications", authenticateToken, notificationRoutes);
     app.use("/api/groups", authenticateToken, groupRoutes);
+    // Reading and tracking ads needs a session, nothing more. Creating them is
+    // admin-only and lives under /api/admin/ads, behind the device check.
+    app.use("/api/ads", authenticateToken, adRoutes);
 
     // Admin Routes
     // Admin needs both factors: the right phone (authorizeRole) and a machine
