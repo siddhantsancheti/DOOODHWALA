@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { apiRequest, queryClient } from '../lib/queryClient';
 import { useWebSocket } from '../hooks/useWebSocket';
 import KeyboardAvoider from './KeyboardAvoider';
+import { availableProducts } from '../lib/products';
 import {
   Send, Package, MessageSquare, Clock, Check, User, Truck, X, Plus, Minus,
   IndianRupee, Receipt, Share, Camera, File, MapPin, BarChart3, Settings, CheckCheck, Mic, ShoppingCart,
@@ -346,7 +347,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
   const textMuted = isDark ? '#A99B89' : '#7A6E60';
   const borderColor = isDark ? '#332C25' : '#E6DCCD';
 
-  const availableProducts = milkman?.dairyItems?.filter((item: any) => item.isAvailable !== false) || [];
+  const products = availableProducts(milkman?.dairyItems);
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 
@@ -438,9 +439,21 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
               </TouchableOpacity>
             )}
 
-            {/* Product Strip */}
+            {/* An empty strip used to render as a silent gap above a working
+                keypad, so the screen looked fine and the order simply could
+                never be sent. Say what is wrong instead. */}
+            {products.length === 0 ? (
+              <View style={{ paddingVertical: 14, paddingHorizontal: 4 }}>
+                <Text style={{ color: textColor, fontWeight: '700', fontSize: 14 }}>
+                  {t('noProductsAvailable')}
+                </Text>
+                <Text style={{ color: textMuted, fontSize: 12, marginTop: 4 }}>
+                  {t('noProductsAvailableHint')}
+                </Text>
+              </View>
+            ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productStrip}>
-              {availableProducts.map((item: any, idx: number) => (
+              {products.map((item: any, idx: number) => (
                 <TouchableOpacity 
                   key={idx} 
                   style={[
@@ -456,6 +469,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            )}
 
             {/* Input Display */}
             <View style={styles.qtyDisplayRow}>

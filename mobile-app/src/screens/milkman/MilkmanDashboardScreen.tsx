@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import KeyboardAvoider from '../../components/KeyboardAvoider';
+import { isProductAvailable } from '../../lib/products';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '../../lib/queryClient';
@@ -1249,16 +1250,16 @@ export default function MilkmanDashboardScreen({ navigation, route }: any) {
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 8 }}>
                   <TouchableOpacity
-                    style={[styles.invToggle, { backgroundColor: item.isAvailable ? (isDark ? '#332C25' : '#F0E9DE') : '#22406E' }]}
+                    style={[styles.invToggle, { backgroundColor: isProductAvailable(item) ? (isDark ? '#332C25' : '#F0E9DE') : '#22406E' }]}
                     onPress={() => {
                       const updated = [...milkmanProfile.dairyItems];
-                      updated[index] = { ...item, isAvailable: !item.isAvailable };
+                      updated[index] = { ...item, isAvailable: !isProductAvailable(item) };
                       updateInventoryMutation.mutate(updated);
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.invToggleText, { color: item.isAvailable ? textColor : '#FFFFFF', fontFamily: fontFamilyBold }]}>
-                      {item.isAvailable ? t('disableLabel') : t('activeLabel')}
+                    <Text style={[styles.invToggleText, { color: isProductAvailable(item) ? textColor : '#FFFFFF', fontFamily: fontFamilyBold }]}>
+                      {isProductAvailable(item) ? t('disableLabel') : t('activeLabel')}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity 

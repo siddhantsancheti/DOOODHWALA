@@ -12,6 +12,7 @@ import { useTranslation } from '../../contexts/LanguageContext';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import ChatComponent from '../../components/ChatComponent';
 import KeyboardAvoider from '../../components/KeyboardAvoider';
+import { isProductAvailable } from '../../lib/products';
 import AnalyticsComponent from '../../components/AnalyticsComponent';
 
 function extractLocationParts(address: string) {
@@ -842,7 +843,7 @@ export default function YDPageScreen({ navigation }: any) {
                 Pick the products you want. Your dairyman will set the price after accepting.
               </Text>
               {(Array.isArray(requestMilkman?.dairyItems) ? requestMilkman.dairyItems : [])
-                .filter((i: any) => i.isAvailable !== false)
+                .filter(isProductAvailable)
                 .map((item: any, idx: number) => {
                   const selected = selectedProducts.includes(item.name);
                   return (

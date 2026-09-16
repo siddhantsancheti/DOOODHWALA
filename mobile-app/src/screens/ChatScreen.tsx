@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import KeyboardAvoider from '../components/KeyboardAvoider';
+import { availableProducts } from '../lib/products';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { apiRequest, queryClient } from '../lib/queryClient';
@@ -224,18 +225,15 @@ export default function ChatScreen({ route, navigation }: any) {
     onError: (error: any) => Alert.alert("Error", error.message || "Failed to generate bill"),
   });
 
-  const getRequestedProducts = () => {
-    if (!milkman?.dairyItems) return [];
-    return milkman.dairyItems.filter((item: any) => item.isAvailable !== false);
-  };
-  const availableProducts = getRequestedProducts();
+  // Named `products` so it cannot shadow the imported helper it is built from.
+  const products = availableProducts(milkman?.dairyItems);
 
   // Selected product sync
   useEffect(() => {
-    if (availableProducts.length > 0 && !selectedProduct) {
-      setSelectedProduct(availableProducts[0]);
+    if (products.length > 0 && !selectedProduct) {
+      setSelectedProduct(products[0]);
     }
-  }, [availableProducts, selectedProduct]);
+  }, [products, selectedProduct]);
 
   // Actions
   const handleAddToCart = () => {
@@ -690,7 +688,7 @@ export default function ChatScreen({ route, navigation }: any) {
 
                <View style={styles.productStrip}>
                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                   {availableProducts.map((item: any, idx: number) => (
+                   {products.map((item: any, idx: number) => (
                      <TouchableOpacity 
                        key={idx} 
                        style={[
