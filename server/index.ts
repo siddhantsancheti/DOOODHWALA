@@ -21,8 +21,10 @@ app.use(helmet({
 // for assets served from the very same host — so the production hosts must
 // be on this list or every static asset fetch will be rejected.
 const allowedOrigins = [
-    "https://dooodhwala-server.onrender.com",
-    "https://dooodhwala-production-0667.up.railway.app",
+    // The live host. It was missing, which the comment above says must never
+    // happen — same-origin requests are exempt from CORS so nothing broke, but
+    // the list did not describe production.
+    "https://dooodhwala.duckdns.org",
     "https://dooodhwala.com",
     "https://www.dooodhwala.com",
     "http://localhost:5001",
@@ -37,12 +39,10 @@ app.use(cors({
         // navigation) — allow.
         if (!origin) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
-        // Allow any *.onrender.com host so preview deploys and the primary
-        // service URL both work without needing to maintain an exact list.
-        try {
-            const host = new URL(origin).hostname;
-            if (host.endsWith(".onrender.com")) return callback(null, true);
-        } catch { /* malformed Origin — fall through */ }
+        // The *.onrender.com wildcard is gone with Render itself. Trusting every
+        // subdomain of a free hosting provider, with credentials: true, means
+        // anyone who can deploy there is an allowed origin — and nothing has
+        // run on Render since the move to this box.
         // Unknown origin: deny CORS headers, but do NOT throw. Throwing here
         // surfaces as a 500 from the JSON error handler, which is what was
         // breaking static asset loads in production.
