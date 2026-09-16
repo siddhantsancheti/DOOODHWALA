@@ -424,7 +424,12 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
         </View>
       )}
 
-      <View style={[styles.bottomArea, { backgroundColor: surfaceColor, borderTopColor: borderColor }]}>
+      {/* This component's only parent, YDPageScreen, uses edges top/left/right
+          — nothing claims the bottom, so the composer sat flush with the screen
+          edge and Android's gesture bar drew over it. The bottom inset is owned
+          here, the same way ChatScreen owns its own, so no two elements can pad
+          the same edge. */}
+      <View style={[styles.bottomArea, { backgroundColor: surfaceColor, borderTopColor: borderColor, paddingBottom: insets.bottom }]}>
         {showNumpad ? (
           <View style={styles.orderPanel}>
             {/* Quick Order Button */}

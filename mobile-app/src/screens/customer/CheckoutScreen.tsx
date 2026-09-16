@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '../../lib/queryClient';
@@ -17,6 +17,7 @@ try {
 }
 
 export default function CheckoutScreen({ route, navigation }: any) {
+  const insets = useSafeAreaInsets();
   const { t, colors, isDark, fontFamily, fontFamilyBold } = useTranslation();
   const styles = useMemo(
     () => createStyles(colors, isDark, fontFamily, fontFamilyBold),
@@ -268,8 +269,11 @@ export default function CheckoutScreen({ route, navigation }: any) {
         )}
       </ScrollView>
 
-      {/* The action stays pinned so it is reachable without scrolling back. */}
-      <View style={styles.footer}>
+      {/* The action stays pinned so it is reachable without scrolling back —
+          and pays for the gesture bar itself, since this screen's SafeAreaView
+          claims only the top edge. A Pay button half under the navigation bar
+          is the worst place in the app for this to happen. */}
+      <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity
           style={[styles.payBtn, method === 'cod' && styles.payBtnCod, isProcessing && styles.payBtnBusy]}
           onPress={method === 'cod' ? handleCODOrder : handleRazorpayPayment}
