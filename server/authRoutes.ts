@@ -1,5 +1,5 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { db } from "./db";
 import { users, otpCodes, termsAcceptances } from "@shared/schema";
 import { eq, and, gt } from "drizzle-orm";
@@ -101,10 +101,17 @@ const otpRateLimiter = rateLimit({
 // Keyed by phone (not IP) so an attacker can't bypass it by rotating IPs.
 // skipSuccessfulRequests => only wrong-OTP attempts count toward the limit,
 // so legitimate users who log in on the first try are never throttled.
+//
+// The fallback, for a request carrying no phone at all, goes through
+// ipKeyGenerator rather than req.ip directly. A bare IPv6 address is a poor
+// key: a single subscriber is handed a whole /64, so each guess can come from
+// a fresh address and the limit never binds. ipKeyGenerator collapses the
+// subnet to one key. express-rate-limit was logging this as a validation
+// error on every boot.
 const verifyOtpLimiter = rateLimit({
     windowMs: 10 * 60 * 1000,
     max: 5,
-    keyGenerator: (req) => String(req.body?.phone || req.ip),
+    keyGenerator: (req) => String(req.body?.phone || ipKeyGenerator(req.ip ?? "")),
     skipSuccessfulRequests: true,
     message: { message: "Too many incorrect OTP attempts. Please request a new code." },
     standardHeaders: true,
