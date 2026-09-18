@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { getMinVersionCode } from '../lib/queryClient';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.dooodhwala.app';
 const APP_STORE = 'https://apps.apple.com/app/id0000000000';
@@ -37,20 +38,22 @@ export function isUpdateRequired(): boolean {
  * just refusing, and the store button is the only thing to tap.
  */
 export default function UpdateRequired() {
+    // Translated, because the one person this screen must reach is someone it
+    // has just locked out of the app — and a dairyman who reads only Marathi
+    // would otherwise be shown a wall of English with no way past it.
+    const { t } = useTranslation();
+
     const open = () => {
         Linking.openURL(Platform.OS === 'ios' ? APP_STORE : PLAY_STORE).catch(() => {});
     };
 
     return (
         <View style={styles.wrap}>
-            <Text style={styles.title}>Update DOOODHWALA</Text>
-            <Text style={styles.body}>
-                This version is out of date and can no longer connect. Update from the
-                store to carry on — your orders, chats and bills are all safe.
-            </Text>
+            <Text style={styles.title}>{t('updateRequiredTitle')}</Text>
+            <Text style={styles.body}>{t('updateRequiredBody')}</Text>
             <TouchableOpacity style={styles.button} onPress={open} activeOpacity={0.85}>
                 <Text style={styles.buttonText}>
-                    {Platform.OS === 'ios' ? 'Open App Store' : 'Open Play Store'}
+                    {Platform.OS === 'ios' ? t('openAppStore') : t('openPlayStore')}
                 </Text>
             </TouchableOpacity>
         </View>
