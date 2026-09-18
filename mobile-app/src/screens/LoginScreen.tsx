@@ -24,6 +24,10 @@ import { Language } from '../lib/translations';
 
 const logo = require('../../assets/logo.png');
 
+// Which Firebase uid has already been exchanged for an app JWT. Module scope
+// so it outlives this screen's mount lifecycle.
+let exchangedUid: string | null = null;
+
 export default function LoginScreen({ navigation }: any) {
   const { firebaseLogin } = useAuth();
   const { t, language, setLanguage, fontFamily, fontFamilyBold, colors, isDark } = useTranslation();
@@ -46,11 +50,22 @@ export default function LoginScreen({ navigation }: any) {
   // auth/session-expired. Listening to onAuthStateChanged catches BOTH the
   // auto-verified and the manual-confirm cases and exchanges the ID token for
   // our app JWT exactly once.
-  const completedRef = useRef(false);
+  //
+  // The guard is module-scoped and keyed on the Firebase uid, not a ref. A ref
+  // is reset by a remount, and this screen does remount: anything that briefly
+  // clears the app token sends the navigator back here, a fresh listener
+  // attaches, the Firebase user is still signed in, and it exchanges again. One
+  // sign-up produced twenty-seven logins in a single second that way.
   useEffect(() => {
     const unsub = auth().onAuthStateChanged(async (user) => {
-      if (user && !completedRef.current) {
-        completedRef.current = true;
+      // Signed out: forget the guard, or logging back in as the same person
+      // would be refused because that uid had already been exchanged once.
+      if (!user) {
+        exchangedUid = null;
+        return;
+      }
+      if (exchangedUid !== user.uid) {
+        exchangedUid = user.uid;
         setIsLoginLoading(true);
         try {
           const idToken = await user.getIdToken(true);
@@ -58,7 +73,9 @@ export default function LoginScreen({ navigation }: any) {
           await firebaseLogin({ idToken });
           // AppNavigator switches automatically once the JWT is stored.
         } catch (e: any) {
-          completedRef.current = false;
+          // Only a genuine failure reopens the door, so a retry is possible
+          // but a remount alone is not enough to trigger one.
+          exchangedUid = null;
           setIsLoginLoading(false);
           showAlert(t('invalidOtp') || 'Login failed', firebaseErrorMessage(e));
         }

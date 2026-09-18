@@ -1,5 +1,10 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Module scope on purpose: this must survive the hook's component unmounting
+// and remounting, which is precisely what the login loop did.
+let tokenIssuedAt = 0;
+const GRACE_MS = 15000;
 import { apiRequest } from "../lib/queryClient";
 import { authAPI } from "../lib/api";
 import auth from "@react-native-firebase/auth";
@@ -58,6 +63,14 @@ export function useAuth() {
         const handleAuthError = async () => {
             const token = await SecureStore.getItemAsync('token');
             if (token && !authResponse && !isLoading && error) {
+                // A token minted seconds ago is not a stale token. The first
+                // /api/auth/user after sign-up can lose a race with the row
+                // being created and come back 401 "User not found"; clearing
+                // on that sent the navigator back to Login, which remounted it,
+                // which signed in again — a login loop that fired dozens of
+                // times a second until the race happened to resolve.
+                if (Date.now() - tokenIssuedAt < GRACE_MS) return;
+
                 const errMsg = error.message || "";
                 if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('Unauthorized')) {
                     await clearTokens();
@@ -115,6 +128,7 @@ export function useAuth() {
                 if (tokenToSet) {
                     await SecureStore.setItemAsync('token', tokenToSet);
                     await SecureStore.setItemAsync('accessToken', tokenToSet);
+                    tokenIssuedAt = Date.now();
                     setHasToken(true);
                     queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
                 }
