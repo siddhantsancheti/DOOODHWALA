@@ -29,6 +29,7 @@ async function issueSessionForPhone(phone: string, res: any) {
     if (isAdmin) console.log(`[Auth] Admin phone matched: ${normalize(phone)}`);
 
     let [user] = await db.select().from(users).where(eq(users.phone, phone)).limit(1);
+    const isNewUser = !user;
     if (!user) {
         const userId = crypto.randomUUID();
         const digits = phone.replace(/\D/g, "").slice(-6);
@@ -52,6 +53,13 @@ async function issueSessionForPhone(phone: string, res: any) {
             .where(eq(users.id, user.id))
             .returning();
     }
+
+    // Every sign-in, marked as first-time or returning. A brand-new phone that
+    // never comes back is the signal worth seeing early.
+    notifyOps(isNewUser ? "signup" : "login",
+        isNewUser
+            ? `First login: ${phone}`
+            : `Login: ${phone}${user.userType ? ` (${user.userType})` : " — still no role picked"}`);
 
     const token = jwt.sign({ id: user.id, phone: user.phone }, JWT_SECRET!, { expiresIn: "30d" });
     return res.json({ success: true, message: "Login successful", accessToken: token, user });
@@ -319,7 +327,7 @@ router.put("/user-type", async (req, res) => {
         // Registration is only real once a role is picked — a phone-verified
         // user with no userType cannot do anything, and is exactly what the
         // daily digest counts as stranded.
-        notifyOps(`New ${userType}: ${updatedUser.username || updatedUser.phone || updatedUser.id}`);
+        notifyOps("signup", `New ${userType}: ${updatedUser.username || updatedUser.phone || updatedUser.id}`);
 
         res.json({ success: true, user: updatedUser });
     } catch (error) {

@@ -3,6 +3,7 @@ import { db } from "./db";
 import { orders, customers, milkmen, notifications, chatMessages } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
+import { notifyOps, rs } from "./services/ops";
 import { broadcast } from "./websocket";
 import { partyUserIds } from "./services/wsParties";
 import { ensureHouseholdChat } from "./services/households";
@@ -246,6 +247,10 @@ router.patch("/:id/status", async (req: AuthRequest, res) => {
             })
             .where(eq(orders.id, orderId))
             .returning();
+
+        notifyOps(status === "delivered" ? "delivered" : "order",
+            `Order #${orderId} ${status} by ${milkman.businessName || `dairyman #${milkman.id}`}`
+            + ` — ${rs(updatedOrder.totalAmount)}`);
 
         // Notify customer
         try {

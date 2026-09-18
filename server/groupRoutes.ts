@@ -97,7 +97,7 @@ router.post("/join", async (req: AuthRequest, res) => {
             await db.insert(familyChatMembers).values({ chatId: group.id, userId: req.user!.id, isAdmin: false });
             // Only on the first join — re-entering a group you are already in
             // is not an event worth a message.
-            notifyOps(`Joined household "${group.chatName}" — a new member is now on dairyman #${group.milkmanId}`);
+            notifyOps("household", `Joined household "${group.chatName}" — a new member is now on dairyman #${group.milkmanId}`);
         }
 
         // Joining a household links this member to that household's dairyman.

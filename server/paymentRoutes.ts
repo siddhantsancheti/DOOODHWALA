@@ -35,7 +35,7 @@ function signatureMatches(expected: string, received: string | undefined): boole
 async function notifyBillPaid(bill: any, paidByUserId: string | null) {
     // Here rather than at each call site: COD verification and the Razorpay
     // webhook are both real settlement paths, and both route through this.
-    notifyOps(
+    notifyOps("money",
         `Bill #${bill.id} paid — ${rs(bill.totalAmount)}`
         + ` (fee ${rs(bill.customerFeeAmount)}, commission ${rs(bill.vendorCommissionAmount)})`
     );
@@ -901,6 +901,12 @@ router.post("/cod/create-order", async (req, res) => {
         const otp = stillValid
             ? String(existingDetails.codOtp)
             : Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Cash collection starting. Reported once per bill, not per retry —
+        // a reused OTP means the customer is still on the same payment.
+        if (!stillValid) {
+            notifyOps("money", `Cash payment started: ${orderId} — ${rs(amount)}`);
+        }
 
         if (!stillValid) {
             await db.insert(payments).values({

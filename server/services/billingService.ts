@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { notifyOps } from "./ops";
 import { bills, chatMessages, milkmen, familyChats, familyChatMembers, customers } from "@shared/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { customerFeePercent, vendorCommissionPercent, splitBill } from "./platformFees";
@@ -287,6 +288,11 @@ export class BillingService {
             }
 
             console.log(`Monthly billing completed: ${billed} bill(s) across ${households.length} household(s).`);
+            // The 1st-of-the-month run, reported whether or not it produced
+            // anything. Silence on the 1st is exactly the case worth hearing
+            // about, so a zero is a message rather than nothing.
+            notifyOps("bill",
+                `Monthly billing run: ${billed} bill(s) from ${households.length} household(s)`);
         } catch (error) {
             console.error("Critical error in generateAllMonthlyBills:", error);
         }

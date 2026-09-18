@@ -10,6 +10,7 @@ import "./services/fcmService"; // ensure firebase-admin is initialized for Stor
 import { nudgeCustomerToOrder } from "./services/routeNotify";
 import { partyUserIds } from "./services/wsParties";
 import { type AuthRequest } from "./middleware/auth";
+import { notifyOps } from "./services/ops";
 import { ensureHouseholdChat } from "./services/households";
 import { notifyUser, notifyUsers, describeMessage } from "./services/notify";
 import { isPartyToChat, isSelfMilkman, callerIdentities } from "./services/access";
@@ -194,6 +195,10 @@ router.post("/messages/:id/report", async (req: AuthRequest, res) => {
         if (!allowed.includes(reason)) {
             return res.status(400).json({ message: "Pick a reason for the report" });
         }
+
+        // A complaint is the one event that always needs a person, so it goes
+        // out before anything else in this handler can fail.
+        notifyOps("problem", `Complaint (${reason}) on message #${messageId}${note ? `: ${String(note).slice(0, 120)}` : ""}`);
 
         const [order] = await db
             .select()
@@ -427,6 +432,10 @@ const sendMessageHandler = async (req: AuthRequest, res: any) => {
 
         // Notify the milkman when a customer places an order via chat.
         if (newMessage.messageType === "order" && newMessage.senderType === "customer") {
+            notifyOps("order",
+                `Order placed: ${newMessage.orderQuantity || ""} ${newMessage.orderProduct || "items"}`
+                + ` to dairyman #${newMessage.milkmanId}`
+                + (newMessage.orderTotal ? ` — Rs ${newMessage.orderTotal}` : ""));
             try {
                 const milkmanRow = await db.query.milkmen.findFirst({
                     where: eq(milkmen.id, newMessage.milkmanId),
