@@ -11,6 +11,23 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
+/**
+ * How long a session lasts before the user must request another OTP.
+ *
+ * This is a billing decision as much as a security one. Every expiry costs one
+ * SMS: at 30 days, five thousand users generate five thousand verifications a
+ * month whether or not anyone did anything, which at Indian SMS rates would
+ * cost more than the platform earns at that scale. A year brings the same user
+ * base down to a few hundred.
+ *
+ * A milk-delivery app is not a bank. The token carries no authority beyond the
+ * user's own orders and bills, it lives in SecureStore, and a lost phone is
+ * handled by deleting the user rather than by waiting a month for a token to
+ * lapse. Overridable so it can be shortened without a deploy if that changes.
+ */
+const SESSION_TTL: jwt.SignOptions["expiresIn"] =
+    (process.env.SESSION_TTL as jwt.SignOptions["expiresIn"]) || "365d";
+
 import { OTPService } from "./services/otpService";
 import { deleteUserAndData } from "./adminRoutes";
 // Importing fcmService initializes the firebase-admin app (side effect) so we
@@ -61,7 +78,7 @@ async function issueSessionForPhone(phone: string, res: any) {
             ? `First login: ${phone}`
             : `Login: ${phone}${user.userType ? ` (${user.userType})` : " — still no role picked"}`);
 
-    const token = jwt.sign({ id: user.id, phone: user.phone }, JWT_SECRET!, { expiresIn: "30d" });
+    const token = jwt.sign({ id: user.id, phone: user.phone }, JWT_SECRET!, { expiresIn: SESSION_TTL });
     return res.json({ success: true, message: "Login successful", accessToken: token, user });
 }
 
@@ -196,7 +213,7 @@ router.post("/verify-otp", otpRateLimiter, verifyOtpLimiter, async (req, res) =>
             }
 
             const token = jwt.sign({ id: user.id, phone: user.phone }, JWT_SECRET, {
-                expiresIn: "30d",
+                expiresIn: SESSION_TTL,
             });
 
             return res.json({
