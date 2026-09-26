@@ -7,7 +7,7 @@ import { and, desc, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { type AuthRequest } from "./middleware/auth";
 import "./services/fcmService"; // ensures firebase-admin is initialised for Storage
 
-const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || "dooodhwala.firebasestorage.app";
+import { STORAGE_BUCKET } from "./services/firebaseStorage";
 
 // Video is why this is larger than the chat limit. An advertiser hands over
 // whatever their designer exported; 40 MB covers a short banner clip without

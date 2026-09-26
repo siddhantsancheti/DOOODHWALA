@@ -18,7 +18,7 @@ import { isPartyToChat, isSelfMilkman, callerIdentities } from "./services/acces
 const router = Router();
 
 // Firebase Storage bucket for chat media (photos, documents, voice).
-const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || "dooodhwala-7dce6.firebasestorage.app";
+import { STORAGE_BUCKET } from "./services/firebaseStorage";
 const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 // POST /api/chat/upload — upload a chat attachment to Firebase Storage and

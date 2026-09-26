@@ -105,7 +105,7 @@ async function currentMilkman(req: AuthRequest) {
 // of a milk crate and wrong for a PAN card. These go to a separate prefix, only
 // the storage path is recorded, and a link is minted on demand — short-lived,
 // and only for the milkman himself or an admin.
-const KYC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || "dooodhwala-7dce6.firebasestorage.app";
+import { STORAGE_BUCKET as KYC_BUCKET } from "./services/firebaseStorage";
 const kycUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 8 * 1024 * 1024 },
