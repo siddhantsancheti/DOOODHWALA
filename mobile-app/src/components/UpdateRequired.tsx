@@ -5,7 +5,16 @@ import { getMinVersionCode } from '../lib/queryClient';
 import { useTranslation } from '../contexts/LanguageContext';
 
 const PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.dooodhwala.app';
-const APP_STORE = 'https://apps.apple.com/app/id0000000000';
+
+/**
+ * The App Store listing, or null until the app actually has one.
+ *
+ * It was a placeholder id, which is the one thing this screen must never have:
+ * a wall with no way past it is not a forced update, it is a brick. Read from
+ * app.json so it becomes real the moment the listing exists.
+ */
+const APP_STORE_ID = (Constants.expoConfig?.extra as any)?.appStoreId as string | undefined;
+const APP_STORE = APP_STORE_ID ? `https://apps.apple.com/app/id${APP_STORE_ID}` : null;
 
 /**
  * Whether this build is older than the floor published in app_config.
@@ -21,6 +30,10 @@ const APP_STORE = 'https://apps.apple.com/app/id0000000000';
 export function isUpdateRequired(): boolean {
     const min = getMinVersionCode();
     if (min == null) return false;
+
+    // On iOS with no listing yet there is nowhere to send them, so let them in.
+    // Consistent with every other branch here: when in doubt, do not block.
+    if (Platform.OS === 'ios' && !APP_STORE) return false;
 
     const raw = Platform.OS === 'ios'
         ? Constants.expoConfig?.ios?.buildNumber
@@ -44,7 +57,8 @@ export default function UpdateRequired() {
     const { t } = useTranslation();
 
     const open = () => {
-        Linking.openURL(Platform.OS === 'ios' ? APP_STORE : PLAY_STORE).catch(() => {});
+        const url = Platform.OS === 'ios' ? APP_STORE : PLAY_STORE;
+        if (url) Linking.openURL(url).catch(() => {});
     };
 
     return (

@@ -31,12 +31,13 @@
       }
     },
     "production": {
-      "credentialsSource": "local",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "credentialsSource": "local"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "credentialsSource": "remote"
       }
     }
   },
@@ -45,11 +46,6 @@
       "android": {
         "serviceAccountKeyPath": "./play-store-service-account.json",
         "track": "production"
-      },
-      "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "your-asc-app-id",
-        "appleTeamId": "your-apple-team-id"
       }
     }
   }
