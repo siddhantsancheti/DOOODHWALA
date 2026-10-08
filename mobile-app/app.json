@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.dooodhwala.app",
-      "buildNumber": "33",
+      "buildNumber": "34",
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": false,
       "requireFullScreen": true,
@@ -35,7 +35,7 @@
     },
     "android": {
       "package": "com.dooodhwala.app",
-      "versionCode": 33,
+      "versionCode": 34,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1B67B0",
@@ -85,7 +85,6 @@
       "./plugins/withUpiQueries",
       "./plugins/withIosFirebaseAuth",
       "./plugins/withFirebaseNotificationFix",
-      "./plugins/withNonModularHeaders",
       [
         "expo-build-properties",
         {
