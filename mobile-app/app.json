@@ -84,6 +84,7 @@
     "plugins": [
       "./plugins/withUpiQueries",
       "./plugins/withIosFirebaseAuth",
+      "./plugins/withNonModularHeaders",
       "./plugins/withFirebaseNotificationFix",
       "@react-native-firebase/app",
       [
