@@ -84,17 +84,8 @@
     "plugins": [
       "./plugins/withUpiQueries",
       "./plugins/withIosFirebaseAuth",
-      "./plugins/withNonModularHeaders",
       "./plugins/withFirebaseNotificationFix",
       "@react-native-firebase/app",
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ],
       "expo-secure-store",
       "expo-sharing",
       [
