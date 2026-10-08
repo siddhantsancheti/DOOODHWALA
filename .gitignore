@@ -18,8 +18,7 @@ firebase-service-account.json
 # Claude Code worktrees (must never be committed as gitlinks)
 .claude/
 
-# Firebase per-app config. Not secrets — they ship inside the app binary and can
-# be pulled out of any APK — but they identify the project, the repo is public,
-# and one stray `git add -A` is all it takes. Each machine downloads its own.
-mobile-app/google-services.json
-mobile-app/GoogleService-Info.plist
+# NOTE: google-services.json and GoogleService-Info.plist are deliberately NOT
+# ignored here. EAS Build excludes gitignored files from the upload, so ignoring
+# them breaks every iOS and Android build with a missing-file error. They stay
+# untracked instead — out of the repo, but still uploaded to the builder.
