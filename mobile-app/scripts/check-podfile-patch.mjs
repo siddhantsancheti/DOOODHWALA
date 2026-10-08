@@ -53,4 +53,13 @@ assert.throws(
     "a missing anchor must throw, not pass silently",
 );
 
-console.log("podfile patch ok — both halves applied, idempotent, loud on a template change");
+// Expo fetches its Podfile template at prebuild, so this cannot be verified
+// against the real thing from here. A template that renamed the installer
+// variable must still produce a Podfile that refers to the right one.
+const renamed = patchPodfile(TEMPLATE.replace("|installer|", "|inst|"));
+assert.ok(/\binst\.pods_project\.targets/.test(renamed),
+    "the captured installer variable must be used, not a hardcoded one");
+assert.ok(!/installer\.pods_project/.test(renamed),
+    "the hardcoded installer name must not leak through");
+
+console.log("podfile patch ok — both halves applied, idempotent, variable captured, loud on a real template change");

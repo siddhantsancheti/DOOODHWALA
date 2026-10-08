@@ -32,9 +32,14 @@ ${GLOBAL_MARKER} = true
 `;
 
 const SETTINGS_MARKER = '# dooodhwala: allow non-modular includes (see withNonModularHeaders.js)';
-const SETTINGS_SNIPPET = `
+
+// The installer variable is captured rather than assumed. Expo fetches its
+// Podfile template at prebuild time, so it cannot be checked from here, and a
+// template that named it anything else would otherwise produce a Podfile that
+// looks patched and refers to a variable that does not exist.
+const settingsSnippet = (installerVar) => `
     ${SETTINGS_MARKER}
-    installer.pods_project.targets.each do |target|
+    ${installerVar}.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       end
@@ -54,8 +59,9 @@ function patchPodfile(contents) {
     }
 
     if (!contents.includes(SETTINGS_MARKER)) {
-        const anchor = /post_install do \|installer\|/;
-        if (!anchor.test(contents)) {
+        const anchor = /post_install do \|(\w+)\|/;
+        const found = contents.match(anchor);
+        if (!found) {
             // Failing loudly beats a build that dies twenty minutes later with
             // the same wall of errors and no sign that this plugin silently did
             // nothing.
@@ -64,7 +70,7 @@ function patchPodfile(contents) {
                 'Podfile. The Expo template changed; update this plugin.',
             );
         }
-        contents = contents.replace(anchor, (match) => match + SETTINGS_SNIPPET);
+        contents = contents.replace(anchor, (match) => match + settingsSnippet(found[1]));
     }
 
     return contents;
