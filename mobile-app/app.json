@@ -86,6 +86,19 @@
       "./plugins/withIosFirebaseAuth",
       "./plugins/withFirebaseNotificationFix",
       "./plugins/withNonModularHeaders",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBMessaging"
+            ]
+          }
+        }
+      ],
       "@react-native-firebase/app",
       "expo-secure-store",
       "expo-sharing",

@@ -11,22 +11,35 @@
 //   RNFBMessagingModule.m:33  RCT_EXPORT_MODULE();
 //     type specifier missing, defaults to 'int'
 //
-// Pods build as framework modules under RN 0.83 whether or not the Podfile says
-// use_frameworks!, so Xcode promotes -Wnon-modular-include-in-framework-module
-// to an error. React Native's headers (RCTBridgeModule.h and friends) are not
-// modular. RNFBApp includes RCTBridgeModule.h, so RNFBApp's module absorbs the
-// RCTPromiseRejectBlock typedef and claims it; when RNFBMessaging includes the
-// same non-modular header, Clang refuses it and says the declaration must come
-// from RNFBApp's module instead. Once that include fails the rest of React's
-// macros are gone too, which is where RCT_EXPORT_MODULE and RCT_EXTERN go
-// missing. The includes are correct and work; this puts the diagnostic back to
-// a warning, and only for the Pods project.
+// useFrameworks: "static" is not optional here — without it pod install fails
+// outright, because the Swift Firebase pods (FirebaseAuth, FirebaseCoreInternal)
+// depend on GoogleUtilities and the Interop pods, which define no modules. With
+// it, every pod is a framework module, so Xcode promotes
+// -Wnon-modular-include-in-framework-module to an error, and React Native's
+// headers (RCTBridgeModule.h and friends) are not modular. This puts that
+// diagnostic back to a warning, for the Pods project only.
 //
-// RNFBAuth survives the same setup because its header only uses the
-// RCTBridgeModule *protocol*. A protocol reference resolves; a typedef is the
-// declaration kind the module system rejects. That is the whole difference
-// between the pod that builds and the pod that does not.
+// It is NOT the whole fix. A second, different error survives it:
 //
+//   declaration of 'RCTPromiseRejectBlock' must be imported from module
+//   'RNFBApp.RNFBAppModule' before it is required
+//
+// That one is module *ownership*, not a non-modular include, and this setting
+// does not suppress it. RNFBApp includes RCTBridgeModule.h, so RNFBApp's module
+// absorbs and claims the RCTPromiseRejectBlock typedef; RNFBMessaging then
+// includes the same header and Clang insists the declaration come from RNFBApp's
+// module. RNFBAuth survives because its header only names the RCTBridgeModule
+// *protocol* — a protocol reference resolves where a typedef does not, which is
+// the entire difference between the pod that built and the pod that did not.
+//
+// What fixes that is ios.forceStaticLinking in expo-build-properties (added by
+// expo/expo#39742 for this exact Firebase case): it overrides build_type to
+// static_library for the named pods, so RNFBApp is not a framework and there is
+// no module to own the typedef. app.json lists the three RNFB pods there.
+//
+// So this plugin is the belt and forceStaticLinking is the braces. Once a build
+// is green it is worth checking whether this is still needed at all; it was
+// written before forceStaticLinking was found and may now be redundant.
 // expo-build-properties exposes no option for this setting.
 const { withDangerousMod } = require('@expo/config-plugins');
 const fs = require('fs');
