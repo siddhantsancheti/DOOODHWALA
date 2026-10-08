@@ -52,6 +52,21 @@ if (submit) {
             "      Remove the block and eas submit will prompt for the real values.",
         );
     }
+    // ascAppId is the App Store Connect app id, which is digits only. A slug, a
+    // bundle id or the EAS project uuid put here all look plausible and all fail
+    // the submit after the upload, not before it.
+    if (submit.ascAppId !== undefined && !/^\d+$/.test(String(submit.ascAppId))) {
+        blockers.push(`submit.production.ios.ascAppId must be all digits, got "${submit.ascAppId}".`);
+    } else if (submit.ascAppId) {
+        ok.push(`submit ascAppId ${submit.ascAppId}`);
+    }
+    if (submit.ascAppId && app.extra?.appStoreId &&
+        String(submit.ascAppId) !== String(app.extra.appStoreId)) {
+        blockers.push(
+            `submit.production.ios.ascAppId (${submit.ascAppId}) and extra.appStoreId ` +
+            `(${app.extra.appStoreId}) name different apps. One of them is wrong.`,
+        );
+    }
 } else {
     ok.push("submit config absent — eas submit will prompt and remember");
 }
