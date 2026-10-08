@@ -1,6 +1,4 @@
-// The Podfile patch that makes @react-native-firebase build under
-// useFrameworks: "static". Both halves are required and the build fails
-// differently depending on which is missing, so both are pinned here.
+// The Podfile patch that makes @react-native-firebase/messaging compile.
 // Run: node scripts/check-podfile-patch.mjs
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -13,8 +11,6 @@ const TEMPLATE = `require "expo/scripts/autolinking"
 platform :ios, '15.1'
 
 target 'DOOODHWALA' do
-  use_frameworks! :linkage => :static
-
   post_install do |installer|
     react_native_post_install(installer)
   end
@@ -23,14 +19,6 @@ end
 
 const once = patchPodfile(TEMPLATE);
 
-// 1. The Ruby global RNFBApp.podspec reads. Without it the podspec sets
-//    static_framework = false and React's headers stop resolving.
-assert.ok(/^\$RNFirebaseAsStaticFramework = true$/m.test(once),
-    "the RNFirebase static-framework global must be set");
-assert.ok(once.indexOf("RNFirebaseAsStaticFramework") < once.indexOf("target"),
-    "a Ruby global must be set before any podspec is evaluated, so it goes at the top");
-
-// 2. The build setting that stops non-modular includes being errors.
 assert.ok(/CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'\] = 'YES'/.test(once),
     "the non-modular include setting must be applied");
 assert.ok(once.includes("post_install do |installer|"),
@@ -38,12 +26,21 @@ assert.ok(once.includes("post_install do |installer|"),
 assert.ok(once.includes("react_native_post_install(installer)"),
     "Expo's own post_install work must not be clobbered");
 
+// The setting is only ever wanted on the Pods project. Writing the user's app
+// project from here would be a different and much riskier change.
+assert.ok(/\.pods_project\.targets/.test(once), "it must target the Pods project");
+
 // Idempotent — prebuild can run more than once against the same file, and a
-// second global or a second loop would be a Podfile syntax problem waiting.
+// second loop would be a Podfile syntax problem waiting.
 const twice = patchPodfile(once);
 assert.equal(twice, once, "patching twice must change nothing");
-assert.equal((twice.match(/\$RNFirebaseAsStaticFramework/g) || []).length, 1);
 assert.equal((twice.match(/CLANG_ALLOW_NON_MODULAR/g) || []).length, 1);
+
+// Nothing should reintroduce the static-framework global. It was a wrong guess:
+// it only means anything under use_frameworks! :linkage => :static, which this
+// app no longer uses, and with it the build failed identically four times.
+assert.ok(!/RNFirebaseAsStaticFramework/.test(twice),
+    "the static-framework global was the wrong fix and must not come back");
 
 // A changed Expo template must fail loudly at prebuild, not silently do nothing
 // and let the same twenty-minute build die the same way.
@@ -62,4 +59,4 @@ assert.ok(/\binst\.pods_project\.targets/.test(renamed),
 assert.ok(!/installer\.pods_project/.test(renamed),
     "the hardcoded installer name must not leak through");
 
-console.log("podfile patch ok — both halves applied, idempotent, variable captured, loud on a real template change");
+console.log("podfile patch ok — setting applied to Pods project, idempotent, variable captured, loud on a real template change");

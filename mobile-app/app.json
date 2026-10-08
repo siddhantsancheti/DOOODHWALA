@@ -85,6 +85,7 @@
       "./plugins/withUpiQueries",
       "./plugins/withIosFirebaseAuth",
       "./plugins/withFirebaseNotificationFix",
+      "./plugins/withNonModularHeaders",
       "@react-native-firebase/app",
       "expo-secure-store",
       "expo-sharing",
