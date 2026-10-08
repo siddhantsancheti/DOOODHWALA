@@ -26,7 +26,8 @@
         "NSUserNotificationsUsageDescription": "DOOODHWALA sends you delivery updates and order alerts.",
         "UIBackgroundModes": [
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
       "associatedDomains": [
         "applinks:dooodhwala.com"
