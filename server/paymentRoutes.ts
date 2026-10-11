@@ -236,6 +236,8 @@ async function renderBillDocument(req: AuthRequest, res: any, kind: "invoice" | 
                 bill,
                 customerName: customer?.name,
                 customerAddress: customer?.address,
+                customerPhone: customer?.phone,
+                customerId: customer?.id,
                 supplierName: supplier?.businessName,
             })
             : renderInvoiceHtml({
@@ -243,6 +245,7 @@ async function renderBillDocument(req: AuthRequest, res: any, kind: "invoice" | 
                 customerName: customer?.name,
                 customerAddress: customer?.address,
                 customerPhone: customer?.phone,
+                customerId: customer?.id,
                 supplierName: supplier?.businessName,
                 supplierAddress: supplier?.address,
                 supplierPhone: supplier?.phone,
