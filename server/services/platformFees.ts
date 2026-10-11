@@ -1,6 +1,9 @@
 import { db } from "../db";
 import { appConfig } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { money, parseRate, splitBill } from "./rateMath";
+
+export { money, parseRate, splitBill } from "./rateMath";
 
 const FEE_KEY = "customer_fee_percent";
 const DEFAULT_FEE_PERCENT = 1;
@@ -14,6 +17,17 @@ const DEFAULT_COMMISSION_PERCENT = 0.5;
 // within a minute.
 const cache = new Map<string, { percent: number; readAt: number }>();
 const CACHE_MS = 60_000;
+
+/**
+ * Forget the cached rates, so the next read goes to the database.
+ *
+ * Called when the admin screen changes a rate. Without it the change takes up
+ * to a minute to appear, which reads as "the save did not work" and invites a
+ * second save.
+ */
+export function clearRateCache(): void {
+    cache.clear();
+}
 
 /** Read a percentage rate from app_config, falling back to a documented default. */
 async function rate(key: string, fallback: number): Promise<number> {
@@ -67,28 +81,3 @@ export async function vendorCommissionPercent(): Promise<number> {
     return rate(COMMISSION_KEY, DEFAULT_COMMISSION_PERCENT);
 }
 
-/** Money, to paise, as a string — the form every decimal column here takes. */
-export function money(n: number): string {
-    return (Math.round(n * 100) / 100).toFixed(2);
-}
-
-/**
- * Split a bill into what the customer pays and what the milkman keeps.
- *
- * The vendor commission is charged on the subtotal, not on the customer's
- * total — charging a milkman commission on our own fee would be taking a cut
- * of our cut.
- */
-export function splitBill(subtotal: number, feePercent: number, commissionPercent: number) {
-    const customerFeeAmount = (subtotal * feePercent) / 100;
-    const vendorCommissionAmount = (subtotal * commissionPercent) / 100;
-    return {
-        subtotal: money(subtotal),
-        customerFeePercent: money(feePercent),
-        customerFeeAmount: money(customerFeeAmount),
-        vendorCommissionPercent: money(commissionPercent),
-        vendorCommissionAmount: money(vendorCommissionAmount),
-        totalAmount: money(subtotal + customerFeeAmount),   // what the customer owes
-        milkmanPayout: money(subtotal - vendorCommissionAmount), // what he keeps
-    };
-}

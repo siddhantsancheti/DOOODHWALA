@@ -14,9 +14,10 @@
     "check:i18n": "node scripts/check-i18n.mjs --max 18",
     "check:idor": "node scripts/check-idor.mjs",
     "check:billing": "node scripts/check-bill-split.mjs",
-    "check:all": "npm run check && npm run check:terms && npm run check:households && npm run check:i18n && npm run check:idor && npm run check:billing && npm run check:invoice",
+    "check:all": "npm run check && npm run check:terms && npm run check:households && npm run check:i18n && npm run check:idor && npm run check:billing && npm run check:invoice && npm run check:rates",
     "backfill:households": "tsx scripts/backfill-households.ts",
-    "check:invoice": "tsx scripts/check-invoice-render.ts"
+    "check:invoice": "tsx scripts/check-invoice-render.ts",
+    "check:rates": "tsx scripts/check-rate-input.ts"
   },
   "dependencies": {
     "@awesome-cordova-plugins/sms": "^8.1.0",

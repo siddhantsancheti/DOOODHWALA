@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import AdminAds from "@/components/admin-ads";
+import AdminRates from "@/components/admin-rates";
 import {
   Users,
   Truck,
@@ -350,6 +351,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="billing">Monthly Bills</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="ads">Ads</TabsTrigger>
+            <TabsTrigger value="rates">Rates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -868,6 +870,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="ads">
             <AdminAds />
+          </TabsContent>
+
+          <TabsContent value="rates">
+            <AdminRates />
           </TabsContent>
 
           <TabsContent value="analytics">

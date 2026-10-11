@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "./db";
-import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications, products, subscriptions, adTracking, termsAcceptances } from "@shared/schema";
+import { users, milkmen, customers, orders, payments, bills, chatMessages, familyChats, familyChatMembers, serviceRequests, reviews, customerPricings, locations, notifications, products, subscriptions, adTracking, termsAcceptances, appConfig } from "@shared/schema";
 import { count, eq, sql, desc, sum, and, inArray, or } from "drizzle-orm";
 import { BillingService } from "./services/billingService";
 import { adminAdRouter } from "./adRoutes";
+import { customerFeePercent, vendorCommissionPercent, parseRate, clearRateCache } from "./services/platformFees";
 
 const router = Router();
 
@@ -411,21 +412,40 @@ router.get("/milkmen/pending-commission", async (req, res) => {
     }
 });
 
-// PATCH /api/admin/milkmen/:id/commission
+/**
+ * PATCH /api/admin/milkmen/:id/commission
+ *
+ * Set one milkman's service charge, or clear it back to the platform default.
+ *
+ * `percentage: null` clears the override. That is the only way back to the
+ * standard rate — storing 0 would mean "this milkman pays nothing", which is a
+ * different and much more expensive statement than "this milkman pays whatever
+ * everyone else pays".
+ */
 router.patch("/milkmen/:id/commission", async (req, res) => {
     try {
         const milkmanId = parseInt(req.params.id);
-        const { percentage } = req.body;
+        if (!Number.isInteger(milkmanId)) {
+            return res.status(400).json({ success: false, message: "Invalid milkman id" });
+        }
 
-        if (percentage === undefined || isNaN(parseFloat(percentage))) {
-            return res.status(400).json({ success: false, message: "Valid percentage is required" });
+        const { percentage } = req.body;
+        const clearing = percentage === null || percentage === "";
+        const rate = clearing ? null : parseRate(percentage);
+
+        if (!clearing && rate === null) {
+            return res.status(400).json({
+                success: false,
+                message: "Percentage must be a number between 0 and 100, to at most two decimals.",
+            });
         }
 
         const [updatedMilkman] = await db
             .update(milkmen)
-            .set({ 
-                commissionPercentage: percentage.toString(), 
-                updatedAt: new Date() 
+            .set({
+                // Stored as the parsed number, never the raw input.
+                commissionPercentage: rate === null ? null : rate.toFixed(2),
+                updatedAt: new Date(),
             })
             .where(eq(milkmen.id, milkmanId))
             .returning();
@@ -433,6 +453,99 @@ router.patch("/milkmen/:id/commission", async (req, res) => {
         if (!updatedMilkman) return res.status(404).json({ success: false, message: "Milkman not found" });
 
         res.json({ success: true, milkman: updatedMilkman });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
+/**
+ * GET /api/admin/rates
+ *
+ * The two platform-wide defaults, plus every milkman's effective rate and
+ * whether it is his own or inherited. The screen needs both to say anything
+ * truthful: a rate means nothing without the default it departs from.
+ */
+router.get("/rates", async (_req, res) => {
+    try {
+        const [fee, commission] = await Promise.all([customerFeePercent(), vendorCommissionPercent()]);
+        const rows = await db
+            .select({
+                id: milkmen.id,
+                businessName: milkmen.businessName,
+                verified: milkmen.verified,
+                commissionPercentage: milkmen.commissionPercentage,
+            })
+            .from(milkmen)
+            .orderBy(desc(milkmen.createdAt));
+
+        res.json({
+            customerFeePercent: fee,
+            vendorCommissionPercent: commission,
+            milkmen: rows.map((m) => {
+                const own = m.commissionPercentage;
+                const hasOwn = own != null && String(own).trim() !== "";
+                return {
+                    ...m,
+                    hasOwnRate: hasOwn,
+                    effectiveRate: hasOwn ? parseFloat(String(own)) : commission,
+                };
+            }),
+        });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+    }
+});
+
+/**
+ * PUT /api/admin/rates
+ *
+ * Change a platform-wide default. Either key may be sent on its own.
+ *
+ * Clause 8.7 of the customer terms promises seven days' notice before the
+ * customer fee changes, so the response says plainly that the obligation
+ * exists — this endpoint cannot give the notice for you.
+ */
+router.put("/rates", async (req, res) => {
+    try {
+        const updates: { key: string; value: number }[] = [];
+
+        for (const [field, key] of [
+            ["customerFeePercent", "customer_fee_percent"],
+            ["vendorCommissionPercent", "vendor_commission_percent"],
+        ] as const) {
+            if (req.body?.[field] === undefined) continue;
+            const rate = parseRate(req.body[field]);
+            if (rate === null) {
+                return res.status(400).json({
+                    success: false,
+                    message: `${field} must be a number between 0 and 100, to at most two decimals.`,
+                });
+            }
+            updates.push({ key, value: rate });
+        }
+
+        if (!updates.length) {
+            return res.status(400).json({ success: false, message: "Nothing to update" });
+        }
+
+        for (const u of updates) {
+            await db
+                .insert(appConfig)
+                .values({ key: u.key, value: u.value.toFixed(2) })
+                .onConflictDoUpdate({ target: appConfig.key, set: { value: u.value.toFixed(2) } });
+        }
+
+        // Otherwise the next bill run keeps using the old rate for up to a
+        // minute and the screen looks like it did not save.
+        clearRateCache();
+
+        res.json({
+            success: true,
+            updated: Object.fromEntries(updates.map((u) => [u.key, u.value])),
+            notice: updates.some((u) => u.key === "customer_fee_percent")
+                ? "Customer terms clause 8.7 requires seven days' notice to customers before a fee change takes effect."
+                : undefined,
+        });
     } catch (error: any) {
         res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
     }
