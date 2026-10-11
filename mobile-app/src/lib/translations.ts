@@ -410,7 +410,7 @@ export const translations: Record<Language, any> = {
     time: "Time",
     address: "Address",
     close: "Close",
-    welcomeSuffix: ", there!",
+    welcomeSuffix: "!",
     custFeature1: "Browse available milkmen in your area",
     custFeature2: "Place daily orders with ease",
     custFeature3: "Track deliveries in real-time",

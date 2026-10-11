@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.dooodhwala.app",
-      "buildNumber": "34",
+      "buildNumber": "35",
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": false,
       "requireFullScreen": true,
@@ -35,7 +35,7 @@
     },
     "android": {
       "package": "com.dooodhwala.app",
-      "versionCode": 34,
+      "versionCode": 35,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1B67B0",
