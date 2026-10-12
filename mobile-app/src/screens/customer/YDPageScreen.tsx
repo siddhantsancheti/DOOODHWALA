@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, useColorScheme, Modal, TextInput, Image, Dimensions
 } from 'react-native';
 import { X, Heart, ArrowLeft, Clock, Settings, BarChart3, MessageCircle, Phone, Users, Plus, Star, Truck, ShoppingCart, Info, CreditCard, LogOut, Copy, Check, Search, Images, FileText, ChevronRight } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { apiRequest, queryClient } from '../../lib/queryClient';
@@ -671,6 +671,11 @@ export default function YDPageScreen({ navigation }: any) {
 
       {/* Shared Media Gallery (images grid + document list) */}
       <Modal visible={showMediaGallery} animationType="slide" transparent={false} onRequestClose={() => setShowMediaGallery(false)}>
+        {/* A Modal is its own native root, so App.tsx's SafeAreaProvider does
+            not reach inside it and every inset reads zero. Without this the
+            header sits under the status bar and the back arrow lands behind
+            the clock. */}
+        <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
           <View style={[styles.chatHeader, { borderBottomColor: borderColor, backgroundColor: surfaceColor }]}>
             <TouchableOpacity onPress={() => setShowMediaGallery(false)} style={styles.chatBackBtn}>
@@ -713,6 +718,7 @@ export default function YDPageScreen({ navigation }: any) {
             )}
           </ScrollView>
         </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
 
       {/* Group Modal (Create / Join) */}
@@ -814,6 +820,8 @@ export default function YDPageScreen({ navigation }: any) {
 
       {/* Analytics Modal */}
       <Modal visible={showAnalyticsModal} animationType="slide" transparent={false} onRequestClose={() => setShowAnalyticsModal(false)}>
+        {/* Same reason as the media gallery above. */}
+        <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
           <View style={[styles.chatHeader, { borderBottomColor: borderColor, backgroundColor: surfaceColor }]}>
             <TouchableOpacity onPress={() => setShowAnalyticsModal(false)} style={styles.chatBackBtn}>
@@ -824,6 +832,7 @@ export default function YDPageScreen({ navigation }: any) {
           </View>
           {yourDairyman && <AnalyticsComponent milkman={yourDairyman} />}
         </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
 
       {/* Service Request Modal */}

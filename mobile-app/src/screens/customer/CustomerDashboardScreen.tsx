@@ -393,13 +393,12 @@ export default function CustomerDashboardScreen({ navigation }: DashboardProps) 
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity 
+      {/* Same guard as the New Order button: with no dairyman assigned there is
+          no chat to open, and opening one anyway lands the customer in an empty
+          thread headed "Milkman". Send them to pick one instead. */}
+      <TouchableOpacity
         style={styles.floatingChatBtn}
-        onPress={() => navigation.navigate('Chat', { 
-          customerId: profile?.id, 
-          milkmanId: profile?.assignedMilkmanId,
-          initialMode: 'order'
-        })}
+        onPress={handleNewOrderClick}
       >
         <MessageCircle size={24} color="#FFFFFF" />
       </TouchableOpacity>
