@@ -103,6 +103,21 @@ const MessageRow = React.memo(function MessageRow({ msg, isNewDay, isMe, senderN
   );
 });
 
+/**
+ * How a quantity reads in an order message.
+ *
+ * A product's `unit` is how its PRICE is quoted — "per litre" — not how a
+ * quantity reads. Interpolating it directly sent "Order for 2 per litre of
+ * Fresh Milk" to the dairyman on every single order. Strip the "per" and
+ * pluralise, so it reads "2 litres".
+ */
+export function orderLine(qty: number | string, unit?: string | null): string {
+    const noun = String(unit ?? '').trim().replace(/^per\s+/i, '').replace(/\s+/g, ' ').trim().toLowerCase() || 'unit';
+    const n = parseFloat(String(qty));
+    const plural = Number.isFinite(n) && n === 1 ? noun : (/s$/i.test(noun) ? noun : noun + 's');
+    return `${qty} ${plural}`;
+}
+
 export default function ChatComponent({ customerId, milkmanId, embedded = false, navigation }: { customerId: any, milkmanId: any, embedded?: boolean, navigation?: any }) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -269,7 +284,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
       return;
     }
 
-    const orderMessage = `Order for ${orderQuantity} ${selectedProduct.unit || 'unit'} of ${selectedProduct.name}`;
+    const orderMessage = `Order for ${orderLine(orderQuantity, selectedProduct.unit)} of ${selectedProduct.name}`;
     
     sendMessageMutation.mutate({
       customerId, milkmanId,
@@ -304,7 +319,7 @@ export default function ChatComponent({ customerId, milkmanId, embedded = false,
     if (!preset || !preset.items?.length) return;
 
     const item = preset.items[0];
-    const orderMessage = `Order for ${item.quantity} ${item.unit || 'unit'} of ${item.product}`;
+    const orderMessage = `Order for ${orderLine(item.quantity, item.unit)} of ${item.product}`;
     
     sendMessageMutation.mutate({
       customerId, milkmanId,
