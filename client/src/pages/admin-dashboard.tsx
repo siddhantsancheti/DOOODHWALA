@@ -41,6 +41,8 @@ interface DashboardStats {
   weeklyRevenue: number;
   pendingOrders: number;
   activeUsers: number;
+  /** When billing last actually produced a bill, or null if it never has. */
+  lastBillingRun: string | null;
 }
 
 interface User {
@@ -342,7 +344,7 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="milkmen">Milkmen</TabsTrigger>
@@ -830,7 +832,9 @@ export default function AdminDashboard() {
                             <span className="font-medium">Last Run</span>
                           </div>
                           <p className="text-sm text-gray-600 mt-1">
-                            {new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString()}
+                            {stats?.lastBillingRun
+                              ? new Date(stats.lastBillingRun).toLocaleString()
+                              : "No bills generated yet"}
                           </p>
                         </CardContent>
                       </Card>

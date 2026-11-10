@@ -47,6 +47,19 @@ router.get("/stats", async (req, res) => {
             .from(users)
             .where(sql`${users.lastActiveAt} >= ${lastWeekStart.toISOString()}`);
 
+        // When monthly billing last actually produced something.
+        //
+        // The admin screen used to print "the 1st of this month" computed in the
+        // browser, which reported a successful run whether or not one happened —
+        // on a billing screen that is the worst kind of wrong, because the one
+        // month it matters is the month the cron threw and nobody noticed.
+        // The newest bill's timestamp is evidence; a computed date is not.
+        const [lastBill] = await db
+            .select({ at: bills.createdAt })
+            .from(bills)
+            .orderBy(desc(bills.createdAt))
+            .limit(1);
+
         res.json({
             totalUsers,
             totalMilkmen,
@@ -55,7 +68,8 @@ router.get("/stats", async (req, res) => {
             dailyOrders,
             weeklyRevenue: weeklyRevenue || 0,
             pendingOrders: 0, // Simplified for this view
-            activeUsers
+            activeUsers,
+            lastBillingRun: lastBill?.at ?? null,
         });
     } catch (error: any) {
         console.error("Admin stats error:", error);
