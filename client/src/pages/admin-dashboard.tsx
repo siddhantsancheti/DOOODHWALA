@@ -77,6 +77,12 @@ interface Order {
   id: number;
   customerId: number;
   milkmanId: number;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  milkmanName?: string | null;
+  milkmanContact?: string | null;
+  milkmanPhone?: string | null;
   status: string;
   totalAmount: string;
   items: any[];
@@ -86,11 +92,14 @@ interface Order {
 
 interface Payment {
   id: number;
-  orderId: number;
+  /** Null for a bill payment, which has no single order behind it. */
+  orderId: number | null;
   amount: string;
   status: string;
   method: string;
   createdAt: string;
+  customerName?: string | null;
+  customerPhone?: string | null;
 }
 
 export default function AdminDashboard() {
@@ -687,8 +696,31 @@ export default function AdminDashboard() {
                     {orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">#{order.id}</TableCell>
-                        <TableCell>Customer {order.customerId}</TableCell>
-                        <TableCell>Milkman {order.milkmanId}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {order.customerName || `Customer ${order.customerId}`}
+                          </div>
+                          {order.customerPhone && (
+                            <a href={`tel:${order.customerPhone}`} className="text-xs text-blue-600 hover:underline">
+                              {order.customerPhone}
+                            </a>
+                          )}
+                          {order.customerAddress && (
+                            <div className="text-xs text-gray-500 max-w-[220px] truncate" title={order.customerAddress}>
+                              {order.customerAddress}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {order.milkmanName || `Milkman ${order.milkmanId}`}
+                          </div>
+                          {order.milkmanPhone && (
+                            <a href={`tel:${order.milkmanPhone}`} className="text-xs text-blue-600 hover:underline">
+                              {order.milkmanPhone}
+                            </a>
+                          )}
+                        </TableCell>
                         <TableCell>₹{order.totalAmount}</TableCell>
                         <TableCell>
                           <Badge
@@ -736,6 +768,7 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableHead>Payment ID</TableHead>
                       <TableHead>Order ID</TableHead>
+                      <TableHead>Customer</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead>Status</TableHead>
@@ -746,7 +779,15 @@ export default function AdminDashboard() {
                     {payments.map((payment) => (
                       <TableRow key={payment.id}>
                         <TableCell className="font-medium">#{payment.id}</TableCell>
-                        <TableCell>#{payment.orderId}</TableCell>
+                        <TableCell>{payment.orderId ? `#${payment.orderId}` : '—'}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{payment.customerName || '—'}</div>
+                          {payment.customerPhone && (
+                            <a href={`tel:${payment.customerPhone}`} className="text-xs text-blue-600 hover:underline">
+                              {payment.customerPhone}
+                            </a>
+                          )}
+                        </TableCell>
                         <TableCell>₹{payment.amount}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{payment.method}</Badge>

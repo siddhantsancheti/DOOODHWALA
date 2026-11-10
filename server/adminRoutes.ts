@@ -287,9 +287,42 @@ router.get("/milkmen", async (req, res) => {
 });
 
 // GET /api/admin/orders
+/**
+ * GET /api/admin/orders
+ *
+ * Orders with the people on them, not just their ids.
+ *
+ * This used to return bare rows, so the screen showed "Customer 4" and
+ * "Milkman 1". When a customer rings up about a delivery there is nothing to
+ * match them on — not a name, not the number they are calling from — which
+ * made the one job this screen exists for impossible.
+ */
 router.get("/orders", async (req, res) => {
     try {
-        const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(100);
+        const allOrders = await db
+            .select({
+                id: orders.id,
+                customerId: orders.customerId,
+                milkmanId: orders.milkmanId,
+                quantity: orders.quantity,
+                totalAmount: orders.totalAmount,
+                status: orders.status,
+                deliveryDate: orders.deliveryDate,
+                deliveredAt: orders.deliveredAt,
+                specialInstructions: orders.specialInstructions,
+                createdAt: orders.createdAt,
+                customerName: customers.name,
+                customerPhone: customers.phone,
+                customerAddress: customers.address,
+                milkmanName: milkmen.businessName,
+                milkmanContact: milkmen.contactName,
+                milkmanPhone: milkmen.phone,
+            })
+            .from(orders)
+            .leftJoin(customers, eq(customers.id, orders.customerId))
+            .leftJoin(milkmen, eq(milkmen.id, orders.milkmanId))
+            .orderBy(desc(orders.createdAt))
+            .limit(100);
         res.json(allOrders);
     } catch (error: any) {
         res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
@@ -299,7 +332,24 @@ router.get("/orders", async (req, res) => {
 // GET /api/admin/payments
 router.get("/payments", async (req, res) => {
     try {
-        const allPayments = await db.select().from(payments).orderBy(desc(payments.createdAt)).limit(100);
+        // Named, for the same reason the orders list is: a payment query starts
+        // with a person on the phone. Joined on the payment's own customerId,
+        // not through the order — a bill payment has no order behind it.
+        const allPayments = await db
+            .select({
+                id: payments.id,
+                orderId: payments.orderId,
+                amount: payments.amount,
+                method: payments.paymentMethod,
+                status: payments.status,
+                createdAt: payments.createdAt,
+                customerName: customers.name,
+                customerPhone: customers.phone,
+            })
+            .from(payments)
+            .leftJoin(customers, eq(customers.id, payments.customerId))
+            .orderBy(desc(payments.createdAt))
+            .limit(100);
         res.json(allPayments);
     } catch (error: any) {
         res.status(500).json({ success: false, message: "Server error", error: process.env.NODE_ENV === 'development' ? error.message : undefined });
