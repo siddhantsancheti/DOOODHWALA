@@ -2,7 +2,7 @@
   "expo": {
     "name": "DOOODHWALA",
     "slug": "mobile-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.dooodhwala.app",
-      "buildNumber": "36",
+      "buildNumber": "37",
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": false,
       "requireFullScreen": true,
@@ -35,7 +35,7 @@
     },
     "android": {
       "package": "com.dooodhwala.app",
-      "versionCode": 36,
+      "versionCode": 37,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#1B67B0",
